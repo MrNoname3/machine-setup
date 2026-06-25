@@ -4,7 +4,7 @@
 # Packages to ensure are installed (used by the base role).
 packages_present:
   - git
-  - keepassxc
+  # keepassxc will be added when the keyring role is built
 
 # Packages to ensure are removed. Keep entries here permanently so fresh
 # installs stay clean. Never list a package in both lists.

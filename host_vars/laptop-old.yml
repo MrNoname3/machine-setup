@@ -4,9 +4,14 @@
 # Roles to apply on this host (the "switch" for site.yml).
 roles_enabled:
   - base
-  - luks-unlock
-  - keyring
-  - graphics
+# Built incrementally; uncomment each as it gets implemented:
+#  - ssh-access
+#  - luks-unlock
+#  - keyring
+#  - graphics
+
+# The primary login user (used for sudo, SSH key, ownership, ...).
+primary_user: REDACTED
 
 # --- LUKS / storage (fill in after install) ---
 # luks_root_uuid: ""          # crypto_LUKS partition UUID on the SSD
