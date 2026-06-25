@@ -1,0 +1,28 @@
+---
+# keyring role: use KeePassXC as the system keyring and SSH agent.
+#
+# TODO: implement the design from the plan:
+#
+# 1. Disable the gnome-keyring Secret Service component so KeePassXC can own
+#    org.freedesktop.secrets (only one provider may be active at a time).
+#
+# 2. Autostart KeePassXC (tray, "open previous databases on startup").
+#
+# 3. Two-database layout:
+#    - DB-A "system keyring": exposes a group over the Secret Service API;
+#      key-file-only, auto-unlocks at login; keyfile stored on the encrypted root.
+#      Holds only non-sensitive system secrets (Wi-Fi, app tokens).
+#    - DB-B "passwords": personal passwords + browser integration + SSH keys;
+#      password-protected, unlocked manually only.
+#
+# 4. SSH agent integration enabled; SSH keys live in DB-B and are removed from
+#    the agent when the database is locked. ~/.ssh/config aliases work unchanged.
+#
+# Note: user-level dotfiles (KeePassXC config, ~/.ssh/config) are better managed
+# with chezmoi/stow than with this system-level role.
+#
+# See: memory/old-laptop-linux-plan.md
+
+- name: keyring role not yet implemented
+  ansible.builtin.debug:
+    msg: "TODO: KeePassXC Secret Service + SSH agent; disable gnome-keyring secrets."

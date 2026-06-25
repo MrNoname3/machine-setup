@@ -1,0 +1,27 @@
+---
+# graphics role: NVIDIA GT 520M (Fermi) + Intel HD 3000 on an Optimus laptop.
+# Laptop-only.
+#
+# TODO: implement the approach from the plan:
+#
+# 1. Default to nouveau (open driver) for the NVIDIA card; the Intel iGPU
+#    (crocus) drives the display and everything desktop.
+#
+# 2. nouveau manual reclocking systemd service (Fermi is the last gen that
+#    supports manual reclocking): write the highest pstate to
+#    /sys/kernel/debug/dri/<N>/pstate at boot to recover most of the performance.
+#
+# 3. PRIME render offload for games (DRI_PRIME=1) onto the NVIDIA card.
+#
+# 4. Fall back to the proprietary nvidia-390 legacy driver only if a heavy title
+#    is unplayable on reclocked nouveau (note: 390 is frozen and breaks on new
+#    kernels — avoid unless necessary).
+#
+# Reminder: no Vulkan on this hardware, so DXVK is unavailable; run Windows games
+# via wined3d (Steam Proton with PROTON_USE_WINED3D=1, or Lutris/Wine).
+#
+# See: memory/old-laptop-linux-plan.md
+
+- name: graphics role not yet implemented
+  ansible.builtin.debug:
+    msg: "TODO: nouveau reclocking service + PRIME offload (laptop only)."

@@ -1,0 +1,22 @@
+---
+# Base role: package management and common configuration.
+# apt tasks are guarded so this role is safe to include on non-Debian hosts
+# (e.g. the immutable Bazzite desktop, which uses rpm-ostree instead).
+
+- name: Install packages (apt)
+  ansible.builtin.apt:
+    name: "{{ packages_present }}"
+    state: present
+    update_cache: true
+  when:
+    - ansible_os_family == "Debian"
+    - packages_present | length > 0
+
+- name: Remove packages (apt)
+  ansible.builtin.apt:
+    name: "{{ packages_absent }}"
+    state: absent
+    purge: true
+  when:
+    - ansible_os_family == "Debian"
+    - packages_absent | length > 0

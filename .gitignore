@@ -1,0 +1,12 @@
+# Secrets — never commit these to a repo readable from Gitea.
+*.key
+*.keyfile
+*.pem
+id_rsa*
+id_ed25519*
+*.kdbx
+secrets.yml
+*vault*
+
+# Ansible runtime noise
+*.retry

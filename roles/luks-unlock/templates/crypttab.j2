@@ -1,0 +1,11 @@
+# /etc/crypttab — managed by the luks-unlock role. Do not edit by hand.
+# Format: <name> <source device> <key> <options>
+#
+# TODO: fill in real UUIDs from host_vars (luks_root_uuid, luks_hdd_uuid,
+# unlock_pendrive_uuid). Example shape only:
+#
+# Root device: pendrive keyfile with passphrase fallback (passdev, 10s timeout)
+# luksroot UUID={{ luks_root_uuid | default("CHANGE-ME") }} /dev/disk/by-uuid/{{ unlock_pendrive_uuid | default("CHANGE-ME") }}:/secret.key:10 luks,keyscript=/lib/cryptsetup/scripts/passdev
+#
+# Secondary HDD: keyfile on the encrypted root (not boot-critical)
+# data_hdd UUID={{ luks_hdd_uuid | default("CHANGE-ME") }} /etc/cryptkey/hdd.key luks

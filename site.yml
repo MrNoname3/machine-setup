@@ -1,0 +1,15 @@
+---
+# Maps each host to its enabled roles.
+# A role runs only if it is listed in the host's `roles_enabled` (see host_vars/).
+- name: Configure machine
+  hosts: all
+  become: true # escalate with sudo only for tasks that need root
+  roles:
+    - role: base
+      when: "'base' in (roles_enabled | default([]))"
+    - role: luks-unlock
+      when: "'luks-unlock' in (roles_enabled | default([]))"
+    - role: keyring
+      when: "'keyring' in (roles_enabled | default([]))"
+    - role: graphics
+      when: "'graphics' in (roles_enabled | default([]))"

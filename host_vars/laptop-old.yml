@@ -1,0 +1,14 @@
+---
+# Per-host settings for laptop-old.
+
+# Roles to apply on this host (the "switch" for site.yml).
+roles_enabled:
+  - base
+  - luks-unlock
+  - keyring
+  - graphics
+
+# --- LUKS / storage (fill in after install) ---
+# luks_root_uuid: ""          # crypto_LUKS partition UUID on the SSD
+# luks_hdd_uuid: ""           # crypto_LUKS partition UUID on the secondary HDD
+# unlock_pendrive_uuid: ""    # filesystem UUID of the home unlock pendrive

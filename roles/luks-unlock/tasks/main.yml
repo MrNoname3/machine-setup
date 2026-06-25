@@ -1,0 +1,28 @@
+---
+# luks-unlock role: additional LUKS unlock methods beyond the install passphrase.
+# All steps are reversible. Secrets (keyfiles) are never stored in this repo.
+#
+# TODO: implement the unlock methods discussed in the plan:
+#
+# 1. Pendrive keyfile (home-only auto-unlock of the root device)
+#    - keyfile lives on the pendrive; added with `cryptsetup luksAddKey`
+#    - /etc/crypttab uses the `passdev` keyscript with a timeout, falling back
+#      to the passphrase prompt when the pendrive is absent
+#    - rebuild initramfs afterwards (update-initramfs -u)
+#
+# 2. dropbear-initramfs (remote unlock over SSH at boot)
+#    - install dropbear-initramfs; add an SSH public key to its authorized_keys
+#    - set ip=dhcp on the kernel cmdline; wired ethernet via the dock is ideal
+#    - unlock at boot with `cryptroot-unlock` over SSH
+#    - fully removable: purge package + remove config + update-initramfs -u -k all
+#
+# 3. Secondary HDD auto-unlock via a keyfile on the (encrypted) root
+#    - keyfile at /etc/cryptkey/hdd.key (0400), added with `cryptsetup luksAddKey`
+#    - referenced in /etc/crypttab (NOT in initramfs; not boot-critical)
+#    - HDD unlocks automatically after root is mounted; add a fallback passphrase
+#
+# See: roles/luks-unlock/templates/crypttab.j2 and memory/old-laptop-linux-plan.md
+
+- name: luks-unlock role not yet implemented
+  ansible.builtin.debug:
+    msg: "TODO: implement LUKS unlock methods (pendrive keyfile, dropbear, HDD keyfile)."
