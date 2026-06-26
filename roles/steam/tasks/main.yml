@@ -1,0 +1,25 @@
+---
+# steam role: install Steam (needs i386 multiarch, already enabled) and
+# autostart it minimised to the tray on login.
+
+- name: Install Steam
+  ansible.builtin.apt:
+    name: steam-installer
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Autostart Steam on login (silent / tray)
+  ansible.builtin.copy:
+    dest: "/home/{{ primary_user }}/.config/autostart/steam.desktop"
+    mode: "0644"
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name=Steam
+      Exec=steam -silent
+      Categories=Game;
+      X-GNOME-Autostart-enabled=true
+      Hidden=false
+  become: false
+  when: ansible_os_family == "Debian"

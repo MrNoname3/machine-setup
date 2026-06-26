@@ -7,6 +7,8 @@ roles_enabled:
   - ssh-access
   - brave
   - synology-drive
+  - steam
+  - vscode
 # Built incrementally; uncomment each as it gets implemented:
 #  - luks-unlock
 #  - keyring

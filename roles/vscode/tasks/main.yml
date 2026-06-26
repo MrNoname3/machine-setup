@@ -1,0 +1,64 @@
+---
+# vscode role: install VS Code from the Microsoft apt repo, deploy the user's
+# settings, and install the desktop's extension set (idempotently).
+
+- name: Ensure apt keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  when: ansible_os_family == "Debian"
+
+- name: Download the Microsoft signing key
+  ansible.builtin.get_url:
+    url: https://packages.microsoft.com/keys/microsoft.asc
+    dest: /etc/apt/keyrings/microsoft.asc
+    mode: "0644"
+  when: ansible_os_family == "Debian"
+
+- name: Dearmor the Microsoft signing key
+  ansible.builtin.command:
+    cmd: gpg --dearmor --yes -o /usr/share/keyrings/microsoft-vscode.gpg /etc/apt/keyrings/microsoft.asc
+    creates: /usr/share/keyrings/microsoft-vscode.gpg
+  when: ansible_os_family == "Debian"
+
+- name: Add the VS Code apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64,arm64,armhf signed-by=/usr/share/keyrings/microsoft-vscode.gpg] https://packages.microsoft.com/repos/code stable main"
+    filename: vscode
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Install VS Code
+  ansible.builtin.apt:
+    name: code
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Ensure the VS Code user config directory exists
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.config/Code/User"
+    state: directory
+    mode: "0755"
+  become: false
+
+- name: Deploy VS Code user settings
+  ansible.builtin.copy:
+    src: settings.json
+    dest: "/home/{{ primary_user }}/.config/Code/User/settings.json"
+    mode: "0644"
+  become: false
+
+- name: List installed VS Code extensions
+  ansible.builtin.command: code --list-extensions
+  become: false
+  changed_when: false
+  register: vscode_installed
+
+- name: Install VS Code extensions
+  ansible.builtin.command: "code --install-extension {{ item }}"
+  become: false
+  loop: "{{ vscode_extensions }}"
+  when: item not in vscode_installed.stdout_lines
+  changed_when: true

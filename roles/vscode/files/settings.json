@@ -1,0 +1,12 @@
+{
+    "diffEditor.renderSideBySide": true,
+    "git.confirmSync": false,
+    "chat.viewSessions.orientation": "stacked",
+    "chat.disableAIFeatures": true,
+    "editor.renderWhitespace": "all",
+    "workbench.colorTheme": "Dark Modern",
+    "claudeCode.preferredLocation": "panel",
+    "diffEditor.ignoreTrimWhitespace": false,
+    "extensions.ignoreRecommendations": true,
+    "python.analysis.typeCheckingMode": "strict"
+}
