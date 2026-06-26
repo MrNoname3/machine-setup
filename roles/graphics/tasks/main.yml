@@ -1,27 +1,20 @@
 ---
-# graphics role: NVIDIA GT 520M (Fermi) + Intel HD 3000 on an Optimus laptop.
-# Laptop-only.
+# graphics role: NVIDIA GT 520M (Fermi) + Intel HD 3000, Optimus laptop.
 #
-# TODO: implement the approach from the plan:
-#
-# 1. Default to nouveau (open driver) for the NVIDIA card; the Intel iGPU
-#    (crocus) drives the display and everything desktop.
-#
-# 2. nouveau manual reclocking systemd service (Fermi is the last gen that
-#    supports manual reclocking): write the highest pstate to
-#    /sys/kernel/debug/dri/<N>/pstate at boot to recover most of the performance.
-#
-# 3. PRIME render offload for games (DRI_PRIME=1) onto the NVIDIA card.
-#
-# 4. Fall back to the proprietary nvidia-390 legacy driver only if a heavy title
-#    is unplayable on reclocked nouveau (note: 390 is frozen and breaks on new
-#    kernels — avoid unless necessary).
-#
-# Reminder: no Vulkan on this hardware, so DXVK is unavailable; run Windows games
-# via wined3d (Steam Proton with PROTON_USE_WINED3D=1, or Lutris/Wine).
-#
-# See: memory/old-laptop-linux-plan.md
+# Implemented: disable the phantom NVIDIA VGA output. The dGPU's analog VGA
+# connector is not physically routed, so it floats and is wrongly reported
+# "connected", making the desktop extend onto a non-existent monitor. Force it
+# off at the kernel level via the GRUB cmdline (video=VGA-1:d).
 
-- name: graphics role not yet implemented
-  ansible.builtin.debug:
-    msg: "TODO: nouveau reclocking service + PRIME offload (laptop only)."
+- name: Disable the phantom NVIDIA VGA output via the kernel cmdline
+  ansible.builtin.replace:
+    path: /etc/default/grub
+    regexp: '^(GRUB_CMDLINE_LINUX_DEFAULT="(?!.*video=VGA-1:d).*?)"$'
+    replace: '\1 video=VGA-1:d"'
+  notify: Update grub
+  when: ansible_os_family == "Debian"
+
+# --- TODO (later) ---
+# - nouveau manual reclocking systemd service (Fermi pstate) for performance
+# - PRIME render offload helpers (DRI_PRIME=1) for games
+# See: memory/old-laptop-linux-plan.md

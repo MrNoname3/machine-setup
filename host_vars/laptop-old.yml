@@ -10,9 +10,9 @@ roles_enabled:
   - steam
   - vscode
   - luks-unlock
+  - graphics
 # Built incrementally; uncomment each as it gets implemented:
 #  - keyring
-#  - graphics
 
 # The primary login user (used for sudo, SSH key, ownership, ...).
 primary_user: REDACTED
