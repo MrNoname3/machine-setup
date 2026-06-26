@@ -20,6 +20,13 @@ primary_user: REDACTED
 # Hardened SSH port (socket activation is disabled so this takes effect).
 ssh_port: REDACTED
 
+# Static IP for the initramfs dropbear unlock. DHCP in the initramfs gets a
+# DIFFERENT address than the booted system, so we pin it (matches laptop-unlock).
+unlock_ip: REDACTED
+unlock_gw: REDACTED
+unlock_netmask: 255.255.255.0
+unlock_device: enx000ec6c0eca3   # the dock's USB ethernet adapter
+
 # --- LUKS / storage (fill in after install) ---
 # luks_root_uuid: ""          # crypto_LUKS partition UUID on the SSD
 # luks_hdd_uuid: ""           # crypto_LUKS partition UUID on the secondary HDD

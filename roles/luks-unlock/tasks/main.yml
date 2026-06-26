@@ -45,11 +45,14 @@
     - ax88179_178a
   notify: Rebuild initramfs
 
-- name: Enable initramfs networking (DHCP) via the kernel cmdline
-  ansible.builtin.replace:
+- name: Pin a static IP for the initramfs (dropbear) via the kernel cmdline
+  # DHCP in the initramfs gets a different IP than the booted system, so the
+  # unlock host is unreachable at the expected address. A static IP is
+  # deterministic and avoids waiting on DHCP over the slow USB link.
+  ansible.builtin.lineinfile:
     path: /etc/default/grub
-    regexp: '^(GRUB_CMDLINE_LINUX="(?!.*ip=dhcp).*?)"$'
-    replace: '\1ip=dhcp"'
+    regexp: '^GRUB_CMDLINE_LINUX='
+    line: 'GRUB_CMDLINE_LINUX="ip={{ unlock_ip }}::{{ unlock_gw }}:{{ unlock_netmask }}::{{ unlock_device }}:off"'
   notify: Update grub
   when: ansible_os_family == "Debian"
 
