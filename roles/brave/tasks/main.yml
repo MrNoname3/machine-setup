@@ -24,3 +24,16 @@
   ansible.builtin.apt:
     name: brave-browser
     state: present
+
+- name: Ensure the Brave managed-policy directory exists
+  ansible.builtin.file:
+    path: /etc/brave/policies/managed
+    state: directory
+    mode: "0755"
+
+- name: Deploy Brave managed policies
+  ansible.builtin.copy:
+    dest: /etc/brave/policies/managed/brave.json
+    content: "{{ brave_policies | to_nice_json }}"
+    mode: "0644"
+    validate: "python3 -m json.tool %s"

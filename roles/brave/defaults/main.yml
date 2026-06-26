@@ -1,0 +1,24 @@
+---
+# Brave managed policies — mirror the desktop's NON-syncing settings.
+# Deployed to /etc/brave/policies/managed/brave.json: enforced, update-safe,
+# and idempotent (we manage only this file, never Brave's Preferences).
+# Verify the applied result in the browser at brave://policy.
+brave_policies:
+  # Default search engine
+  DefaultSearchProviderEnabled: true
+  DefaultSearchProviderName: DuckDuckGo
+  DefaultSearchProviderSearchURL: "https://duckduckgo.com/?q={searchTerms}"
+  DefaultSearchProviderSuggestURL: "https://ac.duckduckgo.com/ac/?q={searchTerms}&type=list"
+
+  # Privacy
+  MetricsReportingEnabled: false
+  BackgroundModeEnabled: false
+  ClearBrowsingDataOnExitList:
+    - browsing_history
+    - download_history
+
+  # Debloat — fully disabled. Tor is intentionally left untouched (user uses it).
+  BraveRewardsDisabled: true
+  BraveWalletDisabled: true
+  BraveVPNDisabled: true
+  BraveAIChatEnabled: false
