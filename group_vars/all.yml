@@ -6,7 +6,9 @@ packages_present:
   - git
   - htop
   - vlc
-  # keepassxc will be added when the keyring role is built
+  - kate
+  - keepassxc
+  - meld
 
 # Packages to ensure are removed. Keep entries here permanently so fresh
 # installs stay clean. Never list a package in both lists.
