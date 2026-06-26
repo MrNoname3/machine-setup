@@ -9,8 +9,8 @@ roles_enabled:
   - synology-drive
   - steam
   - vscode
+  - luks-unlock
 # Built incrementally; uncomment each as it gets implemented:
-#  - luks-unlock
 #  - keyring
 #  - graphics
 
