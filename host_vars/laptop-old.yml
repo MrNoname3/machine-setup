@@ -4,8 +4,9 @@
 # Roles to apply on this host (the "switch" for site.yml).
 roles_enabled:
   - base
+  - ssh-access
+  - brave
 # Built incrementally; uncomment each as it gets implemented:
-#  - ssh-access
 #  - luks-unlock
 #  - keyring
 #  - graphics

@@ -1,0 +1,21 @@
+---
+# ssh-access role: OpenSSH server + authorized key for the primary user.
+# This codifies the access we set up by hand via the pendrive setup_ssh.sh.
+
+- name: Install OpenSSH server
+  ansible.builtin.apt:
+    name: openssh-server
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Enable and start the SSH service
+  ansible.builtin.service:
+    name: ssh
+    enabled: true
+    state: started
+
+- name: Authorize the SSH public key for the primary user
+  ansible.posix.authorized_key:
+    user: "{{ primary_user }}"
+    key: "{{ lookup('file', 'laptop.pub') }}"
+    state: present

@@ -1,0 +1,26 @@
+---
+# brave role: install the Brave browser from its official apt repository.
+# Idempotent translation of the vendor's documented setup steps.
+
+- name: Download the Brave apt signing key
+  ansible.builtin.get_url:
+    url: https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+    dest: /usr/share/keyrings/brave-browser-archive-keyring.gpg
+    mode: "0644"
+
+- name: Add the Brave apt repository
+  ansible.builtin.get_url:
+    url: https://brave-browser-apt-release.s3.brave.com/brave-browser.sources
+    dest: /etc/apt/sources.list.d/brave-browser-release.sources
+    mode: "0644"
+  register: brave_repo
+
+- name: Update apt cache after adding the Brave repository
+  ansible.builtin.apt:
+    update_cache: true
+  when: brave_repo.changed
+
+- name: Install the Brave browser
+  ansible.builtin.apt:
+    name: brave-browser
+    state: present
