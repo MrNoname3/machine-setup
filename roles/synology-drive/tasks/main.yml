@@ -1,0 +1,16 @@
+---
+# synology-drive role: install the official Synology Drive Client .deb
+# (not available in apt). Idempotent: get_url caches the file, and apt only
+# installs if the package/version is not already present.
+
+- name: Download the Synology Drive Client .deb
+  ansible.builtin.get_url:
+    url: "{{ synology_drive_url }}"
+    dest: "/var/cache/synology-drive-client-{{ synology_drive_build }}.deb"
+    mode: "0644"
+  when: ansible_os_family == "Debian"
+
+- name: Install the Synology Drive Client
+  ansible.builtin.apt:
+    deb: "/var/cache/synology-drive-client-{{ synology_drive_build }}.deb"
+  when: ansible_os_family == "Debian"

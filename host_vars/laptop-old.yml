@@ -6,6 +6,7 @@ roles_enabled:
   - base
   - ssh-access
   - brave
+  - synology-drive
 # Built incrementally; uncomment each as it gets implemented:
 #  - luks-unlock
 #  - keyring

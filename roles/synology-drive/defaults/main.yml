@@ -1,0 +1,8 @@
+---
+# Synology Drive Client is distributed only as a vendor .deb (not in apt).
+# To update: pick the latest from
+#   https://archive.synology.com/download/Utility/SynologyDriveClient
+# and bump version + build below (the URL is derived from them).
+synology_drive_version: "4.0.3-17892"
+synology_drive_build: "17892"
+synology_drive_url: "https://global.synologydownload.com/download/Utility/SynologyDriveClient/{{ synology_drive_version }}/Ubuntu/Installer/synology-drive-client-{{ synology_drive_build }}.x86_64.deb"

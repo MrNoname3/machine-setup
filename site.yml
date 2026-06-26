@@ -11,6 +11,8 @@
       when: "'ssh-access' in (roles_enabled | default([]))"
     - role: brave
       when: "'brave' in (roles_enabled | default([]))"
+    - role: synology-drive
+      when: "'synology-drive' in (roles_enabled | default([]))"
     - role: luks-unlock
       when: "'luks-unlock' in (roles_enabled | default([]))"
     - role: keyring
