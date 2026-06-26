@@ -38,7 +38,7 @@
     mode: "0644"
     validate: "python3 -m json.tool %s"
 
-- name: Set Brave as the default web browser (user MIME associations)
+- name: Set Brave as the default handler for web pages and PDFs (user MIME associations)
   community.general.ini_file:
     path: "/home/{{ primary_user }}/.config/mimeapps.list"
     section: Default Applications
@@ -53,3 +53,4 @@
     - text/html
     - x-scheme-handler/about
     - x-scheme-handler/unknown
+    - application/pdf
