@@ -1,6 +1,8 @@
 ---
-# ssh-access role: OpenSSH server + authorized key for the primary user.
-# This codifies the access we set up by hand via the pendrive setup_ssh.sh.
+# ssh-access role: OpenSSH server, authorized key, and hardening.
+# Codifies the access we set up by hand, plus key-only login, no root login,
+# and a custom port. On Ubuntu 24.04 / Mint 22 sshd is socket-activated, so the
+# Port directive is ignored until we disable ssh.socket and use ssh.service.
 
 - name: Install OpenSSH server
   ansible.builtin.apt:
@@ -8,14 +10,37 @@
     state: present
   when: ansible_os_family == "Debian"
 
-- name: Enable and start the SSH service
-  ansible.builtin.service:
-    name: ssh
-    enabled: true
-    state: started
-
 - name: Authorize the SSH public key for the primary user
   ansible.posix.authorized_key:
     user: "{{ primary_user }}"
     key: "{{ lookup('file', 'laptop.pub') }}"
     state: present
+
+- name: Apply SSH hardening + custom port (drop-in)
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/99-hardening.conf
+    mode: "0644"
+    content: |
+      # Managed by Ansible (ssh-access role)
+      Port {{ ssh_port }}
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PubkeyAuthentication yes
+  notify: Restart ssh service
+
+- name: Validate the sshd configuration
+  ansible.builtin.command: sshd -t
+  changed_when: false
+
+- name: Disable ssh socket activation (so the Port directive controls the listener)
+  ansible.builtin.systemd_service:
+    name: ssh.socket
+    enabled: false
+    state: stopped
+
+- name: Ensure ssh.service is enabled and running
+  ansible.builtin.systemd_service:
+    name: ssh.service
+    enabled: true
+    state: started

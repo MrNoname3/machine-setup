@@ -14,6 +14,9 @@ roles_enabled:
 # The primary login user (used for sudo, SSH key, ownership, ...).
 primary_user: REDACTED
 
+# Hardened SSH port (socket activation is disabled so this takes effect).
+ssh_port: REDACTED
+
 # --- LUKS / storage (fill in after install) ---
 # luks_root_uuid: ""          # crypto_LUKS partition UUID on the SSD
 # luks_hdd_uuid: ""           # crypto_LUKS partition UUID on the secondary HDD
