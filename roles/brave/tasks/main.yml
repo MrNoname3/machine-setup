@@ -40,7 +40,7 @@
 
 - name: Set Brave as the default web browser (user MIME associations)
   community.general.ini_file:
-    path: "{{ ansible_user_dir }}/.config/mimeapps.list"
+    path: "/home/{{ primary_user }}/.config/mimeapps.list"
     section: Default Applications
     option: "{{ item }}"
     value: brave-browser.desktop
