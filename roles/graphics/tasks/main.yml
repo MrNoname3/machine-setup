@@ -1,16 +1,22 @@
 ---
 # graphics role: NVIDIA GT 520M (Fermi) + Intel HD 3000, Optimus laptop.
 #
-# Implemented: disable the phantom NVIDIA VGA output. The dGPU's analog VGA
-# connector is not physically routed, so it floats and is wrongly reported
-# "connected", making the desktop extend onto a non-existent monitor. Force it
-# off at the kernel level via the GRUB cmdline (video=VGA-1:d).
+# Implemented: kill the phantom VGA display. An unrouted analog VGA connector
+# floats and is wrongly reported "connected", making the desktop extend onto a
+# non-existent 1024x768 monitor. Because the DRM card enumeration order swaps
+# between boots (nouveau <-> i915), the ghost appears on either VGA-1 or VGA-2,
+# so we disable BOTH VGA outputs at the kernel level.
+# NOTE: this also disables the laptop's physical VGA port for real monitors;
+# remove the relevant video=...:d if you ever need to drive a VGA display.
 
-- name: Disable the phantom NVIDIA VGA output via the kernel cmdline
+- name: Disable phantom VGA outputs via the kernel cmdline (both GPUs)
   ansible.builtin.replace:
     path: /etc/default/grub
-    regexp: '^(GRUB_CMDLINE_LINUX_DEFAULT="(?!.*video=VGA-1:d).*?)"$'
-    replace: '\1 video=VGA-1:d"'
+    regexp: '^(GRUB_CMDLINE_LINUX_DEFAULT="(?!.*{{ item | regex_escape }}).*?)"$'
+    replace: '\1 {{ item }}"'
+  loop:
+    - "video=VGA-1:d"
+    - "video=VGA-2:d"
   notify: Update grub
   when: ansible_os_family == "Debian"
 
