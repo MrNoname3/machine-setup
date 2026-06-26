@@ -1,7 +1,26 @@
 ---
 # synology-drive role: install the official Synology Drive Client .deb
-# (not available in apt). Idempotent: get_url caches the file, and apt only
-# installs if the package/version is not already present.
+# (not available in apt). The latest version is discovered at runtime from the
+# Synology archive, falling back to the pinned default in defaults/main.yml.
+# Idempotent: get_url caches the file, apt only installs a new version.
+
+- name: Discover the latest Synology Drive Client version from the archive
+  ansible.builtin.uri:
+    url: https://archive.synology.com/download/Utility/SynologyDriveClient
+    return_content: true
+  register: syno_archive
+  failed_when: false
+  when: ansible_os_family == "Debian"
+
+- name: Select the newest version and build (falls back to the pinned default)
+  ansible.builtin.set_fact:
+    synology_drive_version: "{{ _vers | community.general.version_sort | last }}"
+    synology_drive_build: "{{ (_vers | community.general.version_sort | last).split('-')[1] }}"
+  vars:
+    _vers: "{{ (syno_archive.content | default('')) | regex_findall('SynologyDriveClient/([0-9.]+-[0-9]+)') | unique }}"
+  when:
+    - ansible_os_family == "Debian"
+    - _vers | length > 0
 
 - name: Download the Synology Drive Client .deb
   ansible.builtin.get_url:
@@ -13,4 +32,19 @@
 - name: Install the Synology Drive Client
   ansible.builtin.apt:
     deb: "/var/cache/synology-drive-client-{{ synology_drive_build }}.deb"
+  when: ansible_os_family == "Debian"
+
+- name: Autostart Synology Drive Client on login
+  ansible.builtin.copy:
+    dest: "/home/{{ primary_user }}/.config/autostart/synology-drive.desktop"
+    mode: "0644"
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name=Synology Drive Client
+      Exec=synology-drive start
+      Categories=Network;FileTransfer;
+      X-GNOME-Autostart-enabled=true
+      Hidden=false
+  become: false
   when: ansible_os_family == "Debian"
