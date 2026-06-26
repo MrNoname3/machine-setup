@@ -37,3 +37,19 @@
     content: "{{ brave_policies | to_nice_json }}"
     mode: "0644"
     validate: "python3 -m json.tool %s"
+
+- name: Set Brave as the default web browser (user MIME associations)
+  community.general.ini_file:
+    path: "{{ ansible_user_dir }}/.config/mimeapps.list"
+    section: Default Applications
+    option: "{{ item }}"
+    value: brave-browser.desktop
+    mode: "0644"
+    no_extra_spaces: true
+  become: false
+  loop:
+    - x-scheme-handler/http
+    - x-scheme-handler/https
+    - text/html
+    - x-scheme-handler/about
+    - x-scheme-handler/unknown
