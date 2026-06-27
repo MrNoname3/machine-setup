@@ -69,3 +69,21 @@
       Open Synology Drive, log in, pick the sync folder, and WAIT for the
       initial sync to finish. Press Enter to continue once it is done.
   when: not syno_sync.stat.exists
+
+# --- Synology subfolder bind mounts (mirror the desktop's /etc/fstab) ------
+# Map the synced Synology subfolders onto the home XDG dirs. The home dirs must
+# be empty (a bind hides any existing content). Idempotent: ansible.posix.mount
+# manages the fstab entry and mounts it now.
+- name: Bind-mount Synology Drive subfolders onto the home directories
+  ansible.posix.mount:
+    src: "{{ synology_home }}/{{ item.src }}"
+    path: "{{ synology_home }}/{{ item.path }}"
+    fstype: none
+    opts: bind,nofail
+    state: mounted
+  loop: "{{ synology_binds }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when:
+    - ansible_os_family == "Debian"
+    - syno_sync.stat.exists
