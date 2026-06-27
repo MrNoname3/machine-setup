@@ -42,3 +42,14 @@ packages_absent:
   - neofetch                    # cosmetic system-info printer
   - thingy                      # Mint document manager
   - mintchat                    # Mint community chat integration
+  # Apple iOS device support (no Apple devices) + Mint welcome + char map
+  - ideviceinstaller
+  - ifuse
+  - mintwelcome
+  - gucharmap
+  # Legacy network clients
+  - telnet
+  - inetutils-telnet
+  - ftp
+  - tnftp
+  - rdate
