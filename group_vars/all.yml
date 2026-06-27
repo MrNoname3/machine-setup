@@ -12,4 +12,28 @@ packages_present:
 
 # Packages to ensure are removed. Keep entries here permanently so fresh
 # installs stay clean. Never list a package in both lists.
-packages_absent: []
+packages_absent:
+  # Browser / mail — using Brave + webmail
+  - firefox
+  - firefox-locale-en
+  - thunderbird
+  - thunderbird-locale-en
+  - thunderbird-locale-en-us
+  # Redundant / unused Mint default apps
+  - celluloid                   # Mint video player (VLC is the default now)
+  - hypnotix                    # Mint IPTV/TV player
+  - warpinator                  # Mint LAN file transfer (we have Synology/SMB)
+  - rhythmbox                   # music player (VLC covers it)
+  - rhythmbox-data
+  - rhythmbox-plugins
+  - rhythmbox-plugin-tray-icon
+  - pix                         # image organiser (xviewer stays as the viewer)
+  - pix-data
+  - sticky                      # sticky notes
+  # Accessibility — not needed; brltty also hijacks USB-serial devices (bad for embedded dev)
+  - onboard
+  - onboard-common
+  - orca
+  - brltty
+  - xbrlapi
+  - mousetweaks
