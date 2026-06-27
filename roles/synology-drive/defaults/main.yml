@@ -10,10 +10,6 @@ synology_drive_url: "https://global.synologydownload.com/download/Utility/Synolo
 # Bind-mount Synology Drive subfolders onto the home XDG directories, mirroring
 # the desktop's /etc/fstab. Sources live under the synced ~/SynologyDrive (on the
 # encrypted root for now); 'nofail' keeps boot resilient if a folder is missing.
-# Delay (seconds) before launching the client at login, so the Cinnamon system
-# tray is ready and the client docks to the tray instead of showing its window.
-synology_autostart_delay: 15
-
 synology_home: "/home/{{ primary_user }}"
 synology_binds:
   - { src: "SynologyDrive/OneDrive/Desktop", path: "Desktop" }
