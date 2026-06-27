@@ -1,0 +1,9 @@
+---
+# Extra Flatpak apps installed alongside Steam (from Flathub).
+# ProtonPlus: a GUI manager for Proton-GE and other compatibility tools. It
+# installs versions into the native-Steam compatibilitytools.d directory.
+# Proton-GE carries many game-specific fixes (incl. older Bethesda titles),
+# useful even on this Vulkan-less hardware where games still need
+# PROTON_USE_WINED3D=1 (OpenGL fallback).
+steam_flatpaks:
+  - com.vysp3r.ProtonPlus

@@ -9,6 +9,14 @@
     update_cache: true
   when: ansible_os_family == "Debian"
 
+- name: Install Steam-related Flatpak apps (ProtonPlus, etc.)
+  community.general.flatpak:
+    name: "{{ steam_flatpaks }}"
+    remote: flathub
+    method: system
+    state: present
+  when: steam_flatpaks | length > 0
+
 - name: Autostart Steam on login (silent / tray)
   ansible.builtin.copy:
     dest: "/home/{{ primary_user }}/.config/autostart/steam.desktop"
