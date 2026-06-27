@@ -1,15 +1,9 @@
 ---
-# Brave managed policies — mirror the desktop's NON-syncing settings.
-# Deployed to /etc/brave/policies/managed/brave.json: enforced, update-safe,
-# and idempotent (we manage only this file, never Brave's Preferences).
+# Brave policies — mirror the desktop's NON-syncing settings.
+# MANDATORY (enforced) policies go to /etc/brave/policies/managed/brave.json.
+# Idempotent (we manage only these files, never Brave's Preferences directly).
 # Verify the applied result in the browser at brave://policy.
 brave_policies:
-  # Default search engine
-  DefaultSearchProviderEnabled: true
-  DefaultSearchProviderName: DuckDuckGo
-  DefaultSearchProviderSearchURL: "https://duckduckgo.com/?q={searchTerms}"
-  DefaultSearchProviderSuggestURL: "https://ac.duckduckgo.com/ac/?q={searchTerms}&type=list"
-
   # Privacy
   MetricsReportingEnabled: false
   BackgroundModeEnabled: false
@@ -23,6 +17,16 @@ brave_policies:
   BraveWalletDisabled: true
   BraveVPNDisabled: true
   BraveAIChatEnabled: false
+
+# RECOMMENDED policies go to /etc/brave/policies/recommended/brave.json: they
+# pre-set a default but leave the UI editable. The default search engine lives
+# here (not mandatory) so the Search settings page — including the private-window
+# search selector — stays visible/changeable instead of being locked/hidden.
+brave_policies_recommended:
+  DefaultSearchProviderEnabled: true
+  DefaultSearchProviderName: DuckDuckGo
+  DefaultSearchProviderSearchURL: "https://duckduckgo.com/?q={searchTerms}"
+  DefaultSearchProviderSuggestURL: "https://ac.duckduckgo.com/ac/?q={searchTerms}&type=list"
 
 # Local (non-syncing) profile preferences that have no policy equivalent.
 # Applied idempotently by editing only these dotted keys in the profile's
@@ -67,3 +71,13 @@ brave_local_prefs:
   browser.clear_data.hosted_apps_data_on_exit: true
   browser.clear_data.brave_leo_on_exit: true
   browser.clear_data.site_settings_on_exit: false
+
+  # Media Router / casting off
+  media_router.enable_media_router: false
+  brave.enable_media_router_on_restart: false
+
+  # DRM — enable Widevine (streaming DRM). First launch downloads the CDM component.
+  brave.widevine_opted_in: true
+
+  # Don't warn before closing a window with multiple tabs
+  brave.enable_window_closing_confirm: false

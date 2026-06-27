@@ -25,18 +25,26 @@
     name: brave-browser
     state: present
 
-- name: Ensure the Brave managed-policy directory exists
+- name: Ensure the Brave policy directories exist
   ansible.builtin.file:
-    path: /etc/brave/policies/managed
+    path: "/etc/brave/policies/{{ item }}"
     state: directory
     mode: "0755"
+  loop:
+    - managed
+    - recommended
 
-- name: Deploy Brave managed policies
+- name: Deploy Brave policies (managed = enforced, recommended = editable defaults)
   ansible.builtin.copy:
-    dest: /etc/brave/policies/managed/brave.json
-    content: "{{ brave_policies | to_nice_json }}"
+    dest: "/etc/brave/policies/{{ item.level }}/brave.json"
+    content: "{{ item.policies | to_nice_json }}"
     mode: "0644"
     validate: "python3 -m json.tool %s"
+  loop:
+    - { level: managed, policies: "{{ brave_policies }}" }
+    - { level: recommended, policies: "{{ brave_policies_recommended }}" }
+  loop_control:
+    label: "{{ item.level }}"
 
 - name: Set Brave as the default handler for web pages and PDFs (user MIME associations)
   community.general.ini_file:
