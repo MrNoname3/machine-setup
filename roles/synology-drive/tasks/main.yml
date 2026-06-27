@@ -34,22 +34,16 @@
     deb: "/var/cache/synology-drive-client-{{ synology_drive_build }}.deb"
   when: ansible_os_family == "Debian"
 
-- name: Autostart Synology Drive Client on login (tray, no window)
-  ansible.builtin.copy:
-    dest: "/home/{{ primary_user }}/.config/autostart/synology-drive.desktop"
-    mode: "0644"
-    # Use the client's "autostart" subcommand, NOT "start": "autostart" launches
-    # it minimised to the system tray, while "start" always raises the main
-    # window. (The client also creates its own identical autostart entry once
-    # enabled; a second tray-mode launch is a harmless no-op.)
-    content: |
-      [Desktop Entry]
-      Type=Application
-      Name=Synology Drive Client
-      Exec=synology-drive autostart
-      Categories=Network;FileTransfer;
-      X-GNOME-Autostart-enabled=true
-      Hidden=false
+# Autostart is handled by the client itself: with "launch on startup" enabled
+# (the default after setup), it creates ~/.config/autostart/
+# synology-drive-autostart.desktop -> /opt/Synology/... which runs
+# `synology-drive autostart` (tray, no window). So we do NOT add our own entry —
+# it would show up twice in Startup Applications. This removes any our-managed
+# entry left over from earlier versions of this role.
+- name: Remove our redundant Synology autostart entry (the client manages its own)
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.config/autostart/synology-drive.desktop"
+    state: absent
   become: false
   when: ansible_os_family == "Debian"
 
