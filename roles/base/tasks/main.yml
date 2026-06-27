@@ -24,6 +24,19 @@
     name: "{{ packages_absent }}"
     state: absent
     purge: true
+    autoremove: true
   when:
     - ansible_os_family == "Debian"
     - packages_absent | length > 0
+
+- name: Set VLC as the default video player (user MIME associations)
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.config/mimeapps.list"
+    section: Default Applications
+    option: "{{ item }}"
+    value: "{{ default_video_player }}"
+    mode: "0644"
+    no_extra_spaces: true
+  become: false
+  loop: "{{ video_mimetypes }}"
+  when: ansible_os_family == "Debian"

@@ -1,0 +1,21 @@
+---
+# Default video player (XDG MIME associations in the user's mimeapps.list).
+default_video_player: vlc.desktop
+video_mimetypes:
+  - video/mp4
+  - video/x-matroska
+  - video/x-msvideo
+  - video/quicktime
+  - video/webm
+  - video/mpeg
+  - video/x-ms-wmv
+  - video/x-flv
+  - video/3gpp
+  - video/3gpp2
+  - video/x-m4v
+  - video/ogg
+  - video/mp2t
+  - video/x-ms-asf
+  - video/dv
+  - video/x-ogm+ogg
+  - video/x-theora+ogg
