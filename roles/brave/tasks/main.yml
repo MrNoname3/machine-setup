@@ -55,6 +55,64 @@
     - x-scheme-handler/unknown
     - application/pdf
 
+# --- Local (non-syncing) preferences --------------------------------------
+# These have no managed-policy equivalent, so we edit only the specific dotted
+# keys in the profile's Preferences JSON, leaving the rest of the file intact.
+# Brave rewrites Preferences on exit, so we skip the edit while it is running.
+- name: Check whether Brave is currently running
+  ansible.builtin.command: pgrep -x brave
+  register: brave_running
+  changed_when: false
+  failed_when: false
+  become: false
+
+- name: Apply Brave local preferences (wide address bar, hidden NTP cards)
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - |
+        import json, os, sys
+        path, desired = sys.argv[1], json.loads(sys.argv[2])
+        if not os.path.exists(path):
+            print('OK'); sys.exit(0)
+        with open(path) as f:
+            prefs = json.load(f)
+        MISS = object()
+        def current(node, dotted):
+            for part in dotted.split('.'):
+                if not isinstance(node, dict) or part not in node:
+                    return MISS
+                node = node[part]
+            return node
+        def assign(node, dotted, value):
+            parts = dotted.split('.')
+            for part in parts[:-1]:
+                node = node.setdefault(part, {})
+            node[parts[-1]] = value
+        changed = False
+        for key, value in desired.items():
+            if current(prefs, key) != value:
+                assign(prefs, key, value)
+                changed = True
+        if changed:
+            with open(path, 'w') as f:
+                json.dump(prefs, f, separators=(',', ':'))
+        print('CHANGED' if changed else 'OK')
+      - "{{ brave_prefs_path }}"
+      - "{{ brave_local_prefs | to_json }}"
+  register: brave_local_prefs_result
+  changed_when: "'CHANGED' in brave_local_prefs_result.stdout"
+  become: false
+  when: brave_running.rc != 0
+
+- name: Warn that local prefs were skipped because Brave is running
+  ansible.builtin.debug:
+    msg: >-
+      Brave is running, so the local preferences (wide address bar, hidden
+      News/Talk cards) were not applied. Close Brave and re-run to apply them.
+  when: brave_running.rc == 0
+
 # --- Manual gate ----------------------------------------------------------
 # A configured Brave sync chain stores its seed under brave_sync_v2.seed in the
 # profile's Preferences (absent until you join/create a chain). We pause ONLY

@@ -22,3 +22,13 @@ brave_policies:
   BraveWalletDisabled: true
   BraveVPNDisabled: true
   BraveAIChatEnabled: false
+
+# Local (non-syncing) profile preferences that have no policy equivalent.
+# Applied idempotently by editing only these dotted keys in the profile's
+# Preferences JSON, and only while Brave is closed (it rewrites the file on
+# exit). Mirrors the desktop. Verified key names from the desktop's Preferences.
+brave_prefs_path: "/home/{{ primary_user }}/.config/BraveSoftware/Brave-Browser/Default/Preferences"
+brave_local_prefs:
+  brave.location_bar_is_wide: true            # wide URL/address bar
+  brave.new_tab_page.show_brave_news: false   # hide the News card on the new-tab page
+  brave.new_tab_page.show_together: false     # hide the Talk card (internal name: "together")
