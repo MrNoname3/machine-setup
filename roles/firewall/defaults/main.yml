@@ -1,0 +1,17 @@
+---
+# Inbound firewall (ufw). Default-deny incoming; only the services below are
+# allowed, and ONLY from private (RFC1918) source ranges, so the laptop is never
+# exposed when it gets a public IP away from home. gufw is a GUI over ufw, so all
+# of these rules show up there too.
+firewall_private_ranges:
+  - 192.168.0.0/16
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+
+# port/proto allowed from the private ranges. Matched to the actually-exposed
+# listeners: sshd, Avahi/mDNS (NAS discovery), Steam Remote Play.
+firewall_allowed:
+  - { port: "{{ ssh_port }}", proto: tcp, comment: "SSH" }
+  - { port: "5353", proto: udp, comment: "mDNS/Avahi (NAS discovery)" }
+  - { port: "27031:27036", proto: udp, comment: "Steam Remote Play" }
+  - { port: "27036:27037", proto: tcp, comment: "Steam Remote Play" }

@@ -1,0 +1,44 @@
+---
+# Uncomplicated Firewall (ufw): default-deny inbound, allow only the listed
+# services and only from private (RFC1918) source ranges. gufw is just a GUI
+# over this, so the rules are visible/editable there.
+#
+# IMPORTANT ordering: the allow rules (incl. SSH) are added BEFORE the default
+# policy is switched to deny and BEFORE ufw is enabled, so an active SSH session
+# is never cut off. ufw also keeps ESTABLISHED connections by default.
+
+- name: Install ufw
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Allow inbound services from private (RFC1918) ranges only
+  community.general.ufw:
+    rule: allow
+    direction: in
+    src: "{{ item.0 }}"
+    port: "{{ item.1.port }}"
+    proto: "{{ item.1.proto }}"
+    comment: "{{ item.1.comment }} (private only)"
+  loop: "{{ firewall_private_ranges | product(firewall_allowed) | list }}"
+  loop_control:
+    label: "{{ item.1.comment }} {{ item.1.port }}/{{ item.1.proto }} from {{ item.0 }}"
+  when: ansible_os_family == "Debian"
+
+- name: Default-allow outgoing traffic
+  community.general.ufw:
+    direction: outgoing
+    policy: allow
+  when: ansible_os_family == "Debian"
+
+- name: Default-deny incoming traffic
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+  when: ansible_os_family == "Debian"
+
+- name: Enable ufw
+  community.general.ufw:
+    state: enabled
+  when: ansible_os_family == "Debian"

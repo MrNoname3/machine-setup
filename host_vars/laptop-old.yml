@@ -11,6 +11,7 @@ roles_enabled:
   - vscode
   - luks-unlock
   - graphics
+  - firewall
 # Built incrementally; uncomment each as it gets implemented:
 #  - keyring
 
