@@ -9,9 +9,9 @@ firewall_private_ranges:
   - 172.16.0.0/12
 
 # port/proto allowed from the private ranges. Matched to the actually-exposed
-# listeners: sshd, Avahi/mDNS (NAS discovery), Steam Remote Play.
+# listeners: sshd and Avahi/mDNS (NAS discovery). Steam needs NO inbound port
+# without Remote Play — it works entirely over outbound connections (and a pure
+# streaming client like Steam Link is covered by the conntrack ESTABLISHED rule).
 firewall_allowed:
   - { port: "{{ ssh_port }}", proto: tcp, comment: "SSH" }
   - { port: "5353", proto: udp, comment: "mDNS/Avahi (NAS discovery)" }
-  - { port: "27031:27036", proto: udp, comment: "Steam Remote Play" }
-  - { port: "27036:27037", proto: tcp, comment: "Steam Remote Play" }
