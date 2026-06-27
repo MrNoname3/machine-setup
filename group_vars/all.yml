@@ -37,3 +37,8 @@ packages_absent:
   - brltty
   - xbrlapi
   - mousetweaks
+  # Misc unused apps (the panel clock/calendar is a Cinnamon applet, not gnome-calendar)
+  - gnome-calendar
+  - neofetch                    # cosmetic system-info printer
+  - thingy                      # Mint document manager
+  - mintchat                    # Mint community chat integration
