@@ -13,9 +13,10 @@ brave_policies:
   # Privacy
   MetricsReportingEnabled: false
   BackgroundModeEnabled: false
-  ClearBrowsingDataOnExitList:
-    - browsing_history
-    - download_history
+  # NOTE: "clear data on exit" is configured via local prefs (the
+  # browser.clear_data.*_on_exit keys below), NOT policy, because the desired
+  # on-exit set includes a Brave-specific type (Leo AI) that the
+  # ClearBrowsingDataOnExitList policy enum cannot express.
 
   # Debloat — fully disabled. Tor is intentionally left untouched (user uses it).
   BraveRewardsDisabled: true
@@ -29,6 +30,40 @@ brave_policies:
 # exit). Mirrors the desktop. Verified key names from the desktop's Preferences.
 brave_prefs_path: "/home/{{ primary_user }}/.config/BraveSoftware/Brave-Browser/Default/Preferences"
 brave_local_prefs:
+  # Appearance
   brave.location_bar_is_wide: true            # wide URL/address bar
-  brave.new_tab_page.show_brave_news: false   # hide the News card on the new-tab page
+  omnibox.prevent_url_elisions: true          # always show full URLs
+  brave.web_view_rounded_corners: false       # no rounded corners on main content areas
+
+  # New-tab page cards
+  brave.new_tab_page.show_brave_news: false   # hide the News card
   brave.new_tab_page.show_together: false     # hide the Talk card (internal name: "together")
+
+  # Social media blocking (Shields) — block all
+  brave.fb_embed_default: false               # Facebook
+  brave.twitter_embed_default: false          # X / Twitter
+  brave.linkedin_embed_default: false         # LinkedIn
+
+  # Telemetry off
+  brave.p3a.enabled: false                    # privacy-preserving product analytics (P3A)
+  brave.stats.reporting_enabled: false        # daily usage ping to Brave
+
+  # "Delete browsing data" dialog defaults (Advanced tab)
+  browser.clear_data.browsing_history: true
+  browser.clear_data.cookies: false
+  browser.clear_data.cache: true              # cached images and files
+  browser.clear_data.download_history: true
+  browser.clear_data.form_data: true          # autofill form data
+  browser.clear_data.hosted_apps_data: true
+  browser.clear_data.brave_leo: true          # Leo AI
+  browser.clear_data.site_settings: false     # site and shields settings
+
+  # "Clear data on exit" — same set as above
+  browser.clear_data.browsing_history_on_exit: true
+  browser.clear_data.cookies_on_exit: false
+  browser.clear_data.cache_on_exit: true
+  browser.clear_data.download_history_on_exit: true
+  browser.clear_data.form_data_on_exit: true
+  browser.clear_data.hosted_apps_data_on_exit: true
+  browser.clear_data.brave_leo_on_exit: true
+  browser.clear_data.site_settings_on_exit: false
