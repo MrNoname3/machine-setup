@@ -72,18 +72,27 @@
 
 # --- Synology subfolder bind mounts (mirror the desktop's /etc/fstab) ------
 # Map the synced Synology subfolders onto the home XDG dirs. The home dirs must
-# be empty (a bind hides any existing content). Idempotent: ansible.posix.mount
-# manages the fstab entry and mounts it now.
-- name: Bind-mount Synology Drive subfolders onto the home directories
+# be empty (a bind hides any existing content). We stat each source first and
+# mount only the ones that exist, so a partial sync (some subfolders missing,
+# or no ~/SynologyDrive at all) can never fail the run. Idempotent:
+# ansible.posix.mount manages the fstab entry and mounts it now.
+- name: Check which Synology bind sources exist
+  ansible.builtin.stat:
+    path: "{{ synology_home }}/{{ item.src }}"
+  loop: "{{ synology_binds }}"
+  loop_control:
+    label: "{{ item.src }}"
+  register: synology_bind_sources
+  become: false
+
+- name: Bind-mount existing Synology subfolders onto the home directories
   ansible.posix.mount:
-    src: "{{ synology_home }}/{{ item.src }}"
-    path: "{{ synology_home }}/{{ item.path }}"
+    src: "{{ synology_home }}/{{ item.item.src }}"
+    path: "{{ synology_home }}/{{ item.item.path }}"
     fstype: none
     opts: bind,nofail
     state: mounted
-  loop: "{{ synology_binds }}"
+  loop: "{{ synology_bind_sources.results | selectattr('stat.exists') | list }}"
   loop_control:
-    label: "{{ item.path }}"
-  when:
-    - ansible_os_family == "Debian"
-    - syno_sync.stat.exists
+    label: "{{ item.item.path }}"
+  when: ansible_os_family == "Debian"
