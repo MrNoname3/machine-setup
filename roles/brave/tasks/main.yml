@@ -65,8 +65,9 @@
 
 # --- Local (non-syncing) preferences --------------------------------------
 # These have no managed-policy equivalent, so we edit only the specific dotted
-# keys in the profile's Preferences JSON, leaving the rest of the file intact.
-# Brave rewrites Preferences on exit, so we skip the edit while it is running.
+# keys in the relevant JSON file, leaving the rest intact. Most live in the
+# profile's Preferences; a few (e.g. Widevine opt-in) live in the browser-wide
+# Local State. Brave rewrites both on exit, so we skip the edit while it runs.
 - name: Check whether Brave is currently running
   ansible.builtin.command: pgrep -x brave
   register: brave_running
@@ -74,7 +75,7 @@
   failed_when: false
   become: false
 
-- name: Apply Brave local preferences (wide address bar, hidden NTP cards)
+- name: Apply Brave local preferences (Preferences + Local State)
   ansible.builtin.command:
     argv:
       - python3
@@ -107,18 +108,23 @@
             with open(path, 'w') as f:
                 json.dump(prefs, f, separators=(',', ':'))
         print('CHANGED' if changed else 'OK')
-      - "{{ brave_prefs_path }}"
-      - "{{ brave_local_prefs | to_json }}"
+      - "{{ item.path }}"
+      - "{{ item.prefs | to_json }}"
   register: brave_local_prefs_result
   changed_when: "'CHANGED' in brave_local_prefs_result.stdout"
   become: false
   when: brave_running.rc != 0
+  loop:
+    - { path: "{{ brave_prefs_path }}", prefs: "{{ brave_local_prefs }}" }
+    - { path: "{{ brave_local_state_path }}", prefs: "{{ brave_local_state_prefs }}" }
+  loop_control:
+    label: "{{ item.path | basename }}"
 
 - name: Warn that local prefs were skipped because Brave is running
   ansible.builtin.debug:
     msg: >-
-      Brave is running, so the local preferences (wide address bar, hidden
-      News/Talk cards) were not applied. Close Brave and re-run to apply them.
+      Brave is running, so the local preferences (appearance, NTP cards,
+      Widevine, etc.) were not applied. Close Brave and re-run to apply them.
   when: brave_running.rc == 0
 
 # --- Manual gate ----------------------------------------------------------

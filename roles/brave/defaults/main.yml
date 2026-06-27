@@ -76,8 +76,12 @@ brave_local_prefs:
   media_router.enable_media_router: false
   brave.enable_media_router_on_restart: false
 
-  # DRM — enable Widevine (streaming DRM). First launch downloads the CDM component.
-  brave.widevine_opted_in: true
-
   # Don't warn before closing a window with multiple tabs
   brave.enable_window_closing_confirm: false
+
+# Browser-wide preferences that live in "Local State" (NOT the per-profile
+# Preferences). Applied by the same idempotent task as brave_local_prefs.
+brave_local_state_path: "/home/{{ primary_user }}/.config/BraveSoftware/Brave-Browser/Local State"
+brave_local_state_prefs:
+  # Enable Widevine (streaming DRM). Brave downloads the CDM on first launch.
+  brave.widevine_opted_in: true
