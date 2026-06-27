@@ -53,3 +53,11 @@ packages_absent:
   - ftp
   - tnftp
   - rdate
+  # Document Viewer — Brave handles PDFs; Nemo preview keeps the xreader libs
+  - xreader
+  - xreader-dbg
+  # Fingerprint auth — no fingerprint reader on this laptop; not active in PAM
+  - fingwit
+  - libpam-fingwit
+  - fprintd
+  - libpam-fprintd
