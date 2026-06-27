@@ -90,7 +90,7 @@
     src: "{{ synology_home }}/{{ item.item.src }}"
     path: "{{ synology_home }}/{{ item.item.path }}"
     fstype: none
-    opts: bind,nofail
+    opts: bind,nofail,x-gvfs-hide
     state: mounted
   loop: "{{ synology_bind_sources.results | selectattr('stat.exists') | list }}"
   loop_control:
