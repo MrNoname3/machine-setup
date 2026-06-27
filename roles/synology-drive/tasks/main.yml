@@ -42,7 +42,7 @@
       [Desktop Entry]
       Type=Application
       Name=Synology Drive Client
-      Exec=synology-drive start
+      Exec=sh -c "sleep {{ synology_autostart_delay }} && synology-drive start"
       Categories=Network;FileTransfer;
       X-GNOME-Autostart-enabled=true
       Hidden=false
