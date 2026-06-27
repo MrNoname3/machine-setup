@@ -29,6 +29,19 @@
     - ansible_os_family == "Debian"
     - packages_absent | length > 0
 
+# NumLock on by default. Running numlockx at the LightDM greeter turns it on
+# at the login screen, and that X keyboard state carries into the Cinnamon
+# session (csd-keyboard's numlock-state is 'unknown', so it doesn't undo it).
+- name: Enable NumLock at the LightDM greeter (persists into the session)
+  community.general.ini_file:
+    path: /etc/lightdm/lightdm.conf
+    section: "Seat:*"
+    option: greeter-setup-script
+    value: /usr/bin/numlockx on
+    mode: "0644"
+    no_extra_spaces: true
+  when: ansible_os_family == "Debian"
+
 - name: Set VLC as the default video player (user MIME associations)
   community.general.ini_file:
     path: "/home/{{ primary_user }}/.config/mimeapps.list"

@@ -9,6 +9,7 @@ packages_present:
   - kate
   - keepassxc
   - meld
+  - numlockx                     # turn NumLock on at the LightDM greeter / boot
 
 # Packages to ensure are removed. Keep entries here permanently so fresh
 # installs stay clean. Never list a package in both lists.
