@@ -54,3 +54,29 @@
     - x-scheme-handler/about
     - x-scheme-handler/unknown
     - application/pdf
+
+# --- Manual gate ----------------------------------------------------------
+# A configured Brave sync chain stores its seed under brave_sync_v2.seed in the
+# profile's Preferences (absent until you join/create a chain). We pause ONLY
+# while that seed is missing, so once sync is set up, re-runs pass through
+# unprompted (changed=0). If Brave's key ever changes, adjust the path below.
+# Steps that depend on the synced profile go below this gate.
+- name: Check whether Brave is joined to a sync chain (seed present)
+  ansible.builtin.command:
+    cmd: >
+      python3 -c "import json,sys;
+      p='/home/{{ primary_user }}/.config/BraveSoftware/Brave-Browser/Default/Preferences';
+      d=json.load(open(p));
+      sys.exit(0 if d.get('brave_sync_v2',{}).get('seed') else 1)"
+  register: brave_sync
+  failed_when: false
+  changed_when: false
+  become: false
+
+- name: Gate — set up the Brave sync chain
+  ansible.builtin.pause:
+    prompt: |
+      Brave is not joined to a sync chain yet.
+      Open Brave, set up Sync (enter or create your sync code), then press
+      Enter to continue once the profile has synced.
+  when: brave_sync.rc != 0

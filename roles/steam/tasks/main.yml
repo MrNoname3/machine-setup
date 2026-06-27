@@ -23,3 +23,20 @@
       Hidden=false
   become: false
   when: ansible_os_family == "Debian"
+
+# --- Manual gate ----------------------------------------------------------
+# Steam stores logged-in accounts in loginusers.vdf, created on first sign-in.
+# Pause ONLY while that file is missing, so a logged-in machine passes through
+# unprompted (changed=0). Steps that depend on Steam being signed in go below.
+- name: Check whether Steam has a logged-in account
+  ansible.builtin.stat:
+    path: "/home/{{ primary_user }}/.steam/steam/config/loginusers.vdf"
+  register: steam_login
+  become: false
+
+- name: Gate — sign in to Steam
+  ansible.builtin.pause:
+    prompt: |
+      Steam is not signed in yet (no loginusers.vdf).
+      Launch Steam, sign in to your account, then press Enter to continue.
+  when: not steam_login.stat.exists

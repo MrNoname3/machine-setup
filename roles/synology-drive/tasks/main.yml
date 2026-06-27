@@ -48,3 +48,24 @@
       Hidden=false
   become: false
   when: ansible_os_family == "Debian"
+
+# --- Manual gate ----------------------------------------------------------
+# Everything below this point (the Synology subfolder mounts into $HOME, added
+# later) depends on the client being set up and the initial sync finished.
+# We pause ONLY when the sync folder is missing, so on a converged machine the
+# folder already exists and re-runs pass straight through (changed=0, no prompt).
+# The folder appears as soon as a sync task is configured, so the human waits at
+# THIS pause on first run and presses Enter once the initial sync has finished.
+- name: Check whether the Synology Drive sync folder exists
+  ansible.builtin.stat:
+    path: "/home/{{ primary_user }}/SynologyDrive"
+  register: syno_sync
+  become: false
+
+- name: Gate — wait for Synology Drive setup and initial sync
+  ansible.builtin.pause:
+    prompt: |
+      Synology Drive is not set up yet (no ~/SynologyDrive folder).
+      Open Synology Drive, log in, pick the sync folder, and WAIT for the
+      initial sync to finish. Press Enter to continue once it is done.
+  when: not syno_sync.stat.exists
