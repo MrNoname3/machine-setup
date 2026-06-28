@@ -82,3 +82,13 @@
     - { key: /org/nemo/preferences/ignore-view-metadata, value: "false" }
     - { key: /org/nemo/preferences/inherit-folder-viewer, value: "false" }
   when: ansible_os_family == "Debian"
+
+# Start the week on Monday in the Cinnamon calendar/date displays (0=Sunday,
+# 1=Monday).
+- name: Set first day of week to Monday (Cinnamon)
+  community.general.dconf:
+    key: /org/cinnamon/desktop/interface/first-day-of-week
+    value: "1"
+    state: present
+  become: false
+  when: ansible_os_family == "Debian"
