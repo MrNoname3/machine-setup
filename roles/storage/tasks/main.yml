@@ -1,0 +1,76 @@
+---
+# storage role: auto-unlock + automount for the secondary encrypted data HDD.
+#
+# This role does NOT partition or format the disk -- that is destructive and is
+# a one-time MANUAL bootstrap (see roles/storage/README.md). Here we only ensure
+# the persistent, idempotent config: the keyfile permissions, the crypttab
+# auto-unlock entry, the mountpoint, and the fstab automount line.
+#
+# The keyfile (/etc/luks/hdd.key) is a machine-local secret and is NEVER stored
+# in this repo; only its path and the LUKS UUID are.
+
+- name: Ensure the LUKS keyfile directory exists
+  ansible.builtin.file:
+    path: "{{ storage_hdd_keyfile | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: ansible_os_family == "Debian"
+
+- name: Check whether the data-disk keyfile is present
+  ansible.builtin.stat:
+    path: "{{ storage_hdd_keyfile }}"
+  register: storage_keyfile
+
+- name: Fail early if the keyfile is missing (run the manual disk bootstrap first)
+  ansible.builtin.assert:
+    that: storage_keyfile.stat.exists
+    fail_msg: >-
+      {{ storage_hdd_keyfile }} is missing. Run the one-time disk bootstrap in
+      roles/storage/README.md (partition + luksFormat + mkfs) before this role
+      can wire up auto-unlock.
+  when:
+    - ansible_os_family == "Debian"
+    - storage_hdd_luks_uuid | length > 0
+
+- name: Lock down the keyfile permissions (root read-only)
+  ansible.builtin.file:
+    path: "{{ storage_hdd_keyfile }}"
+    owner: root
+    group: root
+    mode: "0400"
+  when:
+    - ansible_os_family == "Debian"
+    - storage_keyfile.stat.exists
+
+- name: Configure crypttab auto-unlock for the data disk
+  community.general.crypttab:
+    name: "{{ storage_hdd_mapper }}"
+    backing_device: "UUID={{ storage_hdd_luks_uuid }}"
+    password: "{{ storage_hdd_keyfile }}"
+    opts: luks,nofail
+    state: present
+  when:
+    - ansible_os_family == "Debian"
+    - storage_hdd_luks_uuid | length > 0
+
+- name: Ensure the data-disk mountpoint exists
+  ansible.builtin.file:
+    path: "{{ storage_hdd_mountpoint }}"
+    state: directory
+    owner: "{{ primary_user }}"
+    group: "{{ primary_user }}"
+    mode: "0755"
+  when: ansible_os_family == "Debian"
+
+- name: Automount the data disk via fstab
+  ansible.posix.mount:
+    path: "{{ storage_hdd_mountpoint }}"
+    src: "/dev/mapper/{{ storage_hdd_mapper }}"
+    fstype: "{{ storage_hdd_fstype }}"
+    opts: defaults,nofail
+    state: present
+  when:
+    - ansible_os_family == "Debian"
+    - storage_hdd_luks_uuid | length > 0

@@ -12,6 +12,7 @@ roles_enabled:
   - luks-unlock
   - graphics
   - firewall
+  - storage
 # Built incrementally; uncomment each as it gets implemented:
 #  - keyring
 
@@ -27,5 +28,5 @@ ssh_port: REDACTED
 
 # --- LUKS / storage (fill in after install) ---
 # luks_root_uuid: ""          # crypto_LUKS partition UUID on the SSD
-# luks_hdd_uuid: ""           # crypto_LUKS partition UUID on the secondary HDD
+luks_hdd_uuid: "REDACTED"  # secondary HDD LUKS partition (sdb1)
 # unlock_pendrive_uuid: ""    # filesystem UUID of the home unlock pendrive

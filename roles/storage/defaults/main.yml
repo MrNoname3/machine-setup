@@ -1,0 +1,15 @@
+---
+# Secondary encrypted data disk (the 500 GB HGST HDD).
+# It is LUKS2 + ext4 and auto-unlocks at boot via a root-local keyfile, with a
+# passphrase slot as a manual fallback. The DESTRUCTIVE initial setup
+# (GPT partition + cryptsetup luksFormat + mkfs.ext4) is a one-time manual
+# bootstrap -- see roles/storage/README.md. This role only wires up the
+# persistent config (crypttab / fstab / mountpoint / keyfile permissions).
+storage_hdd_mapper: hdd_crypt
+storage_hdd_keyfile: /etc/luks/hdd.key
+storage_hdd_mountpoint: /mnt/hdd
+storage_hdd_fstype: ext4
+
+# LUKS partition UUID of the data disk. Set per host in host_vars (luks_hdd_uuid).
+# While empty, the crypttab/fstab tasks are skipped (nothing to wire up yet).
+storage_hdd_luks_uuid: "{{ luks_hdd_uuid | default('') }}"

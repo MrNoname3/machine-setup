@@ -25,3 +25,5 @@
       when: "'graphics' in (roles_enabled | default([]))"
     - role: firewall
       when: "'firewall' in (roles_enabled | default([]))"
+    - role: storage
+      when: "'storage' in (roles_enabled | default([]))"
