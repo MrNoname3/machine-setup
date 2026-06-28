@@ -1,0 +1,17 @@
+---
+# WireGuard auto-VPN (NetworkManager-native; no wireguard-tools needed).
+# Two client connections are imported by hand (secrets — see README):
+#   wg-home-full  : full tunnel (all traffic via home) -- the default when away
+#   wg-home-split : split tunnel (only the home subnet via the VPN)
+# Both appear in the network applet for easy manual on/off and switching.
+wireguard_connections:
+  - wg-home-full
+  - wg-home-split
+
+# The connection the dispatcher brings up automatically when away from home.
+wireguard_auto_connection: wg-home-full
+
+# Trusted "home" default-gateway MAC(s). When the current default gateway's MAC
+# is in this list we are home (VPN off); otherwise we are away (VPN on).
+# Set per host in host_vars (wg_home_gateway_macs).
+wireguard_home_gateway_macs: "{{ wg_home_gateway_macs | default([]) }}"

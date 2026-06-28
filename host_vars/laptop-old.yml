@@ -13,6 +13,7 @@ roles_enabled:
   - graphics
   - firewall
   - storage
+  - wireguard
 # Built incrementally; uncomment each as it gets implemented:
 #  - keyring
 
@@ -30,3 +31,9 @@ ssh_port: REDACTED
 # luks_root_uuid: ""          # crypto_LUKS partition UUID on the SSD
 luks_hdd_uuid: "REDACTED"  # secondary HDD LUKS partition (sdb1)
 # unlock_pendrive_uuid: ""    # filesystem UUID of the home unlock pendrive
+
+# --- WireGuard auto-VPN ---
+# Trusted home default-gateway MAC(s). If the AP routes its own subnet (not in
+# bridge mode), add its gateway MAC here as well.
+wg_home_gateway_macs:
+  - "REDACTED"       # main router LAN gateway (REDACTED)

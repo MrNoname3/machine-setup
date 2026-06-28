@@ -1,0 +1,55 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Auto-connect WireGuard when away from the home network and disconnect at home.
+# "Home" = the current default gateway's MAC is one of the trusted gateways.
+# Manual choice is respected: when away we only bring up the preferred tunnel if
+# NO managed WG connection is already active (so a manual switch to split sticks).
+
+IFACE="$1"
+ACTION="$2"
+
+HOME_GW_MACS="{{ wireguard_home_gateway_macs | join(' ') }}"
+AUTO_CONN="{{ wireguard_auto_connection }}"
+WG_CONNS="{{ wireguard_connections | join(' ') }}"
+
+# Only react to events that can change which network we are on.
+case "$ACTION" in
+  up|down|connectivity-change|dhcp4-change|dhcp6-change) ;;
+  *) exit 0 ;;
+esac
+
+# Avoid loops: ignore events triggered by the WG interfaces themselves.
+case "$IFACE" in wg*) exit 0 ;; esac
+for c in $WG_CONNS; do
+  [ "$IFACE" = "$c" ] && exit 0
+done
+
+# Current default gateway, and its MAC (ping first so ARP is populated on link-up).
+gw=$(ip route show default 2>/dev/null | awk '/default/ {print $3; exit}')
+[ -n "$gw" ] || exit 0
+ping -c1 -W1 "$gw" >/dev/null 2>&1
+gwmac=$(ip neigh show "$gw" 2>/dev/null | awk '{print tolower($5); exit}')
+# If we cannot determine the gateway MAC, do nothing rather than risk a wrong toggle.
+[ -n "$gwmac" ] || exit 0
+
+is_home=0
+for m in $HOME_GW_MACS; do
+  [ "$gwmac" = "$(echo "$m" | tr 'A-Z' 'a-z')" ] && is_home=1
+done
+
+active_wg=0
+for c in $WG_CONNS; do
+  nmcli -t -f NAME connection show --active 2>/dev/null | grep -qx "$c" && active_wg=1
+done
+
+if [ "$is_home" = 1 ]; then
+  # Home: drop any managed WG tunnel.
+  for c in $WG_CONNS; do
+    nmcli -t -f NAME connection show --active 2>/dev/null | grep -qx "$c" && nmcli connection down "$c"
+  done
+else
+  # Away: ensure the preferred tunnel is up, unless a WG tunnel is already active
+  # (respect a manual switch).
+  [ "$active_wg" = 0 ] && nmcli connection up "$AUTO_CONN"
+fi
+exit 0

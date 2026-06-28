@@ -1,0 +1,60 @@
+---
+# wireguard role: NetworkManager-native WireGuard auto-VPN.
+#
+# No packages are installed -- NM 1.46 manages WireGuard via the in-kernel module
+# directly (verified). The client configs are SECRETS, imported by hand once (see
+# README.md) and never stored in this repo. This role deploys the NM dispatcher
+# that toggles the tunnel by location, and keeps the connections on manual control.
+
+- name: Deploy the WireGuard auto-VPN NetworkManager dispatcher
+  ansible.builtin.template:
+    src: 50-wg-autovpn.j2
+    dest: /etc/NetworkManager/dispatcher.d/50-wg-autovpn
+    owner: root
+    group: root
+    mode: "0755"
+  when: ansible_os_family == "Debian"
+
+- name: List existing NetworkManager connections
+  ansible.builtin.command: nmcli -t -f NAME connection show
+  register: wg_nm_conns
+  changed_when: false
+  when: ansible_os_family == "Debian"
+
+# --- Manual gate ----------------------------------------------------------
+# The client configs are secrets; import them once (see README). Pause only while
+# the preferred connection is missing, so an already-set-up host passes through.
+- name: Gate — import the WireGuard client configs
+  ansible.builtin.pause:
+    prompt: |
+      WireGuard connection "{{ wireguard_auto_connection }}" is not in NetworkManager.
+      Generate your client configs from the home WG server and import them
+      (the connection names must match {{ wireguard_connections | join(' and ') }}):
+
+        sudo nmcli connection import type wireguard file wg-home-full.conf
+        sudo nmcli connection import type wireguard file wg-home-split.conf
+
+      Then press Enter to continue.
+  when:
+    - ansible_os_family == "Debian"
+    - wireguard_auto_connection not in (wg_nm_conns.stdout_lines | default([]))
+
+- name: Read current autoconnect state of the WG connections
+  ansible.builtin.command: "nmcli -g connection.autoconnect connection show {{ item }}"
+  register: wg_autoconnect
+  changed_when: false
+  failed_when: false
+  loop: "{{ wireguard_connections }}"
+  when: ansible_os_family == "Debian"
+
+# The dispatcher decides when the tunnel is up, so the connections themselves must
+# not auto-connect on their own.
+- name: Disable autoconnect on the WG connections (dispatcher controls them)
+  ansible.builtin.command: "nmcli connection modify {{ item.item }} connection.autoconnect no"
+  loop: "{{ wg_autoconnect.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - ansible_os_family == "Debian"
+    - item.rc == 0
+    - item.stdout | trim == "yes"
