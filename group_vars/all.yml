@@ -57,6 +57,9 @@ packages_absent:
   # Document Viewer — Brave handles PDFs; Nemo preview keeps the xreader libs
   - xreader
   - xreader-dbg
+  # Mint default text editor — replaced by Kate as the default editor
+  - xed
+  - xed-dbg
   # Fingerprint auth — no fingerprint reader on this laptop; not active in PAM
   - fingwit
   - libpam-fingwit

@@ -54,6 +54,18 @@
   loop: "{{ video_mimetypes }}"
   when: ansible_os_family == "Debian"
 
+- name: Set Kate as the default text editor (user MIME associations)
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.config/mimeapps.list"
+    section: Default Applications
+    option: "{{ item }}"
+    value: "{{ default_text_editor }}"
+    mode: "0644"
+    no_extra_spaces: true
+  become: false
+  loop: "{{ text_mimetypes }}"
+  when: ansible_os_family == "Debian"
+
 # Don't put mounted-volume icons on the Cinnamon desktop (an internal fixed
 # disk like /mnt/hdd showing up there is unwanted). Volumes still appear in the
 # Nemo sidebar and in Disk Usage Analyzer (the data disk uses x-gvfs-show).

@@ -19,3 +19,26 @@ video_mimetypes:
   - video/dv
   - video/x-ogm+ogg
   - video/x-theora+ogg
+
+# Default text editor (Kate) for text/source MIME types.
+default_text_editor: org.kde.kate.desktop
+text_mimetypes:
+  - text/plain
+  - application/x-zerosize          # empty files (xed handled these too)
+  - text/markdown
+  - text/x-python
+  - text/x-python3
+  - application/json
+  - text/xml
+  - application/xml
+  - text/x-shellscript
+  - application/x-shellscript
+  - text/x-csrc
+  - text/x-c++src
+  - text/x-chdr
+  - text/css
+  - text/x-log
+  - text/csv
+  - application/yaml
+  - application/x-yaml
+  - text/x-java
