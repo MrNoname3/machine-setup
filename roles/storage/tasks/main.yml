@@ -69,8 +69,8 @@
     path: "{{ storage_hdd_mountpoint }}"
     src: "/dev/mapper/{{ storage_hdd_mapper }}"
     fstype: "{{ storage_hdd_fstype }}"
-    opts: defaults,nofail
-    state: present
+    opts: "{{ storage_hdd_mount_opts }}"
+    state: mounted
   when:
     - ansible_os_family == "Debian"
     - storage_hdd_luks_uuid | length > 0

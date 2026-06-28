@@ -9,6 +9,10 @@ storage_hdd_mapper: hdd_crypt
 storage_hdd_keyfile: /etc/luks/hdd.key
 storage_hdd_mountpoint: /mnt/hdd
 storage_hdd_fstype: ext4
+# nofail: a missing disk must not block boot. x-gvfs-show: surface this /mnt
+# mount in the file manager sidebar / Disk Usage Analyzer (GVfs hides /mnt
+# fstab mounts by default). nosuid,nodev: it is a data disk, no executables/devs.
+storage_hdd_mount_opts: defaults,nofail,nosuid,nodev,x-gvfs-show
 
 # LUKS partition UUID of the data disk. Set per host in host_vars (luks_hdd_uuid).
 # While empty, the crypttab/fstab tasks are skipped (nothing to wire up yet).
