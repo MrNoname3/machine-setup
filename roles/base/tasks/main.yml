@@ -29,16 +29,27 @@
     - ansible_os_family == "Debian"
     - packages_absent | length > 0
 
-# NumLock on by default. Running numlockx at the LightDM greeter turns it on
-# at the login screen, and that X keyboard state carries into the Cinnamon
-# session (csd-keyboard's numlock-state is 'unknown', so it doesn't undo it).
-- name: Enable NumLock at the LightDM greeter (persists into the session)
+# NumLock on at the login screen (and it carries into the Cinnamon session,
+# since csd-keyboard's numlock-state is 'unknown' so it doesn't undo it). We use
+# slick-greeter's native activate-numlock option (the toggle in Mint's "Login
+# Window" settings). NOTE: it works by calling /usr/bin/numlockx on internally,
+# so the numlockx package is still required (kept in packages_present).
+- name: Enable NumLock at the login screen (slick-greeter native option)
+  community.general.ini_file:
+    path: /etc/lightdm/slick-greeter.conf
+    section: Greeter
+    option: activate-numlock
+    value: "true"
+    mode: "0644"
+    no_extra_spaces: true
+  when: ansible_os_family == "Debian"
+
+- name: Drop the old numlockx greeter-setup-script override (superseded by activate-numlock)
   community.general.ini_file:
     path: /etc/lightdm/lightdm.conf
     section: "Seat:*"
     option: greeter-setup-script
-    value: /usr/bin/numlockx on
-    mode: "0644"
+    state: absent
     no_extra_spaces: true
   when: ansible_os_family == "Debian"
 
