@@ -53,3 +53,14 @@
   become: false
   loop: "{{ video_mimetypes }}"
   when: ansible_os_family == "Debian"
+
+# Don't put mounted-volume icons on the Cinnamon desktop (an internal fixed
+# disk like /mnt/hdd showing up there is unwanted). Volumes still appear in the
+# Nemo sidebar and in Disk Usage Analyzer (the data disk uses x-gvfs-show).
+- name: Hide mounted-volume icons from the Cinnamon desktop
+  community.general.dconf:
+    key: /org/nemo/desktop/volumes-visible
+    value: "false"
+    state: present
+  become: false
+  when: ansible_os_family == "Debian"
