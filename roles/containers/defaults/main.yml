@@ -1,0 +1,26 @@
+---
+# Rootless Podman configured to behave like Docker (Fedora/Bazzite style) plus
+# Distrobox. The "feels like Docker" part comes from the registries config
+# (docker.io in unqualified-search-registries) -- mirrored from the Bazzite
+# desktop, which has no `docker` shim yet still works like Docker.
+container_packages:
+  - podman
+  - uidmap              # newuidmap/newgidmap -- REQUIRED for rootless
+  - slirp4netns         # rootless networking (default on podman 4.9)
+  - passt               # pasta (default network on podman 5+; harmless now)
+  - netavark            # modern network backend (default on Ubuntu 24.04)
+  - aardvark-dns        # DNS for netavark
+  - fuse-overlayfs      # rootless overlay storage
+  - distrobox
+  - docker-compose-v2   # `docker compose` / `podman compose` provider (v2)
+
+# Search Docker Hub for unqualified image names, so `podman run nginx` pulls
+# from Docker Hub like Docker does (Ubuntu's podman ships an empty search list).
+container_search_registries:
+  - docker.io
+
+# Install the `docker` command alias (podman-docker). false = podman-native,
+# like the Bazzite desktop. It is a standalone ~250 KB package that nothing
+# depends on: flip to true + re-run to get a `docker` command; flip back to
+# false + re-run to remove it cleanly.
+container_docker_cli: false

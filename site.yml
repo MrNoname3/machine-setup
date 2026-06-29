@@ -29,3 +29,5 @@
       when: "'storage' in (roles_enabled | default([]))"
     - role: wireguard
       when: "'wireguard' in (roles_enabled | default([]))"
+    - role: containers
+      when: "'containers' in (roles_enabled | default([]))"

@@ -1,0 +1,83 @@
+---
+# containers role: rootless Podman set up to behave like Docker + Distrobox.
+# subuid/subgid are already present on this host; the tasks below are idempotent.
+
+- name: Install Podman + Distrobox + rootless/Docker-compat stack
+  ansible.builtin.apt:
+    name: "{{ container_packages }}"
+    state: present
+    update_cache: true
+  when:
+    - ansible_os_family == "Debian"
+    - container_packages | length > 0
+
+- name: Add or remove the docker CLI alias (podman-docker) per toggle
+  ansible.builtin.apt:
+    name: podman-docker
+    state: "{{ 'present' if container_docker_cli else 'absent' }}"
+    purge: true
+  when: ansible_os_family == "Debian"
+
+- name: Ensure subuid range for the primary user (rootless)
+  ansible.builtin.lineinfile:
+    path: /etc/subuid
+    regexp: "^{{ primary_user }}:"
+    line: "{{ primary_user }}:100000:65536"
+    create: true
+  when: ansible_os_family == "Debian"
+
+- name: Ensure subgid range for the primary user (rootless)
+  ansible.builtin.lineinfile:
+    path: /etc/subgid
+    regexp: "^{{ primary_user }}:"
+    line: "{{ primary_user }}:100000:65536"
+    create: true
+  when: ansible_os_family == "Debian"
+
+- name: Ensure the registries drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/containers/registries.conf.d
+    state: directory
+    mode: "0755"
+  when: ansible_os_family == "Debian"
+
+- name: Make Podman search Docker Hub for unqualified images (Docker-like)
+  ansible.builtin.copy:
+    dest: /etc/containers/registries.conf.d/99-docker-like.conf
+    mode: "0644"
+    content: |
+      # Managed by Ansible (containers role). Mirrors Fedora/Bazzite so that
+      # `podman run nginx` pulls from Docker Hub like Docker does.
+      unqualified-search-registries = {{ container_search_registries | to_json }}
+      short-name-mode = "permissive"
+  when: ansible_os_family == "Debian"
+
+- name: Point Docker-API clients at the rootless Podman socket (DOCKER_HOST)
+  ansible.builtin.copy:
+    dest: /etc/profile.d/99-docker-host.sh
+    mode: "0644"
+    content: |
+      # Managed by Ansible (containers role). Lets docker compose v2 / IDE docker
+      # plugins / testcontainers reach the rootless Podman socket.
+      export DOCKER_HOST="unix:///run/user/$(id -u)/podman/podman.sock"
+  when: ansible_os_family == "Debian"
+
+- name: Enable lingering so the rootless Podman socket runs without an active login
+  ansible.builtin.command: "loginctl enable-linger {{ primary_user }}"
+  args:
+    creates: "/var/lib/systemd/linger/{{ primary_user }}"
+  when: ansible_os_family == "Debian"
+
+- name: Look up the primary user's UID
+  ansible.builtin.command: "id -u {{ primary_user }}"
+  register: primary_uid
+  changed_when: false
+  when: ansible_os_family == "Debian"
+
+- name: Enable + start the rootless Podman API socket (user service)
+  ansible.builtin.command: >-
+    sudo -u {{ primary_user }} XDG_RUNTIME_DIR=/run/user/{{ primary_uid.stdout }}
+    systemctl --user enable --now podman.socket
+  register: podman_socket
+  changed_when: "'Created symlink' in (podman_socket.stderr + podman_socket.stdout)"
+  when: ansible_os_family == "Debian"
