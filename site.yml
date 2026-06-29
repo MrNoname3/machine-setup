@@ -31,3 +31,6 @@
       when: "'wireguard' in (roles_enabled | default([]))"
     - role: containers
       when: "'containers' in (roles_enabled | default([]))"
+    # etckeeper runs last so its /etc snapshot captures the other roles' changes.
+    - role: etckeeper
+      when: "'etckeeper' in (roles_enabled | default([]))"

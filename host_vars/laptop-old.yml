@@ -15,6 +15,7 @@ roles_enabled:
   - storage
   - wireguard
   - containers
+  - etckeeper
 # Built incrementally; uncomment each as it gets implemented:
 #  - keyring
 

@@ -1,0 +1,13 @@
+---
+# etckeeper role defaults.
+
+# Version control backend for /etc. git is the modern default on Ubuntu/Mint.
+etckeeper_vcs: git
+
+# "0" keeps etckeeper's daily autocommit (systemd timer / cron.daily) active --
+# recommended so manual edits get snapshotted even without an apt run.
+# Set to "1" to disable daily autocommits.
+etckeeper_avoid_daily_autocommits: "0"
+
+# Message used for the snapshot commit Ansible makes after configuring /etc.
+etckeeper_commit_message: "Snapshot of /etc (committed by Ansible)"

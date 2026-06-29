@@ -1,0 +1,56 @@
+---
+# etckeeper: put /etc under git version control. The package auto-installs apt
+# hooks (commit before/after every package operation) and a daily autocommit
+# timer, so config drift is captured without manual effort.
+#
+# SECURITY: the /etc/.git repository is LOCAL and root-only (mode 0700). It
+# captures secrets that live under /etc (shadow, /etc/luks/hdd.key, WireGuard
+# private keys). It is never pushed -- PUSH_REMOTE is left empty on purpose.
+# Do not point this at the (anonymous-readable) Gitea repo.
+
+- name: Install etckeeper (and git as the VCS backend)
+  ansible.builtin.apt:
+    name:
+      - etckeeper
+      - git
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Use git as the etckeeper VCS
+  ansible.builtin.lineinfile:
+    path: /etc/etckeeper/etckeeper.conf
+    regexp: '^VCS='
+    line: 'VCS="{{ etckeeper_vcs }}"'
+  when: ansible_os_family == "Debian"
+
+- name: Keep daily autocommits enabled (or disabled per the toggle)
+  ansible.builtin.lineinfile:
+    path: /etc/etckeeper/etckeeper.conf
+    regexp: '^AVOID_DAILY_AUTOCOMMITS='
+    line: "AVOID_DAILY_AUTOCOMMITS={{ etckeeper_avoid_daily_autocommits }}"
+  when: ansible_os_family == "Debian"
+
+- name: Initialise the /etc git repository (one-time)
+  ansible.builtin.command: etckeeper init
+  args:
+    creates: /etc/.git
+  when: ansible_os_family == "Debian"
+
+# Run last in the playbook so this snapshot captures /etc changes made by all the
+# other roles in the same run. etckeeper provides a default git identity, so the
+# commit does not need user.name/user.email configured.
+- name: Check whether /etc has uncommitted changes
+  ansible.builtin.command: etckeeper unclean
+  register: etckeeper_unclean
+  changed_when: false
+  failed_when: false
+  when: ansible_os_family == "Debian"
+
+- name: Commit the current state of /etc
+  ansible.builtin.command: etckeeper commit "{{ etckeeper_commit_message }}"
+  register: etckeeper_commit
+  changed_when: "'nothing to commit' not in (etckeeper_commit.stdout + etckeeper_commit.stderr)"
+  when:
+    - ansible_os_family == "Debian"
+    - etckeeper_unclean.rc == 0
