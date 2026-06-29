@@ -116,6 +116,22 @@ adds a literal `docker` command (a thin wrapper around `podman`). Standalone
 
 The Bazzite desktop runs podman-native (no shim), so `false` mirrors it.
 
+## SELinux / AppArmor (and the cross-machine `:Z`)
+
+- **No SELinux** on the laptop (Ubuntu/Mint uses AppArmor); `podman info` shows
+  `selinux=false`.
+- **AppArmor is active but does not confine rootless containers**
+  (`apparmor=false` in `podman info`). That is expected: rootless isolation comes
+  from **user namespaces + seccomp + dropped capabilities**. Host-side profiles
+  (`podman`/`crun`/`runc`) still confine the runtime binaries.
+- Ubuntu's unprivileged-userns AppArmor restriction is **off** here
+  (`kernel.apparmor_restrict_unprivileged_userns=0`), so rootless works smoothly.
+  The role asserts `unshare --user` early so a future regression fails clearly.
+- **Cross-machine volumes:** the Bazzite desktop uses **SELinux**, where bind
+  mounts often need a relabel flag — `-v ./data:/data:Z` (private) or `:z`
+  (shared). On this laptop the flag is a harmless no-op. Keep `:Z` in compose
+  files / run commands so they work on **both** machines.
+
 ## Troubleshooting
 
 - **`short-name "nginx" did not resolve`**: the docker.io search drop-in is
