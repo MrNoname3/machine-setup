@@ -2,6 +2,28 @@
 # containers role: rootless Podman set up to behave like Docker + Distrobox.
 # subuid/subgid are already present on this host; the tasks below are idempotent.
 
+# The only rootless precondition we don't enforce with a package: unprivileged
+# user namespaces. Ubuntu 24.04 enables them by default, but it also ships an
+# AppArmor restriction toggle -- so assert early with a clear message rather than
+# letting Podman fail cryptically later.
+- name: Check unprivileged user namespaces (rootless precondition)
+  ansible.builtin.command: unshare --user --map-root-user true
+  changed_when: false
+  failed_when: false
+  register: userns_check
+  when: ansible_os_family == "Debian"
+
+- name: Require unprivileged user namespaces for rootless Podman
+  ansible.builtin.assert:
+    that: userns_check.rc == 0
+    fail_msg: >-
+      Unprivileged user namespaces are unavailable (`unshare --user` failed).
+      Rootless Podman needs them. On Ubuntu check the sysctls
+      kernel.apparmor_restrict_unprivileged_userns and
+      kernel.unprivileged_userns_clone.
+    success_msg: Unprivileged user namespaces available.
+  when: ansible_os_family == "Debian"
+
 - name: Install Podman + Distrobox + rootless/Docker-compat stack
   ansible.builtin.apt:
     name: "{{ container_packages }}"
