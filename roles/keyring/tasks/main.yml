@@ -1,28 +1,96 @@
 ---
-# keyring role: use KeePassXC as the system keyring and SSH agent.
+# keyring role: use KeePassXC as the SSH agent (and, later, the system keyring).
 #
-# TODO: implement the design from the plan:
+# Status: the SSH-agent integration is implemented for the Fedora-atomic / KDE
+# host (desktop-bazzite). The Debian/Mint path (disable gnome-keyring's Secret
+# Service + SSH components and hand them to KeePassXC) is still TODO — see the
+# bottom of this file and memory/old-laptop-linux-plan.md.
 #
-# 1. Disable the gnome-keyring Secret Service component so KeePassXC can own
-#    org.freedesktop.secrets (only one provider may be active at a time).
+# Eventual full design (still the target for the keyring/Secret-Service half):
+#   - Two databases: DB-A "system keyring" (key-file-only, auto-unlocks at
+#     login, exposes a group over the Secret Service API for non-sensitive
+#     system secrets) and DB-B "passwords" (password-protected, manual unlock,
+#     holds personal passwords + browser integration + SSH keys).
+#   - KeePassXC autostarts in the tray and reopens previous databases.
 #
-# 2. Autostart KeePassXC (tray, "open previous databases on startup").
+# What this role automates today (idempotent, user-level — no root needed):
+#   1. Generate a .pub next to every private key in {{ ssh_keys_dir }}.
+#   2. Enable the per-user systemd ssh-agent.socket, so SSH_AUTH_SOCK points at
+#      a stable, boot-persistent agent that KeePassXC can load keys into.
+#      (On KDE/Plasma SSH_AUTH_SOCK is already exported to this socket; we just
+#      make the socket itself deterministic across reboots.)
+#   3. Turn on KeePassXC's "SSH Agent integration" setting.
 #
-# 3. Two-database layout:
-#    - DB-A "system keyring": exposes a group over the Secret Service API;
-#      key-file-only, auto-unlocks at login; keyfile stored on the encrypted root.
-#      Holds only non-sensitive system secrets (Wi-Fi, app tokens).
-#    - DB-B "passwords": personal passwords + browser integration + SSH keys;
-#      password-protected, unlocked manually only.
-#
-# 4. SSH agent integration enabled; SSH keys live in DB-B and are removed from
-#    the agent when the database is locked. ~/.ssh/config aliases work unchanged.
-#
-# Note: user-level dotfiles (KeePassXC config, ~/.ssh/config) are better managed
-# with chezmoi/stow than with this system-level role.
-#
-# See: memory/old-laptop-linux-plan.md
+# Manual one-time steps it CANNOT do (secret handling lives in the GUI):
+#   - Add each private key to a KeePassXC entry (as an attachment); on the
+#     entry's "SSH Agent" tab tick "Add key to agent when database is unlocked"
+#     and "Remove key from agent when database is locked".
+#   - (Deferred, by choice) Repoint ~/.ssh/config IdentityFile lines to the .pub
+#     files so the on-disk private keys are no longer used and a locked database
+#     blocks SSH. For now the config keeps pointing at the on-disk private keys,
+#     which stay working as a fallback.
 
-- name: keyring role not yet implemented
+# ---------------------------------------------------------------------------
+# Fedora-atomic / KDE host (Bazzite): KeePassXC as the SSH agent
+# ---------------------------------------------------------------------------
+- name: KeePassXC SSH agent (Fedora-atomic / KDE)
+  # Mirrors the repo's Mint guard (ansible_os_family == "Debian") from the other
+  # side. NB: Bazzite reports ansible_os_family == "Bazzite" (uBlue sets its own
+  # os-release ID), not "RedHat" — so we branch on "not Debian", not on RedHat.
+  when: ansible_os_family != "Debian"
+  become: false # everything here is user-scoped; no privilege escalation
+  block:
+
+    - name: Find private keys in the SSH key directory
+      ansible.builtin.find:
+        paths: "{{ ssh_keys_dir }}"
+        file_type: file
+        excludes:
+          - "*.pub" # already a public key
+          - "*.ppk" # PuTTY format, not an OpenSSH private key
+          - "config" # ssh client config
+          - "*config" # e.g. RemoteSSH_config
+          - "*known_hosts*"
+      register: keyring_private_keys
+
+    - name: Generate a public key (.pub) for every private key
+      # ssh-keygen -y derives the public key from the private one. `creates`
+      # makes this idempotent: existing .pub files are left untouched.
+      ansible.builtin.shell:
+        cmd: "ssh-keygen -y -P '' -f {{ item.path | quote }} > {{ (item.path ~ '.pub') | quote }}"
+        creates: "{{ item.path }}.pub"
+      loop: "{{ keyring_private_keys.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+
+    - name: Enable the per-user SSH agent socket (boot-persistent)
+      ansible.builtin.systemd_service:
+        name: ssh-agent.socket
+        scope: user
+        enabled: true
+        state: started
+
+    - name: Enable KeePassXC's SSH Agent integration
+      # KeePassXC (flatpak) inherits SSH_AUTH_SOCK and has the `ssh-auth` socket
+      # permission, so once this is on it loads keys into the agent above.
+      # NOTE: KeePassXC rewrites this file on exit; if it is running while this
+      # task flips the value, close and reopen it (or set it once via the GUI:
+      # Settings -> SSH Agent -> Enable SSH Agent integration).
+      community.general.ini_file:
+        path: "/home/{{ primary_user }}/.var/app/org.keepassxc.KeePassXC/config/keepassxc/keepassxc.ini"
+        section: SSHAgent
+        option: Agent
+        value: "true"
+        no_extra_spaces: true
+        mode: "0600"
+
+# ---------------------------------------------------------------------------
+# Debian / Mint host: TODO (gnome-keyring handover) — not yet implemented
+# ---------------------------------------------------------------------------
+- name: keyring role — Debian/Mint path not yet implemented
+  when: ansible_os_family == "Debian"
   ansible.builtin.debug:
-    msg: "TODO: KeePassXC Secret Service + SSH agent; disable gnome-keyring secrets."
+    msg: >-
+      TODO: disable gnome-keyring's Secret Service + SSH components and hand
+      org.freedesktop.secrets / the SSH agent to KeePassXC.
+      See: memory/old-laptop-linux-plan.md

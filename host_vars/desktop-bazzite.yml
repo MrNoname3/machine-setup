@@ -1,0 +1,17 @@
+---
+# Per-host settings for desktop-bazzite (Bazzite / Fedora atomic, KDE Plasma).
+#
+# This host is being onboarded incrementally. For now only the keyring role
+# runs: it sets up KeePassXC as the SSH agent. The Mint-centric roles are not
+# applied here (they are guarded by ansible_os_family anyway).
+
+# Roles to apply on this host (the "switch" for site.yml).
+roles_enabled:
+  - keyring
+
+# The primary login user (used for ownership, paths, ...).
+primary_user: REDACTED
+
+# Directory holding the IoT/device SSH private keys (OneDrive-synced).
+# The keyring role generates a matching .pub next to every private key here.
+ssh_keys_dir: "/home/{{ primary_user }}/SynologyDrive/OneDrive/IOT/SSH"
