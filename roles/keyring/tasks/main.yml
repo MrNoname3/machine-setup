@@ -22,6 +22,8 @@
 #   4. Enable the per-user systemd ssh-agent.socket, so SSH_AUTH_SOCK points at
 #      a stable, boot-persistent agent that KeePassXC can load keys into.
 #   5. Turn on KeePassXC's "SSH Agent integration" (Agent + Enabled).
+#   6. Pin SSH_AUTH_SOCK for the KeePassXC flatpak via an override, so it finds
+#      the agent no matter how it was launched (autostart / odd launch context).
 #
 # The ssh config *content* (IdentityFile -> .pub, ControlMaster/ControlPersist
 # multiplexing, host aliases) lives in the OneDrive-synced file, not here; this
@@ -115,6 +117,32 @@
         - { option: Enabled, value: "true" }
       loop_control:
         label: "{{ item.option }}"
+
+    - name: Look up the primary user's UID (for the runtime socket path)
+      ansible.builtin.command: "id -u {{ primary_user }}"
+      register: keyring_uid
+      changed_when: false
+
+    - name: Read the current KeePassXC flatpak overrides
+      ansible.builtin.command: flatpak override --user --show org.keepassxc.KeePassXC
+      register: keyring_kp_overrides
+      changed_when: false
+
+    - name: Pin SSH_AUTH_SOCK for the KeePassXC flatpak (robust against launch env)
+      # The flatpak's default `ssh-auth` socket only wires SSH_AUTH_SOCK when the
+      # launching process already has it; an early / odd launch (e.g. autostart)
+      # can miss it, leaving KeePassXC unable to reach the agent. This override
+      # binds the real host agent socket into the sandbox and fixes the env, so
+      # KeePassXC always finds it. Assumes the runtime dir is /run/user/<uid>.
+      ansible.builtin.command:
+        cmd: >-
+          flatpak override --user
+          --env=SSH_AUTH_SOCK=/run/user/{{ keyring_uid.stdout }}/ssh-agent.socket
+          --filesystem=xdg-run/ssh-agent.socket
+          org.keepassxc.KeePassXC
+      when: >-
+        ('SSH_AUTH_SOCK=/run/user/' ~ keyring_uid.stdout ~ '/ssh-agent.socket')
+        not in keyring_kp_overrides.stdout
 
 # ---------------------------------------------------------------------------
 # Debian / Mint host: TODO (gnome-keyring handover) — not yet implemented
