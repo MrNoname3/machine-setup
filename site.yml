@@ -23,6 +23,8 @@
       when: "'keyring' in (roles_enabled | default([]))"
     - role: graphics
       when: "'graphics' in (roles_enabled | default([]))"
+    - role: kde
+      when: "'kde' in (roles_enabled | default([]))"
     - role: firewall
       when: "'firewall' in (roles_enabled | default([]))"
     - role: storage

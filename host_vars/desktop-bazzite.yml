@@ -1,13 +1,14 @@
 ---
 # Per-host settings for desktop-bazzite (Bazzite / Fedora atomic, KDE Plasma).
 #
-# This host is being onboarded incrementally. For now only the keyring role
-# runs: it sets up KeePassXC as the SSH agent. The Mint-centric roles are not
-# applied here (they are guarded by ansible_os_family anyway).
+# This host is being onboarded incrementally. For now the keyring role (KeePassXC
+# as the SSH agent) and the kde role (Plasma desktop tweaks) run. The Mint-centric
+# roles are not applied here (they are guarded by ansible_os_family anyway).
 
 # Roles to apply on this host (the "switch" for site.yml).
 roles_enabled:
   - keyring
+  - kde
 
 # The primary login user (used for ownership, paths, ...).
 primary_user: REDACTED

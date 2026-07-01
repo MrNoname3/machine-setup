@@ -1,0 +1,36 @@
+---
+# kde role: KDE Plasma (Wayland) desktop tweaks for the Bazzite host.
+#
+# What it does today:
+#   Force the on-screen input method OFF (System Settings -> Keyboard ->
+#   Virtual Keyboard = "None").
+#
+#   Bazzite's image ships a full input-method stack (ibus* and fcitx5*), and
+#   KDE's Virtual Keyboard can get switched on unintentionally (e.g. a stray
+#   click). Once on, it wires a text-input method into KWin and shows a
+#   candidate popup while typing -- numbered accent/emoji variants that replace
+#   the last character -- which is unwanted on a plain physical keyboard.
+#
+#   The live culprit here was exactly that (kwinrc [Wayland] InputMethod set to
+#   an engine); ibus itself was NOT running -- only a stale ~/.config/ibus dir
+#   remained, which we removed. Pinning InputMethod empty keeps the Virtual
+#   Keyboard on "None" across reboots. Takes effect at the next Plasma login.
+
+- name: KDE Plasma desktop tweaks (Wayland)
+  when: ansible_os_family != "Debian" # KDE/Fedora-atomic host only (not the Mint laptop)
+  become: false # user-scoped config, no root needed
+  vars:
+    kwinrc: "/home/{{ primary_user }}/.config/kwinrc"
+  block:
+
+    - name: Disable the on-screen input method (Virtual Keyboard = None)
+      # kwinrc is a KConfig .ini file. An empty [Wayland] InputMethod is what
+      # System Settings writes for "None" (it stores the key with a [$d] default
+      # marker; a plain empty value is read the same way). Idempotent.
+      community.general.ini_file:
+        path: "{{ kwinrc }}"
+        section: Wayland
+        option: InputMethod
+        value: ""
+        no_extra_spaces: true
+        mode: "0644"
