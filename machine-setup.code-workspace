@@ -1,0 +1,35 @@
+{
+	"folders": [
+		{
+			"name": "machine-setup",
+			"path": "."
+		}
+	],
+	"settings": {
+		// Treat the playbook/role YAML as Ansible so the Ansible extension lints it.
+		"files.associations": {
+			"site.yml": "ansible",
+			"**/tasks/*.yml": "ansible",
+			"**/handlers/*.yml": "ansible",
+			"**/meta/*.yml": "ansible"
+		},
+		"[yaml]": {
+			"editor.tabSize": 2,
+			"editor.insertSpaces": true
+		},
+		"[ansible]": {
+			"editor.tabSize": 2,
+			"editor.insertSpaces": true
+		},
+		// Point the Ansible extension at this repo's config (relative, portable).
+		"ansible.ansible.useFullyQualifiedCollectionNames": true,
+		"files.trimTrailingWhitespace": true,
+		"files.insertFinalNewline": true
+	},
+	"extensions": {
+		"recommendations": [
+			"redhat.ansible",
+			"redhat.vscode-yaml"
+		]
+	}
+}
