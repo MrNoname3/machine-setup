@@ -14,21 +14,25 @@
 #   - KeePassXC autostarts in the tray and reopens previous databases.
 #
 # What this role automates today (idempotent, user-level — no root needed):
-#   1. Generate a .pub next to every private key in {{ ssh_keys_dir }}.
-#   2. Enable the per-user systemd ssh-agent.socket, so SSH_AUTH_SOCK points at
+#   1. ~/.ssh (0700) and ~/.ssh/control (0700, for ssh ControlMaster sockets).
+#   2. Symlink ~/.ssh/config -> {{ ssh_keys_dir }}/config and enforce 0600 on it.
+#   3. Generate a .pub next to any private key still in {{ ssh_keys_dir }}
+#      (normally a no-op: post-phase-2 the private keys live only in KeePassXC,
+#      and the .pub files arrive via the OneDrive sync).
+#   4. Enable the per-user systemd ssh-agent.socket, so SSH_AUTH_SOCK points at
 #      a stable, boot-persistent agent that KeePassXC can load keys into.
-#      (On KDE/Plasma SSH_AUTH_SOCK is already exported to this socket; we just
-#      make the socket itself deterministic across reboots.)
-#   3. Turn on KeePassXC's "SSH Agent integration" setting.
+#   5. Turn on KeePassXC's "SSH Agent integration" (Agent + Enabled).
+#
+# The ssh config *content* (IdentityFile -> .pub, ControlMaster/ControlPersist
+# multiplexing, host aliases) lives in the OneDrive-synced file, not here; this
+# role only links it into ~/.ssh and fixes its permissions.
 #
 # Manual one-time steps it CANNOT do (secret handling lives in the GUI):
 #   - Add each private key to a KeePassXC entry (as an attachment); on the
 #     entry's "SSH Agent" tab tick "Add key to agent when database is unlocked"
-#     and "Remove key from agent when database is locked".
-#   - (Deferred, by choice) Repoint ~/.ssh/config IdentityFile lines to the .pub
-#     files so the on-disk private keys are no longer used and a locked database
-#     blocks SSH. For now the config keeps pointing at the on-disk private keys,
-#     which stay working as a fallback.
+#     and "Remove key from agent when database is locked". Optionally "Require
+#     user confirmation" (per-use; the config's ControlPersist keeps it to one
+#     prompt per active window).
 
 # ---------------------------------------------------------------------------
 # Fedora-atomic / KDE host (Bazzite): KeePassXC as the SSH agent
@@ -39,9 +43,32 @@
   # os-release ID), not "RedHat" — so we branch on "not Debian", not on RedHat.
   when: ansible_os_family != "Debian"
   become: false # everything here is user-scoped; no privilege escalation
+  vars:
+    ssh_dir: "/home/{{ primary_user }}/.ssh"
   block:
 
-    - name: Find private keys in the SSH key directory
+    - name: Ensure ~/.ssh and ~/.ssh/control exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0700"
+      loop:
+        - "{{ ssh_dir }}"
+        - "{{ ssh_dir }}/control" # ControlMaster multiplexing sockets
+
+    - name: Link ~/.ssh/config to the OneDrive-synced ssh config
+      ansible.builtin.file:
+        src: "{{ ssh_keys_dir }}/config"
+        dest: "{{ ssh_dir }}/config"
+        state: link
+        force: true
+
+    - name: Enforce 0600 on the ssh config file
+      ansible.builtin.file:
+        path: "{{ ssh_keys_dir }}/config"
+        mode: "0600"
+
+    - name: Find private keys still present in the SSH key directory
       ansible.builtin.find:
         paths: "{{ ssh_keys_dir }}"
         file_type: file
@@ -74,15 +101,20 @@
       # KeePassXC (flatpak) inherits SSH_AUTH_SOCK and has the `ssh-auth` socket
       # permission, so once this is on it loads keys into the agent above.
       # NOTE: KeePassXC rewrites this file on exit; if it is running while this
-      # task flips the value, close and reopen it (or set it once via the GUI:
+      # task flips a value, close and reopen it (or set it once via the GUI:
       # Settings -> SSH Agent -> Enable SSH Agent integration).
       community.general.ini_file:
         path: "/home/{{ primary_user }}/.var/app/org.keepassxc.KeePassXC/config/keepassxc/keepassxc.ini"
         section: SSHAgent
-        option: Agent
-        value: "true"
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
         no_extra_spaces: true
         mode: "0600"
+      loop:
+        - { option: Agent, value: "true" }
+        - { option: Enabled, value: "true" }
+      loop_control:
+        label: "{{ item.option }}"
 
 # ---------------------------------------------------------------------------
 # Debian / Mint host: TODO (gnome-keyring handover) — not yet implemented
