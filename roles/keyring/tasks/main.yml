@@ -11,19 +11,26 @@
 #     login, exposes a group over the Secret Service API for non-sensitive
 #     system secrets) and DB-B "passwords" (password-protected, manual unlock,
 #     holds personal passwords + browser integration + SSH keys).
-#   - KeePassXC autostarts in the tray and reopens previous databases.
 #
-# What this role automates today (idempotent, user-level — no root needed):
-#   1. ~/.ssh (0700) and ~/.ssh/control (0700, for ssh ControlMaster sockets).
-#   2. Symlink ~/.ssh/config -> {{ ssh_keys_dir }}/config and enforce 0600 on it.
-#   3. Generate a .pub next to any private key still in {{ ssh_keys_dir }}
+# What this role automates today (idempotent, mostly user-level — no root):
+#   1. Install the KeePassXC flatpak (from Flathub) if it is missing. This is the
+#      ONLY task that needs root, and only on a fresh machine — run it with -K
+#      (or passwordless sudo). Once installed, re-runs skip it and stay root-free.
+#   2. ~/.ssh (0700) and ~/.ssh/control (0700, for ssh ControlMaster sockets).
+#   3. Symlink ~/.ssh/config -> {{ ssh_keys_dir }}/config and enforce 0600 on it.
+#   4. Generate a .pub next to any private key still in {{ ssh_keys_dir }}
 #      (normally a no-op: post-phase-2 the private keys live only in KeePassXC,
 #      and the .pub files arrive via the OneDrive sync).
-#   4. Enable the per-user systemd ssh-agent.socket, so SSH_AUTH_SOCK points at
-#      a stable, boot-persistent agent that KeePassXC can load keys into.
-#   5. Turn on KeePassXC's "SSH Agent integration" (Agent + Enabled).
-#   6. Pin SSH_AUTH_SOCK for the KeePassXC flatpak via an override, so it finds
+#   5. Enable the per-user systemd ssh-agent.socket (stable, boot-persistent).
+#   6. Reproduce the KeePassXC settings (keepassxc.ini): SSH agent, GUI/tray,
+#      browser integration, password generator — see keepassxc_ini_settings.
+#   7. Pin SSH_AUTH_SOCK for the KeePassXC flatpak via an override, so it finds
 #      the agent no matter how it was launched (autostart / odd launch context).
+#   8. Autostart KeePassXC at login (XDG autostart .desktop).
+#
+# NOT reproduced on purpose: the [KeeShare] block — it holds a per-install
+# generated PRIVATE key and must never land in the repo; KeePassXC regenerates
+# it on a fresh machine.
 #
 # The ssh config *content* (IdentityFile -> .pub, ControlMaster/ControlPersist
 # multiplexing, host aliases) lives in the OneDrive-synced file, not here; this
@@ -44,10 +51,43 @@
   # side. NB: Bazzite reports ansible_os_family == "Bazzite" (uBlue sets its own
   # os-release ID), not "RedHat" — so we branch on "not Debian", not on RedHat.
   when: ansible_os_family != "Debian"
-  become: false # everything here is user-scoped; no privilege escalation
+  become: false # user-scoped by default; only the flatpak install escalates
   vars:
     ssh_dir: "/home/{{ primary_user }}/.ssh"
+    kp_app: org.keepassxc.KeePassXC
+    kp_ini: "/home/{{ primary_user }}/.var/app/org.keepassxc.KeePassXC/config/keepassxc/keepassxc.ini"
+    # Settings to reproduce (mirrors the desktop's current keepassxc.ini). The
+    # [KeeShare] private key is deliberately excluded.
+    keepassxc_ini_settings:
+      - { section: SSHAgent, option: Agent, value: "true" }
+      - { section: SSHAgent, option: Enabled, value: "true" }
+      - { section: GUI, option: LaunchAtStartup, value: "true" }
+      - { section: GUI, option: ShowTrayIcon, value: "true" }
+      - { section: GUI, option: TrayIconAppearance, value: "monochrome-light" }
+      - { section: GUI, option: MinimizeOnClose, value: "true" }
+      - { section: GUI, option: MinimizeOnStartup, value: "true" }
+      - { section: GUI, option: MinimizeToTray, value: "false" }
+      - { section: Browser, option: Enabled, value: "true" }
+      - { section: PasswordGenerator, option: Length, value: "22" }
+      - { section: PasswordGenerator, option: SpecialChars, value: "true" }
   block:
+
+    - name: Check whether the KeePassXC flatpak is installed (any scope)
+      ansible.builtin.command: "flatpak info {{ kp_app }}"
+      register: keyring_kp_info
+      changed_when: false
+      failed_when: false
+
+    - name: Install KeePassXC (system flatpak from Flathub)
+      # Only needed on a fresh machine; run the playbook with -K for this one.
+      # Assumes the Flathub remote is configured (it is on Bazzite/uBlue).
+      community.general.flatpak:
+        name: "{{ kp_app }}"
+        remote: flathub
+        method: system
+        state: present
+      become: true
+      when: keyring_kp_info.rc != 0
 
     - name: Ensure ~/.ssh and ~/.ssh/control exist
       ansible.builtin.file:
@@ -99,24 +139,28 @@
         enabled: true
         state: started
 
-    - name: Enable KeePassXC's SSH Agent integration
-      # KeePassXC (flatpak) inherits SSH_AUTH_SOCK and has the `ssh-auth` socket
-      # permission, so once this is on it loads keys into the agent above.
-      # NOTE: KeePassXC rewrites this file on exit; if it is running while this
-      # task flips a value, close and reopen it (or set it once via the GUI:
-      # Settings -> SSH Agent -> Enable SSH Agent integration).
+    - name: Ensure the KeePassXC flatpak config directory exists
+      # On a fresh install ~/.var/app/<id>/config is created on first run; make
+      # it up front so the ini_file task below has somewhere to write.
+      ansible.builtin.file:
+        path: "{{ kp_ini | dirname }}"
+        state: directory
+        mode: "0700"
+
+    - name: Reproduce KeePassXC settings (keepassxc.ini)
+      # KeePassXC rewrites this file on exit; if it is running while a value is
+      # flipped, close and reopen it. On this host the values already match, so
+      # this is a no-op; on a fresh machine it seeds them before first launch.
       community.general.ini_file:
-        path: "/home/{{ primary_user }}/.var/app/org.keepassxc.KeePassXC/config/keepassxc/keepassxc.ini"
-        section: SSHAgent
+        path: "{{ kp_ini }}"
+        section: "{{ item.section }}"
         option: "{{ item.option }}"
         value: "{{ item.value }}"
         no_extra_spaces: true
         mode: "0600"
-      loop:
-        - { option: Agent, value: "true" }
-        - { option: Enabled, value: "true" }
+      loop: "{{ keepassxc_ini_settings }}"
       loop_control:
-        label: "{{ item.option }}"
+        label: "{{ item.section }}/{{ item.option }}"
 
     - name: Look up the primary user's UID (for the runtime socket path)
       ansible.builtin.command: "id -u {{ primary_user }}"
@@ -124,7 +168,7 @@
       changed_when: false
 
     - name: Read the current KeePassXC flatpak overrides
-      ansible.builtin.command: flatpak override --user --show org.keepassxc.KeePassXC
+      ansible.builtin.command: "flatpak override --user --show {{ kp_app }}"
       register: keyring_kp_overrides
       changed_when: false
 
@@ -139,10 +183,28 @@
           flatpak override --user
           --env=SSH_AUTH_SOCK=/run/user/{{ keyring_uid.stdout }}/ssh-agent.socket
           --filesystem=xdg-run/ssh-agent.socket
-          org.keepassxc.KeePassXC
+          {{ kp_app }}
       when: >-
         ('SSH_AUTH_SOCK=/run/user/' ~ keyring_uid.stdout ~ '/ssh-agent.socket')
         not in keyring_kp_overrides.stdout
+
+    - name: Ensure ~/.config/autostart exists
+      ansible.builtin.file:
+        path: "/home/{{ primary_user }}/.config/autostart"
+        state: directory
+        mode: "0755"
+
+    - name: Autostart KeePassXC at login
+      ansible.builtin.copy:
+        dest: "/home/{{ primary_user }}/.config/autostart/{{ kp_app }}.desktop"
+        mode: "0644"
+        content: |
+          [Desktop Entry]
+          Type=Application
+          Name={{ kp_app }}
+          X-XDP-Autostart={{ kp_app }}
+          Exec=flatpak run {{ kp_app }}
+          X-Flatpak={{ kp_app }}
 
 # ---------------------------------------------------------------------------
 # Debian / Mint host: TODO (gnome-keyring handover) — not yet implemented
