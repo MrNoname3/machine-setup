@@ -6,6 +6,8 @@
 keepassxc_ini_settings:
   - { section: SSHAgent, option: Agent, value: "true" }
   - { section: SSHAgent, option: Enabled, value: "true" }
+  - { section: GUI, option: ApplicationTheme, value: "dark" }
+  - { section: GUI, option: CompactMode, value: "true" }
   - { section: GUI, option: LaunchAtStartup, value: "true" }
   - { section: GUI, option: ShowTrayIcon, value: "true" }
   - { section: GUI, option: TrayIconAppearance, value: "monochrome-light" }
@@ -18,3 +20,15 @@ keepassxc_ini_settings:
   # Security: lock the database after 15 min of inactivity.
   - { section: Security, option: LockDatabaseIdle, value: "true" }
   - { section: Security, option: LockDatabaseIdleSeconds, value: "900" }
+
+# KeePassXC browser integration is not stored in keepassxc.ini but as a
+# native-messaging host manifest dropped into the browser's config. This is the
+# manifest for the Brave browser; only the "path" (the KeePassXC proxy binary)
+# differs per install type and is filled in per-OS in the role tasks.
+keepassxc_browser_manifest:
+  name: org.keepassxc.keepassxc_browser
+  description: KeePassXC integration with native messaging support
+  type: stdio
+  allowed_origins:
+    - "chrome-extension://pdffhmdngciaglkoonimfcmckehcpafo/"
+    - "chrome-extension://oboonakemofpalcgghocfoadofidjkkk/"

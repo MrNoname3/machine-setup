@@ -43,6 +43,7 @@
     ssh_dir: "/home/{{ primary_user }}/.ssh"
     kp_app: org.keepassxc.KeePassXC
     kp_ini: "/home/{{ primary_user }}/.var/app/org.keepassxc.KeePassXC/config/keepassxc/keepassxc.ini"
+    kp_proxy_path: /var/lib/flatpak/exports/bin/org.keepassxc.KeePassXC # flatpak wrapper
   block:
 
     - name: Check whether the KeePassXC flatpak is installed (any scope)
@@ -164,6 +165,18 @@
           Exec=flatpak run {{ kp_app }}
           X-Flatpak={{ kp_app }}
 
+    - name: Ensure the Brave native-messaging host directory exists
+      ansible.builtin.file:
+        path: "/home/{{ primary_user }}/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts"
+        state: directory
+        mode: "0755"
+
+    - name: Enable KeePassXC browser integration for Brave (native-messaging manifest)
+      ansible.builtin.copy:
+        dest: "/home/{{ primary_user }}/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts/org.keepassxc.keepassxc_browser.json"
+        mode: "0644"
+        content: "{{ (keepassxc_browser_manifest | combine({'path': kp_proxy_path})) | to_nice_json }}\n"
+
 # ===========================================================================
 # Debian / Mint host (Cinnamon): native KeePassXC -> gnome-keyring ssh agent
 # ===========================================================================
@@ -173,6 +186,7 @@
   vars:
     ssh_dir: "/home/{{ primary_user }}/.ssh"
     kp_ini: "/home/{{ primary_user }}/.config/keepassxc/keepassxc.ini"
+    kp_proxy_path: /usr/bin/keepassxc-proxy # native proxy binary
   block:
 
     - name: Install KeePassXC (apt)
@@ -252,3 +266,15 @@
           Exec=keepassxc
           Icon=keepassxc
           X-GNOME-Autostart-enabled=true
+
+    - name: Ensure the Brave native-messaging host directory exists
+      ansible.builtin.file:
+        path: "/home/{{ primary_user }}/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts"
+        state: directory
+        mode: "0755"
+
+    - name: Enable KeePassXC browser integration for Brave (native-messaging manifest)
+      ansible.builtin.copy:
+        dest: "/home/{{ primary_user }}/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts/org.keepassxc.keepassxc_browser.json"
+        mode: "0644"
+        content: "{{ (keepassxc_browser_manifest | combine({'path': kp_proxy_path})) | to_nice_json }}\n"
