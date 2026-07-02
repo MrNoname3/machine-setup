@@ -11,9 +11,10 @@
 #     default agent is gnome-keyring's, but it REFUSES to sign rsa-sha2 and
 #     confirm-constrained keys ("agent refused operation"). So we run our own
 #     OpenSSH ssh-agent (+ ssh-askpass for the confirmation prompt) and point both
-#     KeePassXC (SSH_AUTH_SOCK override) and ssh (environment.d + ~/.bashrc) at it.
-#     gnome-keyring is left alone (its Secret Service keeps working); we only
-#     override SSH_AUTH_SOCK. Needs a re-login for the session-wide env to apply.
+#     KeePassXC (SSH_AUTH_SOCK override) and the session (environment.d + an
+#     /etc/X11/Xsession.d hook that overrides gnome-keyring's exported
+#     SSH_AUTH_SOCK) at it. gnome-keyring is left alone (Secret Service keeps
+#     working); we only override SSH_AUTH_SOCK. Needs a re-login to take effect.
 #
 # Shared, OS-independent bits (idempotent, user-level unless noted):
 #   - ~/.ssh (0700) + ~/.ssh/control (0700, ssh ControlMaster sockets).
@@ -285,14 +286,23 @@
           # Use our OpenSSH ssh-agent (fed by KeePassXC), not gnome-keyring.
           SSH_AUTH_SOCK=${XDG_RUNTIME_DIR}/ssh-agent.socket
 
-    - name: Point terminal shells at our ssh-agent (~/.bashrc)
-      ansible.builtin.blockinfile:
-        path: "/home/{{ primary_user }}/.bashrc"
-        marker: "# {mark} machine-setup: SSH agent"
-        block: |
-          # gnome-keyring's agent cannot sign rsa-sha2 / confirm-constrained keys,
-          # so point ssh at our OpenSSH agent (fed by KeePassXC).
-          export SSH_AUTH_SOCK="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ssh-agent.socket"
+    - name: Point the graphical session at our ssh-agent (Xsession.d hook)
+      # Runs after 90gpg-agent and before 95dbus_update-activation-env --all, so
+      # this value is propagated session-wide (systemd + dbus), overriding the
+      # SSH_AUTH_SOCK that pam_gnome_keyring exports for gnome-keyring's agent.
+      # This is what lets us drop a ~/.bashrc override.
+      ansible.builtin.copy:
+        dest: /etc/X11/Xsession.d/91keepassxc-ssh-auth-sock
+        mode: "0644"
+        content: |
+          # Point SSH_AUTH_SOCK at the KeePassXC-fed OpenSSH agent instead of gnome-keyring
+          # (gnome-keyring cannot sign rsa-sha2 / confirm-constrained keys). Runs before
+          # 95dbus_update-activation-env --all, so this value is propagated session-wide.
+          if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+              SSH_AUTH_SOCK="${XDG_RUNTIME_DIR}/ssh-agent.socket"
+              export SSH_AUTH_SOCK
+          fi
+      become: true
 
     - name: Ensure the KeePassXC config directory exists
       ansible.builtin.file:
