@@ -265,14 +265,16 @@
 
           [Install]
           WantedBy=default.target
-      register: keyring_agent_unit
 
     - name: Enable + start the OpenSSH ssh-agent service
+      # Deliberately NOT "restarted": a restart flushes the loaded keys. If the
+      # unit definition changes, daemon-reload registers it and it applies on the
+      # next login/restart — no need to drop the keys mid-session.
       ansible.builtin.systemd_service:
         name: ssh-agent.service
         scope: user
         enabled: true
-        state: "{{ 'restarted' if keyring_agent_unit.changed else 'started' }}"
+        state: started
         daemon_reload: true
 
     - name: Point the graphical session at our ssh-agent (environment.d)
