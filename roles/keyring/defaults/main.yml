@@ -15,3 +15,6 @@ keepassxc_ini_settings:
   - { section: Browser, option: Enabled, value: "true" }
   - { section: PasswordGenerator, option: Length, value: "22" }
   - { section: PasswordGenerator, option: SpecialChars, value: "true" }
+  # Security: lock the database after 15 min of inactivity.
+  - { section: Security, option: LockDatabaseIdle, value: "true" }
+  - { section: Security, option: LockDatabaseIdleSeconds, value: "900" }
