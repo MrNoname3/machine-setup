@@ -7,11 +7,13 @@
 #   - Bazzite (Fedora-atomic / KDE): KeePassXC is a *flatpak*; it loads keys into
 #     the per-user systemd ssh-agent.socket (SSH_AUTH_SOCK pinned via a flatpak
 #     override so the sandbox always finds it).
-#   - Mint (Debian / Cinnamon): KeePassXC is a *native apt* package; it loads keys
-#     into the agent that gnome-keyring already runs (SSH_AUTH_SOCK =
-#     /run/user/<uid>/keyring/ssh). That agent accepts key add/remove fine, so we
-#     just feed it — no need to disable gnome-keyring for the SSH part. (Disabling
-#     its Secret Service is only needed for the future DB-A keyring work.)
+#   - Mint (Debian / Cinnamon): KeePassXC is a *native apt* package. Cinnamon's
+#     default agent is gnome-keyring's, but it REFUSES to sign rsa-sha2 and
+#     confirm-constrained keys ("agent refused operation"). So we run our own
+#     OpenSSH ssh-agent (+ ssh-askpass for the confirmation prompt) and point both
+#     KeePassXC (SSH_AUTH_SOCK override) and ssh (environment.d + ~/.bashrc) at it.
+#     gnome-keyring is left alone (its Secret Service keeps working); we only
+#     override SSH_AUTH_SOCK. Needs a re-login for the session-wide env to apply.
 #
 # Shared, OS-independent bits (idempotent, user-level unless noted):
 #   - ~/.ssh (0700) + ~/.ssh/control (0700, ssh ControlMaster sockets).
@@ -189,9 +191,11 @@
     kp_proxy_path: /usr/bin/keepassxc-proxy # native proxy binary
   block:
 
-    - name: Install KeePassXC (apt)
+    - name: Install KeePassXC + ssh-askpass (apt)
       ansible.builtin.apt:
-        name: keepassxc
+        name:
+          - keepassxc
+          - ssh-askpass-gnome # GUI askpass for ssh-agent key-use confirmation
         state: present
       become: true
 
@@ -231,6 +235,63 @@
       loop_control:
         label: "{{ item.path | basename }}"
 
+    # --- Real OpenSSH ssh-agent. gnome-keyring's agent (the Cinnamon default,
+    # SSH_AUTH_SOCK=/run/user/<uid>/keyring/ssh) refuses to sign rsa-sha2 and
+    # confirm-constrained keys ("agent refused operation"), so we run our own
+    # OpenSSH agent + askpass and point both KeePassXC and ssh at it. We do NOT
+    # touch gnome-keyring (its Secret Service stays); we just override SSH_AUTH_SOCK.
+    - name: Ensure ~/.config/systemd/user and ~/.config/environment.d exist
+      ansible.builtin.file:
+        path: "/home/{{ primary_user }}/.config/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - systemd/user
+        - environment.d
+
+    - name: Deploy the OpenSSH ssh-agent user service
+      ansible.builtin.copy:
+        dest: "/home/{{ primary_user }}/.config/systemd/user/ssh-agent.service"
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=OpenSSH ssh-agent (KeePassXC-fed; replaces gnome-keyring for SSH)
+
+          [Service]
+          Type=simple
+          Environment=SSH_ASKPASS=/usr/bin/ssh-askpass
+          Environment=SSH_ASKPASS_REQUIRE=force
+          ExecStart=/usr/bin/ssh-agent -D -a %t/ssh-agent.socket
+
+          [Install]
+          WantedBy=default.target
+      register: keyring_agent_unit
+
+    - name: Enable + start the OpenSSH ssh-agent service
+      ansible.builtin.systemd_service:
+        name: ssh-agent.service
+        scope: user
+        enabled: true
+        state: "{{ 'restarted' if keyring_agent_unit.changed else 'started' }}"
+        daemon_reload: true
+
+    - name: Point the graphical session at our ssh-agent (environment.d)
+      ansible.builtin.copy:
+        dest: "/home/{{ primary_user }}/.config/environment.d/90-ssh-auth-sock.conf"
+        mode: "0644"
+        content: |
+          # Use our OpenSSH ssh-agent (fed by KeePassXC), not gnome-keyring.
+          SSH_AUTH_SOCK=${XDG_RUNTIME_DIR}/ssh-agent.socket
+
+    - name: Point terminal shells at our ssh-agent (~/.bashrc)
+      ansible.builtin.blockinfile:
+        path: "/home/{{ primary_user }}/.bashrc"
+        marker: "# {mark} machine-setup: SSH agent"
+        block: |
+          # gnome-keyring's agent cannot sign rsa-sha2 / confirm-constrained keys,
+          # so point ssh at our OpenSSH agent (fed by KeePassXC).
+          export SSH_AUTH_SOCK="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ssh-agent.socket"
+
     - name: Ensure the KeePassXC config directory exists
       ansible.builtin.file:
         path: "{{ kp_ini | dirname }}"
@@ -248,6 +309,21 @@
       loop: "{{ keepassxc_ini_settings }}"
       loop_control:
         label: "{{ item.section }}/{{ item.option }}"
+
+    - name: Look up the primary user's UID (for the agent socket path)
+      ansible.builtin.command: "id -u {{ primary_user }}"
+      register: keyring_uid
+      changed_when: false
+
+    - name: Point KeePassXC at our ssh-agent (SSH_AUTH_SOCK override)
+      # KeePassXC does not expand variables here, so the concrete socket path.
+      community.general.ini_file:
+        path: "{{ kp_ini }}"
+        section: SSHAgent
+        option: AuthSockOverride
+        value: "/run/user/{{ keyring_uid.stdout }}/ssh-agent.socket"
+        no_extra_spaces: true
+        mode: "0600"
 
     - name: Ensure ~/.config/autostart exists
       ansible.builtin.file:
