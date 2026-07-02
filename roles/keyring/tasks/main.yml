@@ -10,11 +10,11 @@
 #   - Mint (Debian / Cinnamon): KeePassXC is a *native apt* package. Cinnamon's
 #     default agent is gnome-keyring's, but it REFUSES to sign rsa-sha2 and
 #     confirm-constrained keys ("agent refused operation"). So we run our own
-#     OpenSSH ssh-agent (+ ssh-askpass for the confirmation prompt) and point both
-#     KeePassXC (SSH_AUTH_SOCK override) and the session (environment.d + an
-#     /etc/X11/Xsession.d hook that overrides gnome-keyring's exported
-#     SSH_AUTH_SOCK) at it. gnome-keyring is left alone (Secret Service keeps
-#     working); we only override SSH_AUTH_SOCK. Needs a re-login to take effect.
+#     OpenSSH ssh-agent (+ ssh-askpass for the confirmation prompt) and point the
+#     session at it (environment.d + an /etc/X11/Xsession.d hook that overrides the
+#     SSH_AUTH_SOCK gnome-keyring exports). KeePassXC then inherits that session
+#     SSH_AUTH_SOCK — no per-app override needed. gnome-keyring is left alone
+#     (Secret Service keeps working). Needs a re-login to take effect.
 #
 # Shared, OS-independent bits (idempotent, user-level unless noted):
 #   - ~/.ssh (0700) + ~/.ssh/control (0700, ssh ControlMaster sockets).
@@ -322,20 +322,8 @@
       loop_control:
         label: "{{ item.section }}/{{ item.option }}"
 
-    - name: Look up the primary user's UID (for the agent socket path)
-      ansible.builtin.command: "id -u {{ primary_user }}"
-      register: keyring_uid
-      changed_when: false
-
-    - name: Point KeePassXC at our ssh-agent (SSH_AUTH_SOCK override)
-      # KeePassXC does not expand variables here, so the concrete socket path.
-      community.general.ini_file:
-        path: "{{ kp_ini }}"
-        section: SSHAgent
-        option: AuthSockOverride
-        value: "/run/user/{{ keyring_uid.stdout }}/ssh-agent.socket"
-        no_extra_spaces: true
-        mode: "0600"
+    # No SSH_AUTH_SOCK override for KeePassXC: the Xsession.d hook above already
+    # makes the session's default SSH_AUTH_SOCK our agent, which KeePassXC inherits.
 
     - name: Ensure ~/.config/autostart exists
       ansible.builtin.file:
