@@ -16,8 +16,7 @@ roles_enabled:
   - wireguard
   - containers
   - etckeeper
-# Built incrementally; uncomment each as it gets implemented:
-#  - keyring
+  - keyring
 
 # The primary login user (used for sudo, SSH key, ownership, ...).
 primary_user: REDACTED

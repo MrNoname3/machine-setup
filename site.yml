@@ -21,6 +21,7 @@
       when: "'luks-unlock' in (roles_enabled | default([]))"
     - role: keyring
       when: "'keyring' in (roles_enabled | default([]))"
+      tags: keyring
     - role: graphics
       when: "'graphics' in (roles_enabled | default([]))"
     - role: kde

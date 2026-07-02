@@ -1,6 +1,10 @@
 ---
 # Shared variables for all hosts.
 
+# Directory holding the IoT/device SSH keys + config (OneDrive-synced, same path
+# on both hosts). Used by the keyring role.
+ssh_keys_dir: "/home/{{ primary_user }}/SynologyDrive/OneDrive/IOT/SSH"
+
 # Packages to ensure are installed (used by the base role).
 packages_present:
   - git
