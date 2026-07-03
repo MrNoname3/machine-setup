@@ -45,19 +45,43 @@ The encrypted base install is interactive/destructive and is **not** scripted.
 Follow the runbook section.
 
 ### 2. Bootstrap (on the freshly installed machine)
+
+Paste this into a terminal (as your normal user — **not** root; needs home
+LAN/VPN access to the Gitea server):
+
 ```sh
-sudo apt install -y ansible git
-git clone http://<gitea-host>/<user>/machine-setup.git
-cd machine-setup
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/MrNoname3/machine-setup/main/bootstrap.sh)"
 ```
 
-### 3. Apply locally
+It installs git + ansible the OS-appropriate way (apt on Mint, Homebrew on
+Bazzite), clones this repo to `~/Projects/machine-setup`, then shows a host menu
+(read from `inventory.ini`, so new machines appear automatically) and offers to
+run the playbook right away. Idempotent — safe to re-run any time.
+
+Non-interactive variant (picks the host and runs immediately):
+
 ```sh
-# Runs locally (no SSH), as your user, escalating with sudo only where needed (-K asks the sudo password).
-ansible-playbook -c local -l laptop-old -K site.yml
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/MrNoname3/machine-setup/main/bootstrap.sh)" -- laptop-old
 ```
-`-l <host>` selects which machine's configuration to apply — this is the "switch"
-for the multi-host repo.
+
+> The `bash -c "$(curl ...)"` form (instead of `curl | bash`) keeps stdin on the
+> terminal so the menu can prompt.
+
+### 3. Apply / re-apply the playbook
+
+`-l <host>` selects which machine's configuration to apply — this is the
+"switch" for the multi-host repo. From `~/Projects/machine-setup`:
+
+| Machine | First run | Day-to-day |
+|---|---|---|
+| **laptop-old** (Mint) | `ansible-playbook -c local -l laptop-old -K site.yml` | `ansible-playbook -c local -l laptop-old site.yml` (passwordless sudo is set up by the playbook) |
+| **desktop-bazzite** | `ansible-playbook -c local -l desktop-bazzite -K site.yml` | `ansible-playbook -c local -l desktop-bazzite -e ansible_become=false site.yml` (no passwordless sudo there; use `-K` when a task needs root) |
+
+On Bazzite, if `ansible-playbook` is not found first:
+`eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"`.
+
+Run a single role: append `--tags keyring` (the keyring role is tagged; tag more
+roles in `site.yml` as needed).
 
 ### Removing a package
 Move its name from `packages_present` to `packages_absent` in the relevant vars
