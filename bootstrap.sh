@@ -64,7 +64,9 @@ esac
 # --- 2. Get the repo ----------------------------------------------------------
 if [ -d "$REPO_DIR/.git" ]; then
   msg "Repo already at $REPO_DIR — fast-forwarding"
-  git -C "$REPO_DIR" pull --ff-only
+  # Explicit remote+branch: works even if the local branch has no upstream
+  # tracking configured (e.g. after a history rewrite).
+  git -C "$REPO_DIR" pull --ff-only origin main
 else
   msg "Cloning into $REPO_DIR"
   mkdir -p "$(dirname "$REPO_DIR")"
