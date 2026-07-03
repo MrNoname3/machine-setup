@@ -23,19 +23,33 @@ only *procedures and templates*. If a secret must live here, encrypt it with
 ## Repository layout
 ```
 machine-setup/
-├── README.md            # this file — runbook + usage
-├── ansible.cfg          # local-run defaults
-├── inventory.ini        # hosts and groups (all use local connection)
-├── site.yml             # maps each host to its enabled roles
+├── README.md                    # this file — runbook + usage
+├── bootstrap.sh                 # curl-able bootstrap (see Workflow step 2)
+├── machine-setup.code-workspace # portable VS Code workspace
+├── ansible.cfg                  # local-run defaults
+├── inventory.ini                # hosts and groups (all use local connection)
+├── site.yml                     # maps each host to its enabled roles
 ├── group_vars/
-│   └── all.yml          # shared variables (package lists, ...)
+│   └── all.yml                  # shared variables (package lists, ssh_keys_dir, ...)
 ├── host_vars/
-│   └── laptop-old.yml   # per-host settings (roles_enabled, UUIDs, ...)
+│   ├── laptop-old.yml           # per-host settings (roles_enabled, UUIDs, ...)
+│   └── desktop-bazzite.yml
 └── roles/
-    ├── base/            # packages (present/absent), common config
+    ├── base/            # packages (present/absent), sudo, MIME/dconf defaults
+    ├── ssh-access/      # hardened SSH server
+    ├── brave/           # browser
+    ├── synology-drive/  # Synology Drive client
+    ├── steam/           # Steam (+ flatpak on Bazzite)
+    ├── vscode/          # VS Code + settings + extensions
     ├── luks-unlock/     # extra LUKS unlock methods (pendrive, dropbear, HDD)
-    ├── keyring/         # KeePassXC as Secret Service + SSH agent
-    └── graphics/        # nouveau reclocking, PRIME offload (laptop only)
+    ├── keyring/         # KeePassXC as the SSH agent (both OSes)
+    ├── kde/             # Plasma desktop tweaks (Bazzite)
+    ├── graphics/        # nouveau reclocking, PRIME offload (laptop only)
+    ├── firewall/        # ufw
+    ├── storage/         # data-disk crypttab/mount
+    ├── wireguard/       # auto-VPN when away from home
+    ├── containers/      # rootless Podman
+    └── etckeeper/       # /etc in git (runs last)
 ```
 
 ## Workflow
@@ -70,25 +84,52 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/MrNoname3/machine-setup/
 ### 3. Apply / re-apply the playbook
 
 `-l <host>` selects which machine's configuration to apply — this is the
-"switch" for the multi-host repo. From `~/Projects/machine-setup`:
+"switch" for the multi-host repo.
 
-| Machine | First run | Day-to-day |
-|---|---|---|
-| **laptop-old** (Mint) | `ansible-playbook -c local -l laptop-old -K site.yml` | `ansible-playbook -c local -l laptop-old site.yml` (passwordless sudo is set up by the playbook) |
-| **desktop-bazzite** | `ansible-playbook -c local -l desktop-bazzite -K site.yml` | `ansible-playbook -c local -l desktop-bazzite -e ansible_become=false site.yml` (no passwordless sudo there; use `-K` when a task needs root) |
+**laptop-old (Mint)** — day-to-day (passwordless sudo is set up by the playbook):
 
-On Bazzite, if `ansible-playbook` is not found first:
-`eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"`.
+```sh
+cd ~/Projects/machine-setup && git pull --ff-only
+ansible-playbook -c local -l laptop-old site.yml
+```
 
-Run a single role: append `--tags keyring` (the keyring role is tagged; tag more
-roles in `site.yml` as needed).
+First run only (before passwordless sudo exists — `-K` asks the sudo password):
 
-**Dry run** — see what *would* change without touching anything: append
-`--check --diff` to any of the commands above. (Command/shell tasks are skipped
-in check mode, so on a fresh machine the prediction is less complete than on an
-already-provisioned one; file/package/config changes are shown with diffs.)
-Tip: with the bootstrap one-liner, pick `0) clone/update only`, then run the
-check command by hand.
+```sh
+ansible-playbook -c local -l laptop-old -K site.yml
+```
+
+**desktop-bazzite** — day-to-day (no passwordless sudo there):
+
+```sh
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"   # only if ansible-playbook is not on PATH
+cd ~/Projects/machine-setup && git pull --ff-only
+ansible-playbook -c local -l desktop-bazzite -e ansible_become=false site.yml
+```
+
+First run, or whenever a task needs root (e.g. the KeePassXC flatpak install):
+
+```sh
+ansible-playbook -c local -l desktop-bazzite -K site.yml
+```
+
+**Dry run** — show what *would* change (with diffs) without touching anything;
+works with any command above:
+
+```sh
+ansible-playbook -c local -l laptop-old site.yml --check --diff
+```
+
+(Command/shell tasks are skipped in check mode, so on a fresh machine the
+prediction is less complete than on an already-provisioned one. With the
+bootstrap one-liner, pick `0) clone/update only`, then dry-run by hand.)
+
+**Single role** — the keyring role is tagged; tag more roles in `site.yml` as
+needed:
+
+```sh
+ansible-playbook -c local -l laptop-old site.yml --tags keyring
+```
 
 ### Removing a package
 Move its name from `packages_present` to `packages_absent` in the relevant vars
