@@ -115,3 +115,16 @@
     state: present
   become: false
   when: ansible_os_family == "Debian"
+
+# Traditional (non-"natural") scroll direction on both the mouse and the
+# touchpad: scrolling down moves the content down, like a scrollbar.
+- name: Traditional scroll direction for mouse and touchpad (Cinnamon)
+  community.general.dconf:
+    key: "{{ item }}"
+    value: "false"
+    state: present
+  become: false
+  loop:
+    - /org/cinnamon/desktop/peripherals/mouse/natural-scroll
+    - /org/cinnamon/desktop/peripherals/touchpad/natural-scroll
+  when: ansible_os_family == "Debian"
