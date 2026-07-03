@@ -83,6 +83,13 @@ On Bazzite, if `ansible-playbook` is not found first:
 Run a single role: append `--tags keyring` (the keyring role is tagged; tag more
 roles in `site.yml` as needed).
 
+**Dry run** — see what *would* change without touching anything: append
+`--check --diff` to any of the commands above. (Command/shell tasks are skipped
+in check mode, so on a fresh machine the prediction is less complete than on an
+already-provisioned one; file/package/config changes are shown with diffs.)
+Tip: with the bootstrap one-liner, pick `0) clone/update only`, then run the
+check command by hand.
+
 ### Removing a package
 Move its name from `packages_present` to `packages_absent` in the relevant vars
 file and re-run. Keep entries in `packages_absent` permanently so fresh installs
