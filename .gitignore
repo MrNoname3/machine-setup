@@ -10,3 +10,6 @@ secrets.yml
 
 # Ansible runtime noise
 *.retry
+
+# Machine-local values (prompted + saved by site.yml pre_tasks) — never commit.
+host_vars/*/local.yml

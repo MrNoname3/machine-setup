@@ -1,6 +1,11 @@
 ---
 # Shared variables for all hosts.
 
+# The primary login user (sudo, SSH key, ownership, paths, ...). Defaults to
+# whoever runs the playbook (runs are local); override per host in
+# host_vars/<host>/local.yml if it ever differs.
+primary_user: "{{ lookup('env', 'USER') }}"
+
 # Directory holding the IoT/device SSH keys + config (OneDrive-synced, same path
 # on both hosts). Used by the keyring role.
 ssh_keys_dir: "/home/{{ primary_user }}/SynologyDrive/OneDrive/IOT/SSH"

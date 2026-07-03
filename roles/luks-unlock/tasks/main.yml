@@ -46,9 +46,9 @@
   notify: Rebuild initramfs
 
 - name: Enable initramfs networking (DHCP) via the kernel cmdline
-  # The unlock IP is pinned by a DHCP reservation on the router
-  # (MAC -> REDACTED), so the initramfs and the booted system both get the
-  # same address. Keeping ip=dhcp here is generic and interface-agnostic.
+  # The unlock IP is pinned by a DHCP reservation on the router (MAC -> fixed
+  # address), so the initramfs and the booted system both get the same address.
+  # Keeping ip=dhcp here is generic and interface-agnostic.
   # NOTE: the router reservation is an external dependency, not in this repo.
   ansible.builtin.lineinfile:
     path: /etc/default/grub

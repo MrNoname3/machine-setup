@@ -4,6 +4,97 @@
 - name: Configure machine
   hosts: all
   become: true # escalate with sudo only for tasks that need root
+
+  # Machine-local values (SSH port, LUKS UUIDs, trusted gateway MACs, ...) live
+  # in host_vars/<host>/local.yml, which is NOT tracked by git — the public repo
+  # carries no machine identifiers. If a value needed by an enabled role is
+  # missing, ask for it once here and save it to local.yml for future runs.
+  pre_tasks:
+    - name: Collect and persist missing machine-local settings
+      become: false
+      vars:
+        local_vars_file: "{{ playbook_dir }}/host_vars/{{ inventory_hostname }}/local.yml"
+      tags: always
+      block:
+
+        - name: Ask for the hardened SSH port
+          ansible.builtin.pause:
+            prompt: "ssh_port is not set — enter the SSH port to configure (e.g. 22)"
+          register: ask_ssh_port
+          when: "'ssh-access' in (roles_enabled | default([])) and ssh_port is not defined"
+
+        - name: Adopt the SSH port answer
+          ansible.builtin.set_fact:
+            ssh_port: "{{ ask_ssh_port.user_input | trim }}"
+          when: ask_ssh_port is not skipped
+
+        - name: Ask for the data-disk LUKS UUID
+          ansible.builtin.pause:
+            prompt: "luks_hdd_uuid is not set — enter the LUKS partition UUID of the data disk (see lsblk -f)"
+          register: ask_luks_hdd
+          when: "'storage' in (roles_enabled | default([])) and luks_hdd_uuid is not defined"
+
+        - name: Adopt the LUKS UUID answer
+          ansible.builtin.set_fact:
+            luks_hdd_uuid: "{{ ask_luks_hdd.user_input | trim }}"
+          when: ask_luks_hdd is not skipped
+
+        - name: Ask for the trusted home gateway MAC(s)
+          ansible.builtin.pause:
+            prompt: "wg_home_gateway_macs is not set — enter the home router LAN gateway MAC(s), comma-separated"
+          register: ask_wg_macs
+          when: "'wireguard' in (roles_enabled | default([])) and wg_home_gateway_macs is not defined"
+
+        - name: Adopt the gateway MAC answer
+          ansible.builtin.set_fact:
+            wg_home_gateway_macs: "{{ ask_wg_macs.user_input | split(',') | map('trim') | list }}"
+          when: ask_wg_macs is not skipped
+
+        - name: Reject empty answers (accidental Enter / non-interactive run)
+          ansible.builtin.assert:
+            that:
+              - ask_ssh_port is skipped or (ssh_port | string | trim | length > 0)
+              - ask_luks_hdd is skipped or (luks_hdd_uuid | trim | length > 0)
+              - ask_wg_macs is skipped or (wg_home_gateway_macs | join('') | trim | length > 0)
+            fail_msg: >-
+              Empty answer for a machine-local setting. Re-run interactively, or
+              create host_vars/{{ inventory_hostname }}/local.yml by hand.
+          when: ask_ssh_port is not skipped or ask_luks_hdd is not skipped or ask_wg_macs is not skipped
+
+        - name: Ensure the local vars directory exists
+          ansible.builtin.file:
+            path: "{{ local_vars_file | dirname }}"
+            state: directory
+            mode: "0755"
+          when: ask_ssh_port is not skipped or ask_luks_hdd is not skipped or ask_wg_macs is not skipped
+
+        - name: Persist the SSH port to local.yml
+          ansible.builtin.lineinfile:
+            path: "{{ local_vars_file }}"
+            create: true
+            mode: "0600"
+            regexp: "^ssh_port:"
+            line: "ssh_port: {{ ssh_port }}"
+          when: ask_ssh_port is not skipped
+
+        - name: Persist the LUKS UUID to local.yml
+          ansible.builtin.lineinfile:
+            path: "{{ local_vars_file }}"
+            create: true
+            mode: "0600"
+            regexp: "^luks_hdd_uuid:"
+            line: "luks_hdd_uuid: \"{{ luks_hdd_uuid }}\""
+          when: ask_luks_hdd is not skipped
+
+        - name: Persist the gateway MAC(s) to local.yml
+          ansible.builtin.lineinfile:
+            path: "{{ local_vars_file }}"
+            create: true
+            mode: "0600"
+            regexp: "^wg_home_gateway_macs:"
+            line: "wg_home_gateway_macs: {{ wg_home_gateway_macs | to_json }}"
+          when: ask_wg_macs is not skipped
+
   roles:
     - role: base
       when: "'base' in (roles_enabled | default([]))"

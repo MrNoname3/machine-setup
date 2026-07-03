@@ -134,6 +134,23 @@ needed:
 ansible-playbook -c local -l laptop-old site.yml --tags keyring
 ```
 
+### Machine-local values (not in git)
+
+Machine identifiers (hardened SSH port, LUKS UUIDs, trusted home-gateway MACs,
+optionally `primary_user`) live in `host_vars/<host>/local.yml`, which is
+**untracked** — the public repo carries no machine-specific identifiers. On a
+fresh machine the playbook **prompts** for any missing value needed by an
+enabled role and saves it there (mode 0600), so it only ever asks once. You can
+also create the file by hand before the first run:
+
+```yaml
+# host_vars/laptop-old/local.yml
+ssh_port: 22
+luks_hdd_uuid: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+wg_home_gateway_macs:
+  - "aa:bb:cc:dd:ee:ff"
+```
+
 ### Removing a package
 Move its name from `packages_present` to `packages_absent` in the relevant vars
 file and re-run. Keep entries in `packages_absent` permanently so fresh installs

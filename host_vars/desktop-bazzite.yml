@@ -10,8 +10,8 @@ roles_enabled:
   - keyring
   - kde
 
-# The primary login user (used for ownership, paths, ...).
-primary_user: REDACTED
+# primary_user defaults to the running user (group_vars/all.yml); override in
+# host_vars/desktop-bazzite/local.yml if it ever differs.
 
 # Directory holding the IoT/device SSH private keys (OneDrive-synced).
 # The keyring role generates a matching .pub next to every private key here.
