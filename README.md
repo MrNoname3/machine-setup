@@ -10,7 +10,7 @@ and run **locally** on each machine.
 
 ## Secrets policy
 **NEVER commit secrets** (LUKS keyfiles, passwords, KeePassXC databases, private keys).
-This repo is anonymously readable from the local Gitea server, so it must contain
+This repo is **public on GitHub** (and served by a local Gitea), so it must contain
 only *procedures and templates*. If a secret must live here, encrypt it with
 `ansible-vault` or `sops`. See `.gitignore`.
 
@@ -60,8 +60,8 @@ Follow the runbook section.
 
 ### 2. Bootstrap (on the freshly installed machine)
 
-Paste this into a terminal (as your normal user — **not** root; needs home
-LAN/VPN access to the Gitea server):
+Paste this into a terminal (as your normal user — **not** root; works anywhere
+with Internet — the repo is public on GitHub):
 
 ```sh
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/MrNoname3/machine-setup/main/bootstrap.sh)"
@@ -80,6 +80,9 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/MrNoname3/machine-setup/
 
 > The `bash -c "$(curl ...)"` form (instead of `curl | bash`) keeps stdin on the
 > terminal so the menu can prompt.
+
+At home you can clone from the local Gitea instead (it mirrors to GitHub on
+every push): prefix the command with `REPO_URL=<gitea-clone-url>`.
 
 ### 3. Apply / re-apply the playbook
 
