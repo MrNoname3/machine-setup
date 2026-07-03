@@ -7,15 +7,15 @@
 #   - Bazzite (Fedora-atomic / KDE): KeePassXC is a *flatpak*; it loads keys into
 #     the per-user systemd ssh-agent.socket (SSH_AUTH_SOCK pinned via a flatpak
 #     override so the sandbox always finds it).
-#   - Mint (Debian / Cinnamon): KeePassXC is a *native apt* package. Cinnamon's
-#     default agent is gnome-keyring's, but it REFUSES to sign rsa-sha2 and
-#     confirm-constrained keys ("agent refused operation"). So we run our own
-#     OpenSSH ssh-agent (+ ssh-askpass for the confirmation prompt) and point both
-#     KeePassXC (SSHAgent/AuthSockOverride) and ssh (a ~/.bashrc override) at it.
-#     NB a session-wide override (Xsession.d / environment.d) is NOT reliable:
-#     gnome-keyring re-syncs its own SSH_AUTH_SOCK into the session (dbus) late, when
-#     its components start, so it wins on a cold boot. Hence explicit per-app /
-#     per-shell overrides. gnome-keyring is left alone (Secret Service keeps working).
+#   - Mint (Debian / Cinnamon): KeePassXC is a *native apt* package, and the
+#     SYSTEM'S OWN agent chain is used, untouched: pam_gnome_keyring exports
+#     SSH_AUTH_SOCK=/run/user/<uid>/keyring/ssh, which gnome-keyring 46 serves as
+#     a proxy in front of a REAL OpenSSH ssh-agent child. The only gap is that
+#     this child agent has no DISPLAY/askpass, so "Require user confirmation"
+#     keys fail ("agent refused operation"). One user-level systemd drop-in on
+#     gnome-keyring-daemon.service fixes that — no SSH_AUTH_SOCK overrides
+#     anywhere (KeePassXC and ssh both use the session default), so there is no
+#     race to lose. gnome-keyring stays fully intact (Secret Service included).
 #
 # Shared, OS-independent bits (idempotent, user-level unless noted):
 #   - ~/.ssh (0700) + ~/.ssh/control (0700, ssh ControlMaster sockets).
@@ -237,62 +237,39 @@
       loop_control:
         label: "{{ item.path | basename }}"
 
-    # --- Real OpenSSH ssh-agent. gnome-keyring's agent (the Cinnamon default,
-    # SSH_AUTH_SOCK=/run/user/<uid>/keyring/ssh) refuses to sign rsa-sha2 and
-    # confirm-constrained keys ("agent refused operation"), so we run our own
-    # OpenSSH agent + askpass and point both KeePassXC and ssh at it. We do NOT
-    # touch gnome-keyring (its Secret Service stays); we just override SSH_AUTH_SOCK.
-    - name: Ensure ~/.config/systemd/user exists
+    # --- Native agent chain. gnome-keyring 46 wraps a REAL OpenSSH ssh-agent:
+    # SSH_AUTH_SOCK=/run/user/<uid>/keyring/ssh (exported by pam_gnome_keyring) is
+    # a proxy served by gnome-keyring-daemon, which forwards to a real
+    # /usr/bin/ssh-agent child on the hidden /run/user/<uid>/keyring/.ssh socket.
+    # The ONLY missing piece is that this child agent inherits no DISPLAY/askpass,
+    # so "Require user confirmation" keys fail ("agent refused operation").
+    # Fix: a user-level systemd drop-in giving gnome-keyring-daemon (and thus its
+    # agent child) the askpass env. No SSH_AUTH_SOCK overrides anywhere — we ride
+    # the system's own export, so there is nothing to race with. Verified on a
+    # clean boot: RSA + confirm keys sign, the confirmation dialog pops.
+    - name: Ensure the gnome-keyring-daemon drop-in directory exists
       ansible.builtin.file:
-        path: "/home/{{ primary_user }}/.config/systemd/user"
+        path: "/home/{{ primary_user }}/.config/systemd/user/gnome-keyring-daemon.service.d"
         state: directory
         mode: "0755"
 
-    - name: Deploy the OpenSSH ssh-agent user service
+    - name: Give gnome-keyring's internal ssh-agent askpass capability (drop-in)
+      # Takes effect at the next login (the daemon spawns its agent child lazily).
+      # DISPLAY is pinned (single-seat X11 = :0) because the daemon starts before
+      # the session exports it.
       ansible.builtin.copy:
-        dest: "/home/{{ primary_user }}/.config/systemd/user/ssh-agent.service"
+        dest: "/home/{{ primary_user }}/.config/systemd/user/gnome-keyring-daemon.service.d/ssh-askpass.conf"
         mode: "0644"
         content: |
-          [Unit]
-          Description=OpenSSH ssh-agent (KeePassXC-fed; replaces gnome-keyring for SSH)
-
+          # Give gnome-keyring's internal OpenSSH ssh-agent (child process, serves
+          # /run/user/<uid>/keyring/.ssh behind the /keyring/ssh proxy) the ability to pop
+          # an askpass dialog for "confirm before use" keys. Without DISPLAY the agent
+          # refuses to sign with confirm-constrained keys.
           [Service]
-          Type=simple
           Environment=SSH_ASKPASS=/usr/bin/ssh-askpass
           Environment=SSH_ASKPASS_REQUIRE=force
-          # DISPLAY/XAUTHORITY so the agent can pop the askpass confirmation dialog
-          # for "Require user confirmation" keys. The service can start (at login)
-          # before the session exports DISPLAY, so pin it (single-seat X11 = :0).
           Environment=DISPLAY=:0
           Environment=XAUTHORITY=/home/{{ primary_user }}/.Xauthority
-          ExecStart=/usr/bin/ssh-agent -D -a %t/ssh-agent.socket
-
-          [Install]
-          WantedBy=default.target
-
-    - name: Enable + start the OpenSSH ssh-agent service
-      # Deliberately NOT "restarted": a restart flushes the loaded keys. If the
-      # unit definition changes, daemon-reload registers it and it applies on the
-      # next login/restart — no need to drop the keys mid-session.
-      ansible.builtin.systemd_service:
-        name: ssh-agent.service
-        scope: user
-        enabled: true
-        state: started
-        daemon_reload: true
-
-    - name: Point terminal shells at our ssh-agent (~/.bashrc)
-      # gnome-keyring re-syncs its OWN SSH_AUTH_SOCK into the session (dbus) LATE —
-      # after any Xsession.d / environment.d override — when its components start,
-      # so a session-wide override loses the race on a cold boot (verified). A
-      # per-shell override is the reliable, race-immune way to point ssh at our agent.
-      ansible.builtin.blockinfile:
-        path: "/home/{{ primary_user }}/.bashrc"
-        marker: "# {mark} machine-setup: SSH agent"
-        block: |
-          # gnome-keyring re-syncs its own SSH_AUTH_SOCK into the session late, so pin
-          # ssh to our OpenSSH agent (fed by KeePassXC) here — the race-immune way.
-          export SSH_AUTH_SOCK="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ssh-agent.socket"
 
     - name: Ensure the KeePassXC config directory exists
       ansible.builtin.file:
@@ -312,23 +289,9 @@
       loop_control:
         label: "{{ item.section }}/{{ item.option }}"
 
-    - name: Look up the primary user's UID (for the agent socket path)
-      ansible.builtin.command: "id -u {{ primary_user }}"
-      register: keyring_uid
-      changed_when: false
-
-    - name: Point KeePassXC at our ssh-agent (SSH_AUTH_SOCK override)
-      # gnome-keyring wins the session SSH_AUTH_SOCK on cold boot, so pin KeePassXC
-      # explicitly so it always feeds OUR agent (no variable expansion here — the
-      # concrete socket path). Without this, KeePassXC feeds whichever agent the
-      # session default points at (gnome-keyring after a reboot) and RSA/confirm break.
-      community.general.ini_file:
-        path: "{{ kp_ini }}"
-        section: SSHAgent
-        option: AuthSockOverride
-        value: "/run/user/{{ keyring_uid.stdout }}/ssh-agent.socket"
-        no_extra_spaces: true
-        mode: "0600"
+    # No AuthSockOverride for KeePassXC and no shell override: KeePassXC and ssh
+    # both use the session's own SSH_AUTH_SOCK (gnome-keyring's), which now works
+    # for every key type thanks to the drop-in above.
 
     - name: Ensure ~/.config/autostart exists
       ansible.builtin.file:
