@@ -260,6 +260,11 @@
           Type=simple
           Environment=SSH_ASKPASS=/usr/bin/ssh-askpass
           Environment=SSH_ASKPASS_REQUIRE=force
+          # DISPLAY/XAUTHORITY so the agent can pop the askpass confirmation dialog
+          # for "Require user confirmation" keys. The service can start (at login)
+          # before the session exports DISPLAY, so pin it (single-seat X11 = :0).
+          Environment=DISPLAY=:0
+          Environment=XAUTHORITY=/home/{{ primary_user }}/.Xauthority
           ExecStart=/usr/bin/ssh-agent -D -a %t/ssh-agent.socket
 
           [Install]
