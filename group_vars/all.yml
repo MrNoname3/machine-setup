@@ -20,6 +20,8 @@ packages_present:
   - meld
   - numlockx                     # turn NumLock on at the LightDM greeter / boot
   - yaru-theme-icon              # Yaru cursor set (base role selects it via dconf)
+  - cups                         # print server (Mint ships it; listed for clarity)
+  - printer-driver-splix         # QPDL/SPL2 raster driver for Samsung SCX/ML/CLP (see printers)
 
 # Packages to ensure are removed. Keep entries here permanently so fresh
 # installs stay clean. Never list a package in both lists.

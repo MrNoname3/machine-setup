@@ -20,6 +20,17 @@ video_mimetypes:
   - video/x-ogm+ogg
   - video/x-theora+ogg
 
+# CUPS printers to configure (base role). Empty by default; define per host in
+# host_vars/<host>/main.yml. The USB device URI (which carries the unit's serial)
+# is not stored here — the role discovers it at run time from `lpinfo -v` by
+# matching `usb_match` against the reported usb:// URIs, so nothing machine-
+# specific lands in the repo. Each item:
+#   name           CUPS queue name (e.g. Samsung-SCX-4x21-Series)
+#   usb_match      substring/regex matched against `lpinfo -v` usb:// URIs
+#   model          CUPS -m driver spec (a drv:/// PPD or a .ppd path)
+#   model_nickname expected PPD nickname prefix, used for the idempotency check
+printers: []
+
 # Default text editor (Kate) for text/source MIME types.
 default_text_editor: org.kde.kate.desktop
 text_mimetypes:

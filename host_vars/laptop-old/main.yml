@@ -23,6 +23,16 @@ roles_enabled:
   - etckeeper
   - keyring
 
+# CUPS printers (base role). The Samsung SCX-4x21 Series MFP is a Samsung QPDL
+# device, so it must use splix's rastertoqpdl driver (PPD "Samsung SCX-4521F");
+# the generic PCL-XL PPD the Mint dialog suggests prints nothing. The USB URI is
+# auto-discovered from `lpinfo -v` (usb_match), so no serial is stored here.
+printers:
+  - name: Samsung-SCX-4x21-Series
+    usb_match: "usb://Samsung/SCX-4x21"
+    model: "drv:///splix-samsung.drv/scx4521f.ppd"
+    model_nickname: "Samsung SCX-4521F"
+
 # Remote LUKS unlock (dropbear) uses ip=dhcp; the address is pinned by a DHCP
 # reservation on the router for the dock's USB ethernet adapter (external
 # dependency, not captured in this repo — details in local.yml).

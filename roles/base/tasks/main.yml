@@ -29,6 +29,77 @@
     - ansible_os_family == "Debian"
     - packages_absent | length > 0
 
+# CUPS printers (see `printers` in defaults). The Samsung SCX-4x21 speaks Samsung
+# QPDL, so it needs splix's rastertoqpdl filter. Mint's add-printer dialog only
+# offers the nearest generic match ("SCX-4x24 Series PXL"), which emits PCL-XL —
+# a language this model does not understand, so the job "completes" with a blank
+# feed and nothing prints. We bind the queue to the splix SCX-4521F PPD instead.
+# The device URI (with the unit's serial) is discovered from `lpinfo -v` at run
+# time rather than stored, so no machine identifier lands in the repo.
+- name: Configure CUPS printers
+  when:
+    - ansible_os_family == "Debian"
+    - printers | length > 0
+  block:
+    - name: List CUPS device URIs (for USB auto-discovery)
+      ansible.builtin.command: lpinfo -v
+      register: cups_devices
+      changed_when: false
+      check_mode: false
+
+    - name: Read the current options of each configured printer
+      ansible.builtin.command: "lpoptions -p {{ item.name }}"
+      register: cups_printer_opts
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      loop: "{{ printers }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # Prefer the freshly discovered USB URI; if the printer is off/asleep it
+    # won't appear in `lpinfo -v`, so fall back to the queue's existing
+    # device-uri (from lpoptions) — enough to still correct the -m driver.
+    - name: Ensure each printer is bound to the intended driver + discovered USB URI
+      vars:
+        matched_uris: "{{ cups_devices.stdout_lines | select('search', item.item.usb_match) | list }}"
+        current_opts: "{{ item.stdout | default('') }}"
+        existing_uri: "{{ current_opts | regex_search('device-uri=(\\S+)', '\\1') | first | default('') }}"
+        device_uri: "{{ (matched_uris | first).split() | last if matched_uris | length > 0 else existing_uri }}"
+      ansible.builtin.command:
+        argv:
+          - lpadmin
+          - -p
+          - "{{ item.item.name }}"
+          - -v
+          - "{{ device_uri }}"
+          - -m
+          - "{{ item.item.model }}"
+          - -E
+      loop: "{{ cups_printer_opts.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when:
+        - device_uri | length > 0
+        - (item.item.model_nickname not in current_opts) or (device_uri not in current_opts)
+      changed_when: true
+
+    - name: Warn when a printer can be neither discovered nor found already configured
+      vars:
+        matched_uris: "{{ cups_devices.stdout_lines | select('search', item.item.usb_match) | list }}"
+        existing_uri: "{{ item.stdout | default('') | regex_search('device-uri=(\\S+)', '\\1') | first | default('') }}"
+      ansible.builtin.debug:
+        msg: >-
+          Printer '{{ item.item.name }}' not configured: no usb:// device matching
+          '{{ item.item.usb_match }}' in `lpinfo -v`, and no existing queue to fall
+          back on. Is it plugged in and powered on?
+      loop: "{{ cups_printer_opts.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when:
+        - matched_uris | length == 0
+        - existing_uri | length == 0
+
 # NumLock on at the login screen (and it carries into the Cinnamon session,
 # since csd-keyboard's numlock-state is 'unknown' so it doesn't undo it). We use
 # slick-greeter's native activate-numlock option (the toggle in Mint's "Login
