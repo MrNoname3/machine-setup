@@ -163,6 +163,58 @@
             - ask_wg_manual is not skipped
             - (ask_wg_manual.user_input | trim | length) > 0
 
+        # --- Git origin: a fresh checkout is cloned from the PUBLIC GitHub
+        # mirror, so its origin points there. Development pushes should go to the
+        # PRIVATE Gitea instead. Offer to repoint origin and remember the choice:
+        #   a URL  -> set origin to it (idempotent on later runs)
+        #   'keep' -> leave origin as-is and never ask again
+        #   unset  -> ask again next interactive run (non-interactive = auto-skip)
+        - name: Read the current git origin (if this is a git checkout)
+          ansible.builtin.command: git -C {{ playbook_dir }} remote get-url origin
+          register: git_origin_now
+          changed_when: false
+          failed_when: false
+          check_mode: false
+
+        - name: Offer to repoint origin from the public mirror to Gitea
+          ansible.builtin.pause:
+            prompt: |-
+              This checkout's git origin is:
+                {{ git_origin_now.stdout }}
+              Bootstrap clones from the public GitHub mirror; development pushes
+              should go to your private Gitea instead.
+                y) yes  - repoint origin to my Gitea URL
+                n) no   - keep this origin, and don't ask again
+                s) skip for now
+              Enter y, n, or s
+          register: ask_origin
+          when:
+            - git_origin_url is not defined
+            - git_origin_now.rc == 0
+
+        - name: Ask for the Gitea origin URL
+          ansible.builtin.pause:
+            prompt: "Enter the Gitea remote URL for origin (e.g. https://gitea.example/you/machine-setup.git)"
+          register: ask_origin_url
+          when:
+            - ask_origin is not skipped
+            - (ask_origin.user_input | trim | lower) == 'y'
+
+        - name: Adopt the new Gitea origin URL
+          ansible.builtin.set_fact:
+            git_origin_url: "{{ ask_origin_url.user_input | trim }}"
+          when:
+            - ask_origin_url is defined
+            - ask_origin_url is not skipped
+            - (ask_origin_url.user_input | trim | length) > 0
+
+        - name: Record the decision to keep the current origin
+          ansible.builtin.set_fact:
+            git_origin_url: keep
+          when:
+            - ask_origin is not skipped
+            - (ask_origin.user_input | trim | lower) == 'n'
+
         # --- Persist whatever was chosen (only when a value now exists) ---
         - name: Ensure the local vars directory exists
           ansible.builtin.file:
@@ -173,6 +225,7 @@
             ask_ssh_port is not skipped
             or (luks_scan is not skipped and luks_hdd_uuid is defined)
             or (gw_scan is not skipped and wg_home_gateway_macs is defined)
+            or (git_origin_url is defined)
 
         - name: Persist the SSH port to local.yml
           ansible.builtin.lineinfile:
@@ -204,6 +257,25 @@
           when:
             - gw_scan is not skipped
             - wg_home_gateway_macs is defined
+
+        - name: Persist the git origin choice to local.yml
+          ansible.builtin.lineinfile:
+            path: "{{ local_vars_file }}"
+            create: true
+            mode: "0600"
+            regexp: "^git_origin_url:"
+            line: "git_origin_url: \"{{ git_origin_url }}\""
+          when: git_origin_url is defined
+
+        # --- Apply the origin change (idempotent: only when it actually differs) ---
+        - name: Point git origin at Gitea (away from the public mirror)
+          ansible.builtin.command: >-
+            git -C {{ playbook_dir }} remote set-url origin {{ git_origin_url }}
+          when:
+            - git_origin_url is defined
+            - git_origin_url != 'keep'
+            - git_origin_now.rc == 0
+            - (git_origin_now.stdout | trim) != git_origin_url
 
   roles:
     - role: base
