@@ -128,3 +128,56 @@
     - /org/cinnamon/desktop/peripherals/mouse/natural-scroll
     - /org/cinnamon/desktop/peripherals/touchpad/natural-scroll
   when: ansible_os_family == "Debian"
+
+# Appearance: the dark Mint-Y-Dark-Aqua GTK/Cinnamon theme, Mint-Y-Sand icons,
+# the Bibata cursor (shipped by mint-cursor-themes), and prefer-dark so plain
+# GTK/portal apps follow suit. Both the Cinnamon and the GNOME interface keys are
+# set so the Cinnamon session and legacy GTK apps agree.
+- name: Apply the dark desktop theme + icon/cursor themes (Cinnamon)
+  community.general.dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  become: false
+  loop:
+    - { key: /org/cinnamon/desktop/interface/gtk-theme, value: "'Mint-Y-Dark-Aqua'" }
+    - { key: /org/cinnamon/theme/name, value: "'Mint-Y-Dark-Aqua'" }
+    - { key: /org/cinnamon/desktop/interface/icon-theme, value: "'Mint-Y-Sand'" }
+    - { key: /org/cinnamon/desktop/interface/cursor-theme, value: "'Bibata-Modern-Classic'" }
+    - { key: /org/gnome/desktop/interface/gtk-theme, value: "'Mint-Y-Dark-Aqua'" }
+    - { key: /org/gnome/desktop/interface/icon-theme, value: "'Mint-Y-Sand'" }
+    - { key: /org/gnome/desktop/interface/cursor-theme, value: "'Bibata-Modern-Classic'" }
+    - { key: /org/gnome/desktop/wm/preferences/theme, value: "'Mint-Y'" }
+    - { key: /org/x/apps/portal/color-scheme, value: "'prefer-dark'" }
+  when: ansible_os_family == "Debian"
+
+# Hungarian keyboard layout. Set ONLY the Cinnamon key: csd-input-sources is the
+# authority in a Cinnamon session and mirrors it to the GNOME schema and IBus on
+# its own. Writing those mirror keys as well makes the daemon re-sync (and rewrite
+# the Cinnamon key), so the module would report "changed" on every run — setting
+# just the authoritative key stays idempotent.
+- name: Set the Hungarian keyboard layout (Cinnamon)
+  community.general.dconf:
+    key: /org/cinnamon/desktop/input-sources/sources
+    value: "[('xkb', 'hu')]"
+    state: present
+  become: false
+  when: ansible_os_family == "Debian"
+
+# Power (laptop): suspend on lid close (AC + battery); blank the display after
+# 15 min on AC / 30 min on battery; auto-suspend on inactivity after 30 min on
+# AC, never on battery.
+- name: Configure power management — lid, display blank, auto-suspend (Cinnamon)
+  community.general.dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  become: false
+  loop:
+    - { key: /org/cinnamon/settings-daemon/plugins/power/lid-close-ac-action, value: "'suspend'" }
+    - { key: /org/cinnamon/settings-daemon/plugins/power/lid-close-battery-action, value: "'suspend'" }
+    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-display-ac, value: "900" }
+    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-display-battery, value: "1800" }
+    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-ac-timeout, value: "1800" }
+    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-battery-timeout, value: "0" }
+  when: ansible_os_family == "Debian"
