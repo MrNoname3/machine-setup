@@ -206,3 +206,22 @@
     state: present
   become: false
   when: ansible_os_family == "Debian"
+
+# Performance: trim Cinnamon animations on the weak GT 520M. The menu, dialog,
+# login (startup) and scroll-vfade animations are the high-frequency / invisible
+# ones -- off makes the UI feel snappier at little aesthetic cost. Window
+# open/close/minimize animations stay on, just faster (window-effect-speed=2,
+# range 0-2). To go fully flat, also set /org/cinnamon/desktop-effects=false.
+- name: Trim desktop effects for performance (Cinnamon)
+  community.general.dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  become: false
+  loop:
+    - { key: /org/cinnamon/desktop-effects-on-menus, value: "false" }
+    - { key: /org/cinnamon/desktop-effects-on-dialogs, value: "false" }
+    - { key: /org/cinnamon/startup-animation, value: "false" }
+    - { key: /org/cinnamon/enable-vfade, value: "false" }
+    - { key: /org/cinnamon/window-effect-speed, value: "2" }
+  when: ansible_os_family == "Debian"
