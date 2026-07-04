@@ -82,3 +82,10 @@ packages_absent:
   - cups-browsed                # network printer *browsing* — not needed with a USB printer (cups itself stays)
   - modemmanager                # no WWAN modem, and it grabs USB-serial ports (bad for embedded dev, like brltty)
   - touchegg                    # Cinnamon gestures are disabled and there is no touchegg config -> redundant
+  # Real Docker engine — only ever pulled as a docker-compose-v2 *Recommends*; we
+  # run rootless Podman (podman compose uses docker-compose-v2's provider directly,
+  # so the compose tooling stays). The containers role installs with
+  # install_recommends:false so these are not resurrected. Podman is independent
+  # (crun/conmon/netavark, not containerd).
+  - docker.io
+  - containerd

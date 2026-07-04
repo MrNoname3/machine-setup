@@ -29,6 +29,11 @@
     name: "{{ container_packages }}"
     state: present
     update_cache: true
+    # docker-compose-v2 Recommends docker.io; without this that pulls the whole
+    # real Docker engine back in (it is in packages_absent). Every rootless dep we
+    # actually need is listed explicitly in container_packages, so skipping
+    # recommends loses nothing.
+    install_recommends: false
   when:
     - ansible_os_family == "Debian"
     - container_packages | length > 0
