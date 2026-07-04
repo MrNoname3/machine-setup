@@ -28,45 +28,151 @@
             ssh_port: "{{ ask_ssh_port.user_input | trim }}"
           when: ask_ssh_port is not skipped
 
-        - name: Ask for the data-disk LUKS UUID
-          ansible.builtin.pause:
-            prompt: "luks_hdd_uuid is not set — enter the LUKS partition UUID of the data disk (see lsblk -f)"
-          register: ask_luks_hdd
+        - name: Require a non-empty SSH port (it has no safe default)
+          ansible.builtin.assert:
+            that: ask_ssh_port is skipped or (ssh_port | string | trim | length > 0)
+            fail_msg: >-
+              Empty SSH port. Re-run interactively, or set ssh_port in
+              host_vars/{{ inventory_hostname }}/local.yml by hand.
+          when: ask_ssh_port is not skipped
+
+        # --- Data-disk LUKS UUID: scan crypto_LUKS partitions and offer them ---
+        # The scan excludes the root disk (any LUKS device whose tree carries the
+        # '/' mount), so only candidate DATA disks are listed. Choosing nothing
+        # (s / empty / non-interactive) leaves it unset and the storage role's
+        # wiring simply skips — this is not an error.
+        - name: Scan for candidate data-disk LUKS partitions
+          ansible.builtin.shell: |
+            set -eu
+            lsblk -Ppo NAME,SIZE,FSTYPE,UUID | while read -r line; do
+              eval "$line"
+              [ "$FSTYPE" = "crypto_LUKS" ] || continue
+              printf '%s\n' "$(lsblk -nro MOUNTPOINT "$NAME" 2>/dev/null)" \
+                | grep -qx '/' && continue
+              printf '%s|%s|%s\n' "$UUID" "$SIZE" "$NAME"
+            done
+          register: luks_scan
+          changed_when: false
+          check_mode: false
           when: "'storage' in (roles_enabled | default([])) and luks_hdd_uuid is not defined"
 
-        - name: Adopt the LUKS UUID answer
+        - name: Record the LUKS candidate list
           ansible.builtin.set_fact:
-            luks_hdd_uuid: "{{ ask_luks_hdd.user_input | trim }}"
-          when: ask_luks_hdd is not skipped
+            luks_candidates: "{{ luks_scan.stdout_lines | default([]) }}"
+          when: luks_scan is not skipped
 
-        - name: Ask for the trusted home gateway MAC(s)
+        - name: Choose the data-disk LUKS partition
           ansible.builtin.pause:
-            prompt: "wg_home_gateway_macs is not set — enter the home router LAN gateway MAC(s), comma-separated"
-          register: ask_wg_macs
+            prompt: |-
+              Select the data-disk LUKS partition (the root disk is excluded):
+              {% for c in luks_candidates %}
+                {{ loop.index }}) {{ c.split('|')[2] }}  {{ c.split('|')[1] }}  UUID={{ c.split('|')[0] }}
+              {% endfor %}
+                m) enter a UUID manually
+                s) skip for now (leave unconfigured)
+              Enter a number, m, or s
+          register: ask_luks_hdd
+          when: luks_scan is not skipped
+
+        - name: Adopt the picked LUKS partition
+          ansible.builtin.set_fact:
+            luks_hdd_uuid: "{{ luks_candidates[(ask_luks_hdd.user_input | trim | int) - 1].split('|')[0] }}"
+          when:
+            - ask_luks_hdd is not skipped
+            - ask_luks_hdd.user_input | trim is match('^[0-9]+$')
+            - (ask_luks_hdd.user_input | trim | int) >= 1
+            - (ask_luks_hdd.user_input | trim | int) <= (luks_candidates | length)
+
+        - name: Ask for the LUKS UUID manually
+          ansible.builtin.pause:
+            prompt: "Enter the data-disk LUKS partition UUID (see: lsblk -f, TYPE=crypto_LUKS)"
+          register: ask_luks_manual
+          when:
+            - ask_luks_hdd is not skipped
+            - (ask_luks_hdd.user_input | trim | lower) == 'm'
+
+        - name: Adopt the manual LUKS UUID
+          ansible.builtin.set_fact:
+            luks_hdd_uuid: "{{ ask_luks_manual.user_input | trim }}"
+          when:
+            - ask_luks_manual is defined
+            - ask_luks_manual is not skipped
+            - (ask_luks_manual.user_input | trim | length) > 0
+
+        # --- Home gateway MAC: detect the current default gateway's MAC ---
+        # Only correct while on the HOME network, so the answer is confirmed, not
+        # auto-adopted. Skipping leaves it unset and the wireguard dispatcher just
+        # never sees a "home" match (tunnel logic degrades safely).
+        - name: Detect the current default-gateway MAC
+          ansible.builtin.shell: |
+            set -eu
+            gw=$(ip route show default 2>/dev/null | awk '/default/{print $3; exit}')
+            [ -n "$gw" ] || exit 0
+            ping -c1 -W1 "$gw" >/dev/null 2>&1 || true
+            mac=$(ip neigh show "$gw" 2>/dev/null | awk '{print tolower($5); exit}')
+            [ -n "$mac" ] || exit 0
+            dev=$(ip route show default 2>/dev/null \
+              | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')
+            printf '%s|%s|%s\n' "$mac" "$gw" "$dev"
+          register: gw_scan
+          changed_when: false
+          check_mode: false
           when: "'wireguard' in (roles_enabled | default([])) and wg_home_gateway_macs is not defined"
 
-        - name: Adopt the gateway MAC answer
+        - name: Confirm or enter the home gateway MAC(s)
+          ansible.builtin.pause:
+            prompt: |-
+              {% if gw_scan.stdout_lines | default([]) | length > 0 %}
+              Detected the current default gateway:
+                {{ gw_scan.stdout_lines[0].split('|')[1] }} via {{ gw_scan.stdout_lines[0].split('|')[2] }} -> MAC {{ gw_scan.stdout_lines[0].split('|')[0] }}
+              Trust this ONLY if you are on your home network right now.
+                y) yes, this is my home router
+                m) enter MAC(s) manually (comma-separated)
+                s) skip for now
+              Enter y, m, or s
+              {% else %}
+              Could not detect a gateway MAC (connected to a network?).
+                m) enter MAC(s) manually (comma-separated)
+                s) skip for now
+              Enter m or s
+              {% endif %}
+          register: ask_wg_macs
+          when: gw_scan is not skipped
+
+        - name: Adopt the detected gateway MAC
           ansible.builtin.set_fact:
-            wg_home_gateway_macs: "{{ ask_wg_macs.user_input | split(',') | map('trim') | list }}"
-          when: ask_wg_macs is not skipped
+            wg_home_gateway_macs: "{{ [gw_scan.stdout_lines[0].split('|')[0]] }}"
+          when:
+            - ask_wg_macs is not skipped
+            - (ask_wg_macs.user_input | trim | lower) == 'y'
+            - gw_scan.stdout_lines | default([]) | length > 0
 
-        - name: Reject empty answers (accidental Enter / non-interactive run)
-          ansible.builtin.assert:
-            that:
-              - ask_ssh_port is skipped or (ssh_port | string | trim | length > 0)
-              - ask_luks_hdd is skipped or (luks_hdd_uuid | trim | length > 0)
-              - ask_wg_macs is skipped or (wg_home_gateway_macs | join('') | trim | length > 0)
-            fail_msg: >-
-              Empty answer for a machine-local setting. Re-run interactively, or
-              create host_vars/{{ inventory_hostname }}/local.yml by hand.
-          when: ask_ssh_port is not skipped or ask_luks_hdd is not skipped or ask_wg_macs is not skipped
+        - name: Ask for the gateway MAC(s) manually
+          ansible.builtin.pause:
+            prompt: "Enter the home router LAN gateway MAC(s), comma-separated"
+          register: ask_wg_manual
+          when:
+            - ask_wg_macs is not skipped
+            - (ask_wg_macs.user_input | trim | lower) == 'm'
 
+        - name: Adopt the manual gateway MAC(s)
+          ansible.builtin.set_fact:
+            wg_home_gateway_macs: "{{ ask_wg_manual.user_input | split(',') | map('trim') | select('match', '.') | list }}"
+          when:
+            - ask_wg_manual is defined
+            - ask_wg_manual is not skipped
+            - (ask_wg_manual.user_input | trim | length) > 0
+
+        # --- Persist whatever was chosen (only when a value now exists) ---
         - name: Ensure the local vars directory exists
           ansible.builtin.file:
             path: "{{ local_vars_file | dirname }}"
             state: directory
             mode: "0755"
-          when: ask_ssh_port is not skipped or ask_luks_hdd is not skipped or ask_wg_macs is not skipped
+          when: >-
+            ask_ssh_port is not skipped
+            or (luks_scan is not skipped and luks_hdd_uuid is defined)
+            or (gw_scan is not skipped and wg_home_gateway_macs is defined)
 
         - name: Persist the SSH port to local.yml
           ansible.builtin.lineinfile:
@@ -84,7 +190,9 @@
             mode: "0600"
             regexp: "^luks_hdd_uuid:"
             line: "luks_hdd_uuid: \"{{ luks_hdd_uuid }}\""
-          when: ask_luks_hdd is not skipped
+          when:
+            - luks_scan is not skipped
+            - luks_hdd_uuid is defined
 
         - name: Persist the gateway MAC(s) to local.yml
           ansible.builtin.lineinfile:
@@ -93,7 +201,9 @@
             mode: "0600"
             regexp: "^wg_home_gateway_macs:"
             line: "wg_home_gateway_macs: {{ wg_home_gateway_macs | to_json }}"
-          when: ask_wg_macs is not skipped
+          when:
+            - gw_scan is not skipped
+            - wg_home_gateway_macs is defined
 
   roles:
     - role: base

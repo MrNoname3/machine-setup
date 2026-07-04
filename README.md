@@ -140,8 +140,20 @@ Machine identifiers (hardened SSH port, LUKS UUIDs, trusted home-gateway MACs,
 optionally `primary_user`) live in `host_vars/<host>/local.yml`, which is
 **untracked** — the public repo carries no machine-specific identifiers. On a
 fresh machine the playbook **prompts** for any missing value needed by an
-enabled role and saves it there (mode 0600), so it only ever asks once. You can
-also create the file by hand before the first run:
+enabled role and saves it there (mode 0600), so it only ever asks once. Two of
+the prompts help you fill them in and can be postponed:
+
+- **Data-disk LUKS UUID** — the playbook scans for `crypto_LUKS` partitions
+  (excluding the root disk) and offers them by size/UUID; pick one, type a UUID
+  by hand, or choose **skip**.
+- **Home-gateway MAC** — it detects the current default gateway's MAC (correct
+  only while you are on the home network) and asks you to confirm it, enter
+  MAC(s) manually, or **skip**.
+
+Skipping (or a non-interactive run) simply leaves that value unset; the
+dependent role tasks skip cleanly until you set it on a later run. The SSH port
+has no safe default, so it stays required. You can also create the file by hand
+before the first run:
 
 ```yaml
 # host_vars/laptop-old/local.yml
