@@ -296,3 +296,27 @@
     - { key: /org/cinnamon/enable-vfade, value: "false" }
     - { key: /org/cinnamon/window-effect-speed, value: "2" }
   when: ansible_os_family == "Debian"
+
+# Night Light: always-on warm tint. In 'always' mode there is no sunrise/sunset
+# schedule, so no geolocation is used -- only the enabled flag, the mode and the
+# colour temperature are needed, none of them personal.
+- name: Enable always-on Night Light (Cinnamon)
+  community.general.dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  become: false
+  loop:
+    - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-enabled, value: "true" }
+    - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-schedule-mode, value: "'always'" }
+    - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-temperature, value: "uint32 5200" }
+  when: ansible_os_family == "Debian"
+
+# Clear any geolocation left over from a previous automatic schedule -- unused in
+# 'always' mode, and we don't want the home coordinates lingering in dconf.
+- name: Clear the stored Night Light coordinates (Cinnamon)
+  community.general.dconf:
+    key: /org/cinnamon/settings-daemon/plugins/color/night-light-last-coordinates
+    state: absent
+  become: false
+  when: ansible_os_family == "Debian"
