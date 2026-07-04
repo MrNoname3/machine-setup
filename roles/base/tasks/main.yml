@@ -10,6 +10,20 @@
     mode: "0440"
     validate: "visudo -cf %s"
 
+# Only ever pull hard dependencies -- never Recommends/Suggests -- so installs
+# stay minimal and no surprise packages tag along (this is what pulled docker.io
+# in as a docker-compose-v2 Recommends). Set BEFORE the package tasks so it takes
+# effect on the same run. Affects future installs only; existing packages and the
+# recommends they already have are left untouched.
+- name: Configure APT to skip Recommends and Suggests
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/99-no-recommends
+    content: |
+      APT::Install-Recommends "false";
+      APT::Install-Suggests "false";
+    mode: "0644"
+  when: ansible_os_family == "Debian"
+
 - name: Install packages (apt)
   ansible.builtin.apt:
     name: "{{ packages_present }}"
