@@ -77,3 +77,8 @@ packages_absent:
   - libpam-fingwit
   - fprintd
   - libpam-fprintd
+  # System-audit cleanup (2026-07-04): unused services / live-ISO leftovers
+  - casper                      # live-ISO boot only; useless once installed (also clears the failed casper-md5check unit)
+  - cups-browsed                # network printer *browsing* — not needed with a USB printer (cups itself stays)
+  - modemmanager                # no WWAN modem, and it grabs USB-serial ports (bad for embedded dev, like brltty)
+  - touchegg                    # Cinnamon gestures are disabled and there is no touchegg config -> redundant
