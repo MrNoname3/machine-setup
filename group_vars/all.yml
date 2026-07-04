@@ -19,7 +19,7 @@ packages_present:
   - keepassxc
   - meld
   - numlockx                     # turn NumLock on at the LightDM greeter / boot
-  - mint-cursor-themes           # Bibata cursor set (base role selects it via dconf)
+  - yaru-theme-icon              # Yaru cursor set (base role selects it via dconf)
 
 # Packages to ensure are removed. Keep entries here permanently so fresh
 # installs stay clean. Never list a package in both lists.

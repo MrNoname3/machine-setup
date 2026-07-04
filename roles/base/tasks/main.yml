@@ -137,7 +137,7 @@
   when: ansible_os_family == "Debian"
 
 # Appearance: the dark Mint-Y-Dark-Aqua GTK/Cinnamon theme, Mint-Y-Sand icons,
-# the Bibata cursor (shipped by mint-cursor-themes), and prefer-dark so plain
+# the Yaru cursor (shipped by yaru-theme-icon), and prefer-dark so plain
 # GTK/portal apps follow suit. Both the Cinnamon and the GNOME interface keys are
 # set so the Cinnamon session and legacy GTK apps agree.
 - name: Apply the dark desktop theme + icon/cursor themes (Cinnamon)
@@ -150,10 +150,10 @@
     - { key: /org/cinnamon/desktop/interface/gtk-theme, value: "'Mint-Y-Dark-Aqua'" }
     - { key: /org/cinnamon/theme/name, value: "'Mint-Y-Dark-Aqua'" }
     - { key: /org/cinnamon/desktop/interface/icon-theme, value: "'Mint-Y-Sand'" }
-    - { key: /org/cinnamon/desktop/interface/cursor-theme, value: "'Bibata-Modern-Classic'" }
+    - { key: /org/cinnamon/desktop/interface/cursor-theme, value: "'Yaru'" }
     - { key: /org/gnome/desktop/interface/gtk-theme, value: "'Mint-Y-Dark-Aqua'" }
     - { key: /org/gnome/desktop/interface/icon-theme, value: "'Mint-Y-Sand'" }
-    - { key: /org/gnome/desktop/interface/cursor-theme, value: "'Bibata-Modern-Classic'" }
+    - { key: /org/gnome/desktop/interface/cursor-theme, value: "'Yaru'" }
     - { key: /org/gnome/desktop/wm/preferences/theme, value: "'Mint-Y'" }
     - { key: /org/x/apps/portal/color-scheme, value: "'prefer-dark'" }
   when: ansible_os_family == "Debian"
