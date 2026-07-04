@@ -77,15 +77,22 @@
   loop: "{{ text_mimetypes }}"
   when: ansible_os_family == "Debian"
 
-# Don't put mounted-volume icons on the Cinnamon desktop (an internal fixed
-# disk like /mnt/hdd showing up there is unwanted). Volumes still appear in the
-# Nemo sidebar and in Disk Usage Analyzer (the data disk uses x-gvfs-show).
-- name: Hide mounted-volume icons from the Cinnamon desktop
+# Keep the Cinnamon desktop clear: hide the standard icons (Computer, Home,
+# Network, Trash) and mounted-volume icons -- an internal fixed disk like
+# /mnt/hdd showing up there is unwanted. Everything still appears in the Nemo
+# sidebar and in Disk Usage Analyzer (the data disk uses x-gvfs-show).
+- name: Hide the standard + mounted-volume icons from the Cinnamon desktop
   community.general.dconf:
-    key: /org/nemo/desktop/volumes-visible
+    key: "{{ item }}"
     value: "false"
     state: present
   become: false
+  loop:
+    - /org/nemo/desktop/computer-icon-visible
+    - /org/nemo/desktop/home-icon-visible
+    - /org/nemo/desktop/network-icon-visible
+    - /org/nemo/desktop/trash-icon-visible
+    - /org/nemo/desktop/volumes-visible
   when: ansible_os_family == "Debian"
 
 # Default Nemo view: list, sorted by name ascending -- everywhere EXCEPT folders
@@ -180,4 +187,22 @@
     - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-display-battery, value: "1800" }
     - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-ac-timeout, value: "1800" }
     - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-battery-timeout, value: "0" }
+  when: ansible_os_family == "Debian"
+
+# Turn off Cinnamon touchpad multi-finger gestures.
+- name: Disable touchpad gestures (Cinnamon)
+  community.general.dconf:
+    key: /org/cinnamon/gestures/enabled
+    value: "false"
+    state: present
+  become: false
+  when: ansible_os_family == "Debian"
+
+# Lock the screen 10 s after the screensaver / display blank kicks in.
+- name: Set the screen-lock delay to 10 s after blank (Cinnamon)
+  community.general.dconf:
+    key: /org/cinnamon/desktop/screensaver/lock-delay
+    value: "uint32 10"
+    state: present
+  become: false
   when: ansible_os_family == "Debian"
