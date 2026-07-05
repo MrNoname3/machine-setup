@@ -16,7 +16,7 @@ only *procedures and templates*. If a secret must live here, encrypt it with
 
 ## Hosts
 - **laptop-old** — Intel i5-2430M (Sandy Bridge), NVIDIA GT 520M (Fermi), 8 GB RAM,
-  SSD + HDD, Optimus. Target distro: Linux Mint.
+  SSD + HDD, Optimus. Runs Linux Mint (Cinnamon).
 - **desktop-bazzite** — main desktop, Bazzite (immutable, rpm-ostree). Uses a different
   package model than apt; the `base` role's apt tasks are guarded and will not run here.
 
@@ -32,8 +32,10 @@ machine-setup/
 ├── group_vars/
 │   └── all.yml                  # shared variables (package lists, ssh_keys_dir, ...)
 ├── host_vars/
-│   ├── laptop-old.yml           # per-host settings (roles_enabled, UUIDs, ...)
-│   └── desktop-bazzite.yml
+│   ├── laptop-old/
+│   │   ├── main.yml             # per-host settings (roles_enabled, ...)
+│   │   └── local.yml            # machine identifiers — untracked; prompted+saved by site.yml
+│   └── desktop-bazzite/         # same layout (main.yml + untracked local.yml)
 └── roles/
     ├── base/            # packages (present/absent), sudo, MIME/dconf defaults
     ├── ssh-access/      # hardened SSH server
@@ -41,7 +43,7 @@ machine-setup/
     ├── synology-drive/  # Synology Drive client
     ├── steam/           # Steam (+ flatpak on Bazzite)
     ├── vscode/          # VS Code + settings + extensions
-    ├── luks-unlock/     # extra LUKS unlock methods (pendrive, dropbear, HDD)
+    ├── luks-unlock/     # remote root unlock at boot (dropbear in the initramfs)
     ├── keyring/         # KeePassXC as the SSH agent (both OSes)
     ├── kde/             # Plasma desktop tweaks (Bazzite)
     ├── graphics/        # nouveau reclocking, PRIME offload (laptop only)
@@ -137,11 +139,12 @@ ansible-playbook -c local -l laptop-old site.yml --tags keyring
 ### Machine-local values (not in git)
 
 Machine identifiers (hardened SSH port, LUKS UUIDs, trusted home-gateway MACs,
-optionally `primary_user`) live in `host_vars/<host>/local.yml`, which is
-**untracked** — the public repo carries no machine-specific identifiers. On a
-fresh machine the playbook **prompts** for any missing value needed by an
-enabled role and saves it there (mode 0600), so it only ever asks once. Two of
-the prompts help you fill them in and can be postponed:
+the private Gitea URL, optionally `primary_user`) live in
+`host_vars/<host>/local.yml`, which is **untracked** — the public repo carries
+no machine-specific identifiers. On a fresh machine the playbook **prompts** for
+any missing value needed by an enabled role and saves it there (mode 0600), so
+it only ever asks once. Three of the prompts help you fill them in and can be
+postponed:
 
 - **Data-disk LUKS UUID** — the playbook scans for `crypto_LUKS` partitions
   (excluding the root disk) and offers them by size/UUID; pick one, type a UUID
@@ -149,6 +152,10 @@ the prompts help you fill them in and can be postponed:
 - **Home-gateway MAC** — it detects the current default gateway's MAC (correct
   only while you are on the home network) and asks you to confirm it, enter
   MAC(s) manually, or **skip**.
+- **Git origin** — a checkout bootstrapped from the public GitHub mirror has
+  GitHub as its `origin`; the playbook offers to repoint it to the private Gitea
+  (**y** = enter the Gitea URL, **n** = keep the current origin and never ask
+  again, **s** = skip and ask on the next interactive run).
 
 Skipping (or a non-interactive run) simply leaves that value unset; the
 dependent role tasks skip cleanly until you set it on a later run. The SSH port
@@ -161,6 +168,7 @@ ssh_port: 22
 luks_hdd_uuid: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 wg_home_gateway_macs:
   - "aa:bb:cc:dd:ee:ff"
+git_origin_url: "https://gitea.example/you/machine-setup.git"   # or 'keep'
 ```
 
 ### Removing a package
@@ -169,10 +177,26 @@ file and re-run. Keep entries in `packages_absent` permanently so fresh installs
 stay clean. Never list the same package in both.
 
 ## Base install runbook (manual steps)
-> TODO: fill in exact partitioning + LUKS + Mint installer choices.
-> The full plan and rationale live in `memory/old-laptop-linux-plan.md`.
 
-1. Boot the Mint live USB; verify hardware (Wi-Fi, audio, NVIDIA/Intel).
-2. Partition + enable LUKS full-disk encryption on the SSD during install.
-3. Leave the HDD untouched (encrypt it later via the `luks-unlock` role).
-4. First boot, then run the bootstrap + apply steps above.
+The base install is interactive and destructive, so it stays a written runbook.
+It is deliberately short: everything that *can* be automated happens after first
+boot, via the bootstrap + playbook.
+
+1. **Live USB** — boot the Mint (Cinnamon) live USB and verify hardware first:
+   Wi-Fi, audio, and both GPUs show up (`inxi -G`; Intel iGPU is the daily
+   driver, NVIDIA via nouveau/PRIME is optional — see the `graphics` role).
+2. **Install with full-disk encryption on the SSD only**: choose *Erase disk and
+   install*, tick *Encrypt the new installation* (LUKS), and pick a strong
+   passphrase — this passphrase is the primary unlock and is **never stored
+   anywhere**. Create the normal daily user when asked.
+3. **Leave the HDD untouched.** The data disk is encrypted later with the
+   `storage` role's one-time manual bootstrap (see `roles/storage/README.md`) —
+   the installer must not touch it.
+4. **First boot** — log in and run the bootstrap one-liner (Workflow step 2).
+   The playbook prompts once for the machine-local values (SSH port, and the
+   postponable LUKS-UUID / gateway-MAC / git-origin prompts) and applies
+   everything else.
+5. **Manual follow-ups that need secrets in hand** (each documented in its
+   role's README): add the HDD fallback passphrase (`storage`), import the
+   WireGuard client configs (`wireguard`), and unlock/populate KeePassXC so it
+   serves the SSH keys (`keyring`).

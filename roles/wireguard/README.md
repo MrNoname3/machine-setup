@@ -49,3 +49,17 @@ full/split at any time. Reaching home drops the tunnel automatically.
 Tether to a phone hotspot (or any non-home network): `wg-home-full` should come
 up within a few seconds. Reconnect to the home network: the tunnel drops.
 Check with `nmcli connection show --active`.
+
+## Debugging
+
+The dispatcher is deployed to `/etc/NetworkManager/dispatcher.d/50-wg-autovpn`.
+It produces no log output of its own; if it doesn't behave:
+
+```sh
+journalctl -u NetworkManager-dispatcher -e     # script errors / exit codes
+nmcli connection show --active                 # what is actually up
+ip route show default && ip neigh              # the gateway MAC being compared
+```
+
+Run it by hand to test the decision logic (it reads the interface + action):
+`sudo /etc/NetworkManager/dispatcher.d/50-wg-autovpn eth0 up`.
