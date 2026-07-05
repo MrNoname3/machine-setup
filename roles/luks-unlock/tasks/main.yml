@@ -1,9 +1,10 @@
 ---
 # luks-unlock role: remote unlock via dropbear in the initramfs (over SSH).
 # Networking is configured via the kernel ip= parameter (the documented
-# dropbear-initramfs method), and the USB ethernet driver is force-loaded early
-# so the slow USB link (~6s) is up before DHCP. The unlock still requires the
-# LUKS passphrase (typed via cryptroot-unlock). Only PUBLIC keys live in the repo.
+# dropbear-initramfs method) over the built-in ethernet port; the NIC driver is
+# in the stock initramfs (MODULES=most), no special handling needed. The unlock
+# still requires the LUKS passphrase (typed via cryptroot-unlock). Only PUBLIC
+# keys live in the repo.
 
 - name: Install dropbear-initramfs
   ansible.builtin.apt:
@@ -34,12 +35,14 @@
     state: absent
   notify: Rebuild initramfs
 
-- name: Force-load the wired-network drivers early in the initramfs
+# The machine used to unlock over a USB-ethernet adapter whose slow link needed
+# its drivers force-loaded early; the adapter is gone (built-in port now), so
+# clean those lines up wherever they still exist.
+- name: Remove the legacy USB-ethernet force-load from the initramfs
   ansible.builtin.lineinfile:
     path: /etc/initramfs-tools/modules
     line: "{{ item }}"
-    create: true
-    mode: "0644"
+    state: absent
   loop:
     - usbnet
     - ax88179_178a

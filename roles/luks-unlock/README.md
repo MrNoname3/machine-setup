@@ -3,7 +3,7 @@
 The laptop's root disk is LUKS-encrypted, so after power-on it sits at the
 passphrase prompt. This role puts a tiny SSH server (**dropbear**) into the
 initramfs so the passphrase can be typed **remotely** — useful when the machine
-is docked somewhere headless.
+runs headless.
 
 The unlock still requires the LUKS passphrase every time; this role only adds a
 remote way to enter it. Only the **public** key lives in this repo
@@ -12,10 +12,11 @@ remote way to enter it. Only the **public** key lives in this repo
 ## What the role does
 
 - Installs `dropbear-initramfs` and authorizes the unlock SSH key for it.
-- Force-loads the USB-ethernet drivers (`usbnet`, `ax88179_178a`) early in the
-  initramfs — the dock's USB NIC takes ~6 s to link up, and DHCP must not race it.
 - Sets `ip=dhcp` on the kernel command line (the documented dropbear-initramfs
-  method) and rebuilds the initramfs/grub via handlers.
+  method) and rebuilds the initramfs/grub via handlers. The NIC driver needs no
+  special handling — the stock initramfs (`MODULES=most`) already carries it.
+- Cleans up a legacy force-load of USB-ethernet drivers left over from an
+  adapter that is no longer part of the machine.
 
 External dependency (values not in this repo): a **DHCP reservation on the
 router** pins the machine's address, so the initramfs and the booted system get
