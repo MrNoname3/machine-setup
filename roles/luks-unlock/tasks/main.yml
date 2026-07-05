@@ -57,9 +57,5 @@
   notify: Update grub
   when: ansible_os_family == "Debian"
 
-# --- TODO (later) ---
-# 2. Pendrive keyfile: home-only auto-unlock of the root via passdev keyscript
-#    in /etc/crypttab, falling back to the passphrase prompt when absent.
-# 3. Secondary HDD: keyfile on the encrypted root (/etc/cryptkey/hdd.key),
-#    referenced in /etc/crypttab (NOT initramfs), auto-unlocked after root mount.
-# See: roles/luks-unlock/templates/crypttab.j2 and memory/old-laptop-linux-plan.md
+# Out of scope (see README.md): the secondary HDD auto-unlock is handled by the
+# storage role; a pendrive-keyfile unlock for the root was considered and parked.
