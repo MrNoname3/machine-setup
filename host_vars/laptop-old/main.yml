@@ -33,6 +33,12 @@ printers:
     model: "drv:///splix-samsung.drv/scx4521f.ppd"
     model_nickname: "Samsung SCX-4521F"
 
+# Podman is the only container engine here (no rootful Docker), so it is safe to
+# export DOCKER_HOST to the rootless Podman socket for testcontainers / IDE
+# docker plugins. NOT set on hosts that run a real Docker daemon (e.g. the
+# desktop), where it would hijack the `docker` CLI.
+container_docker_host_export: true
+
 # Remote LUKS unlock (dropbear) uses ip=dhcp; the address is pinned by a DHCP
 # reservation on the router (external dependency, not captured in this repo —
 # details in local.yml).

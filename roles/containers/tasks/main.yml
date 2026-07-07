@@ -79,6 +79,9 @@
       short-name-mode = "permissive"
   when: ansible_os_family == "Debian"
 
+# DOCKER_HOST export — opt-in (see container_docker_host_export in defaults).
+# OFF by default so it never hijacks a real rootful Docker daemon's `docker` CLI;
+# the paired removal task cleans it up on hosts where the toggle is off.
 - name: Point Docker-API clients at the rootless Podman socket (DOCKER_HOST)
   ansible.builtin.copy:
     dest: /etc/profile.d/99-docker-host.sh
@@ -87,7 +90,17 @@
       # Managed by Ansible (containers role). Lets docker compose v2 / IDE docker
       # plugins / testcontainers reach the rootless Podman socket.
       export DOCKER_HOST="unix:///run/user/$(id -u)/podman/podman.sock"
-  when: ansible_os_family == "Debian"
+  when:
+    - ansible_os_family == "Debian"
+    - container_docker_host_export | default(false) | bool
+
+- name: Remove the DOCKER_HOST export when not opted in (protect a rootful Docker)
+  ansible.builtin.file:
+    path: /etc/profile.d/99-docker-host.sh
+    state: absent
+  when:
+    - ansible_os_family == "Debian"
+    - not (container_docker_host_export | default(false) | bool)
 
 - name: Enable lingering so the rootless Podman socket runs without an active login
   ansible.builtin.command: "loginctl enable-linger {{ primary_user }}"

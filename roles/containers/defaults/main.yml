@@ -24,3 +24,10 @@ container_search_registries:
 # depends on: flip to true + re-run to get a `docker` command; flip back to
 # false + re-run to remove it cleanly.
 container_docker_cli: false
+
+# Export DOCKER_HOST (system-wide, /etc/profile.d) so Docker-API clients
+# (testcontainers, IDE docker plugins, `docker compose`) reach the rootless
+# Podman socket. OFF by default: on a host that runs a real rootful Docker daemon
+# this would hijack the `docker` CLI away from it. Enable ONLY where Podman is the
+# sole container engine (set container_docker_host_export: true in that host_vars).
+container_docker_host_export: false
