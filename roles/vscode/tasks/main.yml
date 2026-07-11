@@ -22,11 +22,26 @@
     creates: /usr/share/keyrings/microsoft-vscode.gpg
   when: ansible_facts['os_family'] == "Debian"
 
-- name: Add the VS Code apt repository
-  ansible.builtin.apt_repository:
-    repo: "deb [arch=amd64,arm64,armhf signed-by=/usr/share/keyrings/microsoft-vscode.gpg] https://packages.microsoft.com/repos/code stable main"
-    filename: vscode
-    state: present
+# deb822 .sources form (apt_repository is deprecated, removed in core 2.25).
+# The install task below refreshes the apt cache, so a changed repo file is
+# picked up without a separate update task.
+- name: Add the VS Code apt repository (deb822)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/vscode.sources
+    mode: "0644"
+    content: |
+      Types: deb
+      URIs: https://packages.microsoft.com/repos/code
+      Suites: stable
+      Components: main
+      Architectures: amd64 arm64 armhf
+      Signed-By: /usr/share/keyrings/microsoft-vscode.gpg
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Remove the legacy one-line vscode.list (superseded by vscode.sources)
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/vscode.list
+    state: absent
   when: ansible_facts['os_family'] == "Debian"
 
 - name: Install VS Code
