@@ -114,13 +114,38 @@
 
 # Common to both hosts (the list mirrors what both fstabs should hold). One-time
 # fstab writes need root -> run with -K; afterwards it converges without root.
-- name: Bind-mount existing Synology subfolders onto the home directories
+#
+# Deliberately NOT state=mounted: the module cannot reliably detect an active
+# bind mount whose source lives on a btrfs subvolume (the desktop) and would
+# re-mount — stacking a new bind layer — on every run. So the module only
+# manages the fstab line, and the mounted-ness is checked with findmnt below
+# (layer-agnostic); an actual mount call only happens when the target is not
+# mounted at all, which after a boot is never.
+- name: Ensure the Synology bind-mount entries in fstab
   ansible.posix.mount:
     src: "{{ synology_home }}/{{ item.item.src }}"
     path: "{{ synology_home }}/{{ item.item.path }}"
     fstype: none
     opts: bind,nofail,x-gvfs-hide
-    state: mounted
+    state: present
   loop: "{{ synology_bind_sources.results | selectattr('stat.exists') | list }}"
   loop_control:
     label: "{{ item.item.path }}"
+
+- name: Check which bind targets are currently mounted
+  ansible.builtin.command: "findmnt --mountpoint {{ synology_home }}/{{ item.item.path }}"
+  register: synology_mount_state
+  changed_when: false
+  failed_when: false
+  become: false
+  loop: "{{ synology_bind_sources.results | selectattr('stat.exists') | list }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+
+# noqa'd: using the mount MODULE here is exactly what we avoid (see above).
+- name: Mount any bind target that is not mounted yet # noqa: command-instead-of-module
+  ansible.builtin.command: "mount {{ synology_home }}/{{ item.item.item.path }}"
+  changed_when: true # guarded below: runs only for unmounted targets
+  loop: "{{ synology_mount_state.results | rejectattr('rc', 'eq', 0) | list }}"
+  loop_control:
+    label: "{{ item.item.item.path }}"
