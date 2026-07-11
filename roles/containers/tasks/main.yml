@@ -11,7 +11,7 @@
   changed_when: false
   failed_when: false
   register: userns_check
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Require unprivileged user namespaces for rootless Podman
   ansible.builtin.assert:
@@ -22,7 +22,7 @@
       kernel.apparmor_restrict_unprivileged_userns and
       kernel.unprivileged_userns_clone.
     success_msg: Unprivileged user namespaces available.
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Install Podman + Distrobox + rootless/Docker-compat stack
   ansible.builtin.apt:
@@ -35,7 +35,7 @@
     # recommends loses nothing.
     install_recommends: false
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - container_packages | length > 0
 
 - name: Add or remove the docker CLI alias (podman-docker) per toggle
@@ -43,7 +43,7 @@
     name: podman-docker
     state: "{{ 'present' if container_docker_cli else 'absent' }}"
     purge: true
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Ensure subuid range for the primary user (rootless)
   ansible.builtin.lineinfile:
@@ -52,7 +52,7 @@
     line: "{{ primary_user }}:100000:65536"
     create: true
     mode: "0644"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Ensure subgid range for the primary user (rootless)
   ansible.builtin.lineinfile:
@@ -61,14 +61,14 @@
     line: "{{ primary_user }}:100000:65536"
     create: true
     mode: "0644"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Ensure the registries drop-in directory exists
   ansible.builtin.file:
     path: /etc/containers/registries.conf.d
     state: directory
     mode: "0755"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Make Podman search Docker Hub for unqualified images (Docker-like)
   ansible.builtin.copy:
@@ -79,7 +79,7 @@
       # `podman run nginx` pulls from Docker Hub like Docker does.
       unqualified-search-registries = {{ container_search_registries | to_json }}
       short-name-mode = "permissive"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # DOCKER_HOST export — opt-in (see container_docker_host_export in defaults).
 # OFF by default so it never hijacks a real rootful Docker daemon's `docker` CLI;
@@ -93,7 +93,7 @@
       # plugins / testcontainers reach the rootless Podman socket.
       export DOCKER_HOST="unix:///run/user/$(id -u)/podman/podman.sock"
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - container_docker_host_export | default(false) | bool
 
 - name: Remove the DOCKER_HOST export when not opted in (protect a rootful Docker)
@@ -101,20 +101,20 @@
     path: /etc/profile.d/99-docker-host.sh
     state: absent
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - not (container_docker_host_export | default(false) | bool)
 
 - name: Enable lingering so the rootless Podman socket runs without an active login
   ansible.builtin.command: "loginctl enable-linger {{ primary_user }}"
   args:
     creates: "/var/lib/systemd/linger/{{ primary_user }}"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Look up the primary user's UID
   ansible.builtin.command: "id -u {{ primary_user }}"
   register: primary_uid
   changed_when: false
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Enable + start the rootless Podman API socket (user service)
   ansible.builtin.command: >-
@@ -122,7 +122,7 @@
     systemctl --user enable --now podman.socket
   register: podman_socket
   changed_when: "'Created symlink' in (podman_socket.stderr + podman_socket.stdout)"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # ===========================================================================
 # Bazzite: the image ships the whole Podman stack (podman, netavark,
@@ -131,7 +131,7 @@
 # become=false on this host).
 # ===========================================================================
 - name: Rootless Podman user services (Bazzite)
-  when: ansible_os_family != "Debian"
+  when: ansible_facts['os_family'] != "Debian"
   become: false
   block:
 

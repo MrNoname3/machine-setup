@@ -18,7 +18,7 @@
     - "video=VGA-1:d"
     - "video=VGA-2:d"
   notify: Update grub
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # --- Notes ---
 # - nouveau manual reclocking is NOT possible on this GT 520M (GF108/NVC1):

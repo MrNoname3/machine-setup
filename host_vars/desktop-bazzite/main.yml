@@ -3,7 +3,7 @@
 #
 # Onboarded incrementally by reverse-engineering the live system (rpm-ostree
 # layers, flatpak list, brew leaves, fstab, user services). Mint-centric role
-# branches are guarded by ansible_os_family and skip here.
+# branches are guarded by ansible_facts['os_family'] and skip here.
 
 # Roles to apply on this host (the "switch" for site.yml).
 roles_enabled:
@@ -22,6 +22,14 @@ roles_enabled:
 # Directory holding the IoT/device SSH private keys (OneDrive-synced).
 # The keyring role generates a matching .pub next to every private key here.
 ssh_keys_dir: "/home/{{ primary_user }}/SynologyDrive/OneDrive/IOT/SSH"
+
+# On Bazzite /home is a symlink to /var/home, and /proc/mounts shows the
+# RESOLVED path. The mount module compares fstab paths against /proc/mounts, so
+# the bind mounts must be keyed by the canonical /var/home path here — with
+# /home paths the module would consider them unmounted on every run and stack a
+# new bind each time. (Regular file tasks keep using /home; only mount-state
+# comparison cares.)
+synology_home: "/var/home/{{ primary_user }}"
 
 # Flatpak application set (system scope, Flathub). ProtonPlus is managed by the
 # steam role (steam_flatpaks), so it is not repeated here.

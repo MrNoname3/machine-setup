@@ -9,5 +9,5 @@
     state: present
   become: false # brew refuses to run as root by design
   when:
-    - ansible_os_family != "Debian"
+    - ansible_facts['os_family'] != "Debian"
     - brew_packages | length > 0

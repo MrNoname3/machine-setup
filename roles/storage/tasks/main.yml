@@ -16,7 +16,7 @@
     owner: root
     group: root
     mode: "0700"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Check whether the data-disk keyfile is present
   ansible.builtin.stat:
@@ -31,7 +31,7 @@
       roles/storage/README.md (partition + luksFormat + mkfs) before this role
       can wire up auto-unlock.
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - storage_hdd_luks_uuid | length > 0
 
 - name: Lock down the keyfile permissions (root read-only)
@@ -41,7 +41,7 @@
     group: root
     mode: "0400"
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - storage_keyfile.stat.exists
 
 - name: Configure crypttab auto-unlock for the data disk
@@ -52,7 +52,7 @@
     opts: luks,nofail
     state: present
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - storage_hdd_luks_uuid | length > 0
 
 - name: Ensure the data-disk mountpoint exists
@@ -62,7 +62,7 @@
     owner: "{{ primary_user }}"
     group: "{{ primary_user }}"
     mode: "0755"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Automount the data disk via fstab
   ansible.posix.mount:
@@ -72,5 +72,5 @@
     opts: "{{ storage_hdd_mount_opts }}"
     state: mounted
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - storage_hdd_luks_uuid | length > 0

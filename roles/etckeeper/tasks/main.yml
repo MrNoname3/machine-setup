@@ -15,27 +15,27 @@
       - git
     state: present
     update_cache: true
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Use git as the etckeeper VCS
   ansible.builtin.lineinfile:
     path: /etc/etckeeper/etckeeper.conf
     regexp: '^VCS='
     line: 'VCS="{{ etckeeper_vcs }}"'
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Keep daily autocommits enabled (or disabled per the toggle)
   ansible.builtin.lineinfile:
     path: /etc/etckeeper/etckeeper.conf
     regexp: '^AVOID_DAILY_AUTOCOMMITS='
     line: "AVOID_DAILY_AUTOCOMMITS={{ etckeeper_avoid_daily_autocommits }}"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Initialise the /etc git repository (one-time)
   ansible.builtin.command: etckeeper init
   args:
     creates: /etc/.git
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Run last in the playbook so this snapshot captures /etc changes made by all the
 # other roles in the same run. etckeeper provides a default git identity, so the
@@ -45,12 +45,12 @@
   register: etckeeper_unclean
   changed_when: false
   failed_when: false
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Commit the current state of /etc
   ansible.builtin.command: etckeeper commit "{{ etckeeper_commit_message }}"
   register: etckeeper_commit
   changed_when: "'nothing to commit' not in (etckeeper_commit.stdout + etckeeper_commit.stderr)"
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - etckeeper_unclean.rc == 0

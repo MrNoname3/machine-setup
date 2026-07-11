@@ -9,7 +9,7 @@
     url: https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
     dest: /usr/share/keyrings/brave-browser-archive-keyring.gpg
     mode: "0644"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Add the Brave apt repository
   ansible.builtin.get_url:
@@ -17,7 +17,7 @@
     dest: /etc/apt/sources.list.d/brave-browser-release.sources
     mode: "0644"
   register: brave_repo
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Not a handler on purpose: the refreshed cache must exist BEFORE the install
 # task below, and handlers only run at the end of the play.
@@ -25,14 +25,14 @@
   ansible.builtin.apt:
     update_cache: true
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - brave_repo.changed
 
 - name: Install the Brave browser
   ansible.builtin.apt:
     name: brave-browser
     state: present
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # --- Bazzite: vendor rpm repo + rpm-ostree layering ------------------------
 # Layering changes the next deployment: after a fresh install a REBOOT is
@@ -49,20 +49,20 @@
       gpgcheck=1
       gpgkey=https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
       baseurl=https://brave-browser-rpm-release.s3.brave.com/$basearch
-  when: ansible_os_family != "Debian"
+  when: ansible_facts['os_family'] != "Debian"
 
 - name: Check whether brave-browser is already layered
   ansible.builtin.command: rpm-ostree status
   register: ostree_status
   changed_when: false
   become: false
-  when: ansible_os_family != "Debian"
+  when: ansible_facts['os_family'] != "Debian"
 
 - name: Layer the Brave browser (rpm-ostree; takes effect after a reboot)
   ansible.builtin.command: rpm-ostree install --idempotent brave-browser
   changed_when: true # guarded below: runs only when not layered yet
   when:
-    - ansible_os_family != "Debian"
+    - ansible_facts['os_family'] != "Debian"
     - "'brave-browser' not in ostree_status.stdout"
 
 - name: Ensure the Brave policy directories exist

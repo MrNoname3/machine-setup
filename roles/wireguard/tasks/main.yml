@@ -13,13 +13,13 @@
     owner: root
     group: root
     mode: "0755"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: List existing NetworkManager connections
   ansible.builtin.command: nmcli -t -f NAME connection show
   register: wg_nm_conns
   changed_when: false
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # --- Manual gate ----------------------------------------------------------
 # The client configs are secrets; import them once (see README). Pause only while
@@ -36,7 +36,7 @@
 
       Then press Enter to continue.
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - wireguard_auto_connection not in (wg_nm_conns.stdout_lines | default([]))
 
 - name: Read current autoconnect state of the WG connections
@@ -45,7 +45,7 @@
   changed_when: false
   failed_when: false
   loop: "{{ wireguard_connections }}"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # The dispatcher decides when the tunnel is up, so the connections themselves must
 # not auto-connect on their own.
@@ -56,6 +56,6 @@
   loop_control:
     label: "{{ item.item }}"
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - item.rc == 0
     - item.stdout | trim == "yes"

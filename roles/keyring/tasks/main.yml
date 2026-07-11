@@ -39,9 +39,9 @@
 # Fedora-atomic / KDE host (Bazzite): KeePassXC flatpak -> systemd ssh-agent
 # ===========================================================================
 - name: KeePassXC SSH agent (Fedora-atomic / KDE)
-  # Bazzite reports ansible_os_family == "Bazzite" (uBlue sets its own os-release
+  # Bazzite reports ansible_facts['os_family'] == "Bazzite" (uBlue sets its own os-release
   # ID), not "RedHat" — so we branch on "not Debian".
-  when: ansible_os_family != "Debian"
+  when: ansible_facts['os_family'] != "Debian"
   become: false # user-scoped by default; only the flatpak install escalates
   vars:
     ssh_dir: "/home/{{ primary_user }}/.ssh"
@@ -186,7 +186,7 @@
 # Debian / Mint host (Cinnamon): native KeePassXC -> gnome-keyring ssh agent
 # ===========================================================================
 - name: KeePassXC SSH agent (Debian / Mint)
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
   become: false # user-scoped by default; only the apt install escalates
   vars:
     ssh_dir: "/home/{{ primary_user }}/.ssh"

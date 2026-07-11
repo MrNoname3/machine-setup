@@ -7,7 +7,7 @@
     name: steam-installer
     state: present
     update_cache: true
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Install Steam-related Flatpak apps (ProtonPlus, etc.)
   community.general.flatpak:
@@ -30,7 +30,7 @@
       X-GNOME-Autostart-enabled=true
       Hidden=false
   become: false
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Bazzite ships Steam in the image (no install task); it is launched through the
 # /usr/bin/bazzite-steam wrapper (gamescope/session integration), so the
@@ -48,7 +48,7 @@
       Categories=Network;FileTransfer;Game;
       Terminal=false
   become: false
-  when: ansible_os_family != "Debian"
+  when: ansible_facts['os_family'] != "Debian"
 
 # --- Manual gate ----------------------------------------------------------
 # Steam stores logged-in accounts in loginusers.vdf, created on first sign-in.

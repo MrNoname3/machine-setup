@@ -22,7 +22,7 @@
       APT::Install-Recommends "false";
       APT::Install-Suggests "false";
     mode: "0644"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Install packages (apt)
   ansible.builtin.apt:
@@ -30,7 +30,7 @@
     state: present
     update_cache: true
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - packages_present | length > 0
 
 - name: Remove packages (apt)
@@ -40,7 +40,7 @@
     purge: true
     autoremove: true
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - packages_absent | length > 0
 
 # CUPS printers (see `printers` in defaults). The Samsung SCX-4x21 speaks Samsung
@@ -52,7 +52,7 @@
 # time rather than stored, so no machine identifier lands in the repo.
 - name: Configure CUPS printers
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - printers | length > 0
   block:
     - name: List CUPS device URIs (for USB auto-discovery)
@@ -127,7 +127,7 @@
     value: "true"
     mode: "0644"
     no_extra_spaces: true
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Drop the old numlockx greeter-setup-script override (superseded by activate-numlock)
   community.general.ini_file:
@@ -137,7 +137,7 @@
     state: absent
     mode: "0644"
     no_extra_spaces: true
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Set VLC as the default video player (user MIME associations)
   community.general.ini_file:
@@ -149,7 +149,7 @@
     no_extra_spaces: true
   become: false
   loop: "{{ video_mimetypes }}"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Set Kate as the default text editor (user MIME associations)
   community.general.ini_file:
@@ -161,7 +161,7 @@
     no_extra_spaces: true
   become: false
   loop: "{{ text_mimetypes }}"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Keep the Cinnamon desktop clear: hide the standard icons (Computer, Home,
 # Network, Trash) and mounted-volume icons -- an internal fixed disk like
@@ -179,7 +179,7 @@
     - /org/nemo/desktop/network-icon-visible
     - /org/nemo/desktop/trash-icon-visible
     - /org/nemo/desktop/volumes-visible
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Default Nemo view: list, sorted by name ascending -- everywhere EXCEPT folders
 # where a view was set by hand. ignore-view-metadata=false makes Nemo honour each
@@ -197,7 +197,7 @@
     - { key: /org/nemo/preferences/default-sort-in-reverse-order, value: "false" }
     - { key: /org/nemo/preferences/ignore-view-metadata, value: "false" }
     - { key: /org/nemo/preferences/inherit-folder-viewer, value: "false" }
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Start the week on Monday in the Cinnamon calendar/date displays (0=Sunday,
 # 1=Monday).
@@ -207,7 +207,7 @@
     value: "1"
     state: present
   become: false
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Traditional (non-"natural") scroll direction on both the mouse and the
 # touchpad: scrolling down moves the content down, like a scrollbar.
@@ -220,7 +220,7 @@
   loop:
     - /org/cinnamon/desktop/peripherals/mouse/natural-scroll
     - /org/cinnamon/desktop/peripherals/touchpad/natural-scroll
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Appearance: the dark Mint-Y-Dark-Aqua GTK/Cinnamon theme, Mint-Y-Sand icons,
 # the Yaru cursor (shipped by yaru-theme-icon), and prefer-dark so plain
@@ -242,7 +242,7 @@
     - { key: /org/gnome/desktop/interface/cursor-theme, value: "'Yaru'" }
     - { key: /org/gnome/desktop/wm/preferences/theme, value: "'Mint-Y'" }
     - { key: /org/x/apps/portal/color-scheme, value: "'prefer-dark'" }
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Hungarian keyboard layout. Set ONLY the Cinnamon key: csd-input-sources is the
 # authority in a Cinnamon session and mirrors it to the GNOME schema and IBus on
@@ -255,7 +255,7 @@
     value: "[('xkb', 'hu')]"
     state: present
   become: false
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Power (laptop): suspend on lid close (AC + battery); blank the display after
 # 15 min on AC / 30 min on battery; auto-suspend on inactivity after 30 min on
@@ -273,7 +273,7 @@
     - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-display-battery, value: "1800" }
     - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-ac-timeout, value: "1800" }
     - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-battery-timeout, value: "0" }
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Turn off Cinnamon touchpad multi-finger gestures.
 - name: Disable touchpad gestures (Cinnamon)
@@ -282,7 +282,7 @@
     value: "false"
     state: present
   become: false
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Lock the screen 10 s after the screensaver / display blank kicks in.
 - name: Set the screen-lock delay to 10 s after blank (Cinnamon)
@@ -291,7 +291,7 @@
     value: "uint32 10"
     state: present
   become: false
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Performance: trim Cinnamon animations on the weak GT 520M. The menu, dialog,
 # login (startup) and scroll-vfade animations are the high-frequency / invisible
@@ -310,7 +310,7 @@
     - { key: /org/cinnamon/startup-animation, value: "false" }
     - { key: /org/cinnamon/enable-vfade, value: "false" }
     - { key: /org/cinnamon/window-effect-speed, value: "2" }
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Night Light: always-on warm tint. In 'always' mode there is no sunrise/sunset
 # schedule, so no geolocation is used -- only the enabled flag, the mode and the
@@ -325,7 +325,7 @@
     - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-enabled, value: "true" }
     - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-schedule-mode, value: "'always'" }
     - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-temperature, value: "uint32 5200" }
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 # Clear any geolocation left over from a previous automatic schedule -- unused in
 # 'always' mode, and we don't want the home coordinates lingering in dconf.
@@ -334,4 +334,4 @@
     key: /org/cinnamon/settings-daemon/plugins/color/night-light-last-coordinates
     state: absent
   become: false
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"

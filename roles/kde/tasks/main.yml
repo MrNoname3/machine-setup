@@ -17,7 +17,7 @@
 #   Keyboard on "None" across reboots. Takes effect at the next Plasma login.
 
 - name: KDE Plasma desktop tweaks (Wayland)
-  when: ansible_os_family != "Debian" # KDE/Fedora-atomic host only (not the Mint laptop)
+  when: ansible_facts['os_family'] != "Debian" # KDE/Fedora-atomic host only (not the Mint laptop)
   become: false # user-scoped config, no root needed
   vars:
     kwinrc: "/home/{{ primary_user }}/.config/kwinrc"
