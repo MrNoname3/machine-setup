@@ -5,7 +5,8 @@
 # and bump version + build below (the URL is derived from them).
 synology_drive_version: "4.0.3-17892"
 synology_drive_build: "17892"
-synology_drive_url: "https://global.synologydownload.com/download/Utility/SynologyDriveClient/{{ synology_drive_version }}/Ubuntu/Installer/synology-drive-client-{{ synology_drive_build }}.x86_64.deb"
+synology_drive_base_url: "https://global.synologydownload.com/download/Utility/SynologyDriveClient"
+synology_drive_url: "{{ synology_drive_base_url }}/{{ synology_drive_version }}/Ubuntu/Installer/synology-drive-client-{{ synology_drive_build }}.x86_64.deb"
 
 # Bind-mount Synology Drive subfolders onto the home XDG directories, mirroring
 # the desktop's /etc/fstab. Sources live under the synced ~/SynologyDrive (on the

@@ -51,6 +51,7 @@
 # not auto-connect on their own.
 - name: Disable autoconnect on the WG connections (dispatcher controls them)
   ansible.builtin.command: "nmcli connection modify {{ item.item }} connection.autoconnect no"
+  changed_when: true # the when-guard below already limits this to connections still on autoconnect
   loop: "{{ wg_autoconnect.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"

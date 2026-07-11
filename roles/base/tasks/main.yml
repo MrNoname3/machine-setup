@@ -135,6 +135,7 @@
     section: "Seat:*"
     option: greeter-setup-script
     state: absent
+    mode: "0644"
     no_extra_spaces: true
   when: ansible_os_family == "Debian"
 

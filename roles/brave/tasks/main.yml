@@ -15,7 +15,9 @@
     mode: "0644"
   register: brave_repo
 
-- name: Update apt cache after adding the Brave repository
+# Not a handler on purpose: the refreshed cache must exist BEFORE the install
+# task below, and handlers only run at the end of the play.
+- name: Update apt cache after adding the Brave repository # noqa: no-handler
   ansible.builtin.apt:
     update_cache: true
   when: brave_repo.changed

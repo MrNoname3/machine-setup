@@ -147,6 +147,7 @@
           --env=SSH_AUTH_SOCK=/run/user/{{ keyring_uid.stdout }}/ssh-agent.socket
           --filesystem=xdg-run/ssh-agent.socket
           {{ kp_app }}
+      changed_when: true # the when-guard below already limits this to a missing override
       when: >-
         ('SSH_AUTH_SOCK=/run/user/' ~ keyring_uid.stdout ~ '/ssh-agent.socket')
         not in keyring_kp_overrides.stdout
@@ -272,7 +273,9 @@
           Environment=XAUTHORITY=/home/{{ primary_user }}/.Xauthority
       register: keyring_gk_dropin
 
-    - name: Reload the user manager so it sees the drop-in
+    # Not a handler on purpose: the reload belongs to this block's OS branch and
+    # must not fire for the other OS; an immediate guarded task keeps that local.
+    - name: Reload the user manager so it sees the drop-in # noqa: no-handler
       # Needed because lingering keeps user@<uid> alive across logouts: without a
       # reload the manager would restart gnome-keyring-daemon at the next login
       # from its CACHED (drop-in-less) unit definition until a full reboot.

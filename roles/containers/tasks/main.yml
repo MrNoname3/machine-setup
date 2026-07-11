@@ -51,6 +51,7 @@
     regexp: "^{{ primary_user }}:"
     line: "{{ primary_user }}:100000:65536"
     create: true
+    mode: "0644"
   when: ansible_os_family == "Debian"
 
 - name: Ensure subgid range for the primary user (rootless)
@@ -59,6 +60,7 @@
     regexp: "^{{ primary_user }}:"
     line: "{{ primary_user }}:100000:65536"
     create: true
+    mode: "0644"
   when: ansible_os_family == "Debian"
 
 - name: Ensure the registries drop-in directory exists

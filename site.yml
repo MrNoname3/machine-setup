@@ -42,15 +42,17 @@
         # (s / empty / non-interactive) leaves it unset and the storage role's
         # wiring simply skips — this is not an error.
         - name: Scan for candidate data-disk LUKS partitions
-          ansible.builtin.shell: |
-            set -eu
-            lsblk -Ppo NAME,SIZE,FSTYPE,UUID | while read -r line; do
-              eval "$line"
-              [ "$FSTYPE" = "crypto_LUKS" ] || continue
-              printf '%s\n' "$(lsblk -nro MOUNTPOINT "$NAME" 2>/dev/null)" \
-                | grep -qx '/' && continue
-              printf '%s|%s|%s\n' "$UUID" "$SIZE" "$NAME"
-            done
+          ansible.builtin.shell:
+            executable: /bin/bash
+            cmd: |
+              set -euo pipefail
+              lsblk -Ppo NAME,SIZE,FSTYPE,UUID | while read -r line; do
+                eval "$line"
+                [ "$FSTYPE" = "crypto_LUKS" ] || continue
+                printf '%s\n' "$(lsblk -nro MOUNTPOINT "$NAME" 2>/dev/null)" \
+                  | grep -qx '/' && continue
+                printf '%s|%s|%s\n' "$UUID" "$SIZE" "$NAME"
+              done
           register: luks_scan
           changed_when: false
           check_mode: false
@@ -104,16 +106,18 @@
         # auto-adopted. Skipping leaves it unset and the wireguard dispatcher just
         # never sees a "home" match (tunnel logic degrades safely).
         - name: Detect the current default-gateway MAC
-          ansible.builtin.shell: |
-            set -eu
-            gw=$(ip route show default 2>/dev/null | awk '/default/{print $3; exit}')
-            [ -n "$gw" ] || exit 0
-            ping -c1 -W1 "$gw" >/dev/null 2>&1 || true
-            mac=$(ip neigh show "$gw" 2>/dev/null | awk '{print tolower($5); exit}')
-            [ -n "$mac" ] || exit 0
-            dev=$(ip route show default 2>/dev/null \
-              | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')
-            printf '%s|%s|%s\n' "$mac" "$gw" "$dev"
+          ansible.builtin.shell:
+            executable: /bin/bash
+            cmd: |
+              set -euo pipefail
+              gw=$(ip route show default 2>/dev/null | awk '/default/{print $3; exit}')
+              [ -n "$gw" ] || exit 0
+              ping -c1 -W1 "$gw" >/dev/null 2>&1 || true
+              mac=$(ip neigh show "$gw" 2>/dev/null | awk '{print tolower($5); exit}')
+              [ -n "$mac" ] || exit 0
+              dev=$(ip route show default 2>/dev/null \
+                | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')
+              printf '%s|%s|%s\n' "$mac" "$gw" "$dev"
           register: gw_scan
           changed_when: false
           check_mode: false
@@ -169,7 +173,9 @@
         #   a URL  -> set origin to it (idempotent on later runs)
         #   'keep' -> leave origin as-is and never ask again
         #   unset  -> ask again next interactive run (non-interactive = auto-skip)
-        - name: Read the current git origin (if this is a git checkout)
+        # noqa'd: ansible.builtin.git only manages clones/checkouts; there is no
+        # module for reading or rewriting a remote URL.
+        - name: Read the current git origin (if this is a git checkout) # noqa: command-instead-of-module
           ansible.builtin.command: git -C {{ playbook_dir }} remote get-url origin
           register: git_origin_now
           changed_when: false
@@ -268,9 +274,10 @@
           when: git_origin_url is defined
 
         # --- Apply the origin change (idempotent: only when it actually differs) ---
-        - name: Point git origin at Gitea (away from the public mirror)
+        - name: Point git origin at Gitea (away from the public mirror) # noqa: command-instead-of-module
           ansible.builtin.command: >-
             git -C {{ playbook_dir }} remote set-url origin {{ git_origin_url }}
+          changed_when: true # the when-guard below already limits this to a differing origin
           when:
             - git_origin_url is defined
             - git_origin_url != 'keep'
