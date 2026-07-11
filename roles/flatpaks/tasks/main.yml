@@ -1,0 +1,14 @@
+---
+# flatpaks role: ensure the host's Flatpak application set (system scope).
+#
+# Day-to-day runs need no root: when everything is already installed the module
+# only inspects state. Installing something new needs root -> run with -K
+# (on the desktop, where there is no passwordless sudo).
+
+- name: Install the host's Flatpak applications (system, Flathub)
+  community.general.flatpak:
+    name: "{{ flatpak_apps }}"
+    remote: "{{ flatpak_remote }}"
+    method: system
+    state: present
+  when: flatpak_apps | length > 0

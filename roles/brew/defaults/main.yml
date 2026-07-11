@@ -1,0 +1,5 @@
+---
+# Homebrew CLI packages (Bazzite: brew ships with the image and is the way to
+# get CLI tools without rpm-ostree layering). Per-host list; empty = no-op.
+brew_packages: []
+brew_prefix: /home/linuxbrew/.linuxbrew

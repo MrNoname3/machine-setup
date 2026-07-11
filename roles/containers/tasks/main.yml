@@ -123,3 +123,34 @@
   register: podman_socket
   changed_when: "'Created symlink' in (podman_socket.stderr + podman_socket.stdout)"
   when: ansible_os_family == "Debian"
+
+# ===========================================================================
+# Bazzite: the image ships the whole Podman stack (podman, netavark,
+# aardvark-dns, distrobox), so there is nothing to install — only the user
+# services need wiring. Runs as the user (the playbook is applied with
+# become=false on this host).
+# ===========================================================================
+- name: Rootless Podman user services (Bazzite)
+  when: ansible_os_family != "Debian"
+  become: false
+  block:
+
+    - name: Enable lingering so the rootless Podman socket runs without an active login
+      ansible.builtin.command: "loginctl enable-linger {{ primary_user }}"
+      args:
+        creates: "/var/lib/systemd/linger/{{ primary_user }}"
+
+    - name: Enable + start the rootless Podman API socket
+      ansible.builtin.systemd_service:
+        name: podman.socket
+        scope: user
+        enabled: true
+        state: started
+
+    # This is what makes `--restart=always/unless-stopped` containers come back
+    # after a reboot (Docker-like behaviour; Podman has no daemon to do it).
+    - name: Enable the podman-restart service (restart-policy containers at boot)
+      ansible.builtin.systemd_service:
+        name: podman-restart.service
+        scope: user
+        enabled: true

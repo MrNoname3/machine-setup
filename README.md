@@ -45,7 +45,9 @@ machine-setup/
 └── roles/
     ├── base/            # packages (present/absent), sudo, MIME/dconf defaults
     ├── ssh-access/      # hardened SSH server
-    ├── brave/           # browser
+    ├── brave/           # browser (apt on Mint, rpm-ostree layer on Bazzite)
+    ├── flatpaks/        # per-host Flatpak app set
+    ├── brew/            # Homebrew CLI packages (Bazzite)
     ├── synology-drive/  # Synology Drive client
     ├── steam/           # Steam (+ flatpak on Bazzite)
     ├── vscode/          # VS Code + settings + extensions

@@ -291,6 +291,10 @@
       when: "'ssh-access' in (roles_enabled | default([]))"
     - role: brave
       when: "'brave' in (roles_enabled | default([]))"
+    - role: flatpaks
+      when: "'flatpaks' in (roles_enabled | default([]))"
+    - role: brew
+      when: "'brew' in (roles_enabled | default([]))"
     - role: synology-drive
       when: "'synology-drive' in (roles_enabled | default([]))"
     - role: steam

@@ -34,3 +34,12 @@
         value: ""
         no_extra_spaces: true
         mode: "0644"
+
+    - name: Enable mpris-proxy (media keys / MPRIS for Bluetooth devices)
+      # Bridges MPRIS players to Bluetooth AVRCP so BT headset buttons control
+      # the desktop's media playback.
+      ansible.builtin.systemd_service:
+        name: mpris-proxy.service
+        scope: user
+        enabled: true
+        state: started

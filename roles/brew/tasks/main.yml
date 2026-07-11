@@ -1,0 +1,13 @@
+---
+# brew role: ensure the host's Homebrew package set. Bazzite ships Homebrew in
+# the image; this only manages the requested leaves (dependencies follow).
+
+- name: Install Homebrew packages
+  community.general.homebrew:
+    name: "{{ brew_packages }}"
+    path: "{{ brew_prefix }}/bin"
+    state: present
+  become: false # brew refuses to run as root by design
+  when:
+    - ansible_os_family != "Debian"
+    - brew_packages | length > 0

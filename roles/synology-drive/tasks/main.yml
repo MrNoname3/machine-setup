@@ -1,8 +1,14 @@
 ---
-# synology-drive role: install the official Synology Drive Client .deb
-# (not available in apt). The latest version is discovered at runtime from the
-# Synology archive, falling back to the pinned default in defaults/main.yml.
-# Idempotent: get_url caches the file, apt only installs a new version.
+# synology-drive role: Synology Drive Client + bind mounts of the synced
+# subfolders onto the home XDG directories.
+#
+# Install per OS:
+#   - Mint: official .deb (below) — not available in apt.
+#   - Bazzite: the com.synology.SynologyDrive flatpak, managed by the flatpaks
+#     role (host list). Its autostart entry is created by the client itself via
+#     the flatpak autostart portal — we do not manage it (same reasoning as the
+#     Mint branch: two entries would appear).
+# The sync gate + bind mounts below are common to both hosts.
 
 - name: Discover the latest Synology Drive Client version from the archive
   ansible.builtin.uri:
@@ -83,6 +89,10 @@
   register: synology_bind_sources
   become: false
 
+# Common to both hosts (the list mirrors what both fstabs should hold). On the
+# desktop this upgrades the original hand-written plain-"bind" lines to the
+# managed form (nofail + x-gvfs-hide) — that rewrite needs root, so run with -K
+# there once; afterwards it converges without root.
 - name: Bind-mount existing Synology subfolders onto the home directories
   ansible.posix.mount:
     src: "{{ synology_home }}/{{ item.item.src }}"
@@ -93,4 +103,3 @@
   loop: "{{ synology_bind_sources.results | selectattr('stat.exists') | list }}"
   loop_control:
     label: "{{ item.item.path }}"
-  when: ansible_os_family == "Debian"

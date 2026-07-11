@@ -1,0 +1,6 @@
+---
+# Flatpak applications to ensure are installed (system scope, from Flathub).
+# The list is per-host (host_vars) — the two machines have different app sets.
+# Empty default = the role is a no-op unless the host defines its list.
+flatpak_apps: []
+flatpak_remote: flathub
