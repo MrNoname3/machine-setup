@@ -28,6 +28,12 @@ machine-setup/
 ├── machine-setup.code-workspace # portable VS Code workspace
 ├── ansible.cfg                  # local-run defaults
 ├── inventory.ini                # hosts and groups (all use local connection)
+├── requirements.txt             # pinned python toolchain (ansible-core, ansible-lint)
+├── requirements.yml             # galaxy collections — both Renovate-managed
+├── scripts/
+│   ├── apply.sh                 # run the playbook with the repo-local toolchain
+│   ├── check.sh                 # release gate (CI runs exactly this)
+│   └── ensure-venv.sh           # bootstraps .venv/ + .ansible/ (gitignored)
 ├── site.yml                     # maps each host to its enabled roles
 ├── group_vars/
 │   └── all.yml                  # shared variables (package lists, ssh_keys_dir, ...)
@@ -69,10 +75,16 @@ with Internet — the repo is public on GitHub):
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/MrNoname3/machine-setup/main/bootstrap.sh)"
 ```
 
-It installs git + ansible the OS-appropriate way (apt on Mint, Homebrew on
-Bazzite), clones this repo to `~/Projects/machine-setup`, then shows a host menu
-(read from `inventory.ini`, so new machines appear automatically) and offers to
-run the playbook right away. Idempotent — safe to re-run any time.
+It installs the bare minimum (git + python3-venv via apt on Mint; nothing on
+Bazzite — both ship with the image), clones this repo to
+`~/Projects/machine-setup`, then shows a host menu (read from `inventory.ini`,
+so new machines appear automatically) and offers to run the playbook right
+away. Idempotent — safe to re-run any time.
+
+Ansible itself is **not** installed system-wide: `scripts/apply.sh` bootstraps
+the pinned toolchain (`requirements.txt` + `requirements.yml`) into the
+gitignored `.venv/` + `.ansible/` on first use. Deleting the repo directory
+removes the whole toolchain with it.
 
 Non-interactive variant (picks the host and runs immediately):
 
@@ -88,41 +100,42 @@ every push): prefix the command with `REPO_URL=<gitea-clone-url>`.
 
 ### 3. Apply / re-apply the playbook
 
-`-l <host>` selects which machine's configuration to apply — this is the
-"switch" for the multi-host repo.
+Always via `scripts/apply.sh` — it bootstraps/uses the repo-local toolchain and
+runs `ansible-playbook -c local` with it. The host argument selects which
+machine's configuration to apply (the "switch" for the multi-host repo); any
+further arguments are passed straight to `ansible-playbook`.
 
 **laptop-old (Mint)** — day-to-day (passwordless sudo is set up by the playbook):
 
 ```sh
 cd ~/Projects/machine-setup && git pull --ff-only
-ansible-playbook -c local -l laptop-old site.yml
+./scripts/apply.sh laptop-old
 ```
 
 First run only (before passwordless sudo exists — `-K` asks the sudo password):
 
 ```sh
-ansible-playbook -c local -l laptop-old -K site.yml
+./scripts/apply.sh laptop-old -K
 ```
 
 **desktop-bazzite** — day-to-day (no passwordless sudo there):
 
 ```sh
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"   # only if ansible-playbook is not on PATH
 cd ~/Projects/machine-setup && git pull --ff-only
-ansible-playbook -c local -l desktop-bazzite -e ansible_become=false site.yml
+./scripts/apply.sh desktop-bazzite -e ansible_become=false
 ```
 
 First run, or whenever a task needs root (e.g. the KeePassXC flatpak install):
 
 ```sh
-ansible-playbook -c local -l desktop-bazzite -K site.yml
+./scripts/apply.sh desktop-bazzite -K
 ```
 
 **Dry run** — show what *would* change (with diffs) without touching anything;
 works with any command above:
 
 ```sh
-ansible-playbook -c local -l laptop-old site.yml --check --diff
+./scripts/apply.sh laptop-old --check --diff
 ```
 
 (Command/shell tasks are skipped in check mode, so on a fresh machine the
@@ -133,7 +146,7 @@ bootstrap one-liner, pick `0) clone/update only`, then dry-run by hand.)
 needed:
 
 ```sh
-ansible-playbook -c local -l laptop-old site.yml --tags keyring
+./scripts/apply.sh laptop-old --tags keyring
 ```
 
 ### Machine-local values (not in git)
@@ -180,10 +193,12 @@ Everything CI checks is one script, and CI runs exactly that script:
 ```
 
 It bootstraps its own toolchain into the gitignored `.venv/` + `.ansible/`
-(first run is slower), then runs: **ansible syntax check** → **ansible-lint**
-(`production` profile, config in `.ansible-lint`) → **secret scan** over the
-tracked files (private keys, IPv4s, MACs, UUIDs — with the documentation
-placeholders allowlisted).
+(first run is slower; versions pinned in `requirements.txt` /
+`requirements.yml`, both Renovate-managed — the same toolchain
+`scripts/apply.sh` uses to run the playbook), then runs: **ansible syntax
+check** → **ansible-lint** (`production` profile, config in `.ansible-lint`) →
+**secret scan** over the tracked files (private keys, IPv4s, MACs, UUIDs — with
+the documentation placeholders allowlisted).
 
 Because the repo is public, the scan's built-in patterns are generic on
 purpose. Personal identifiers (your domain, hostnames, ports, ...) go into

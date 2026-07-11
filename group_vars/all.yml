@@ -13,6 +13,7 @@ ssh_keys_dir: "/home/{{ primary_user }}/SynologyDrive/OneDrive/IOT/SSH"
 # Packages to ensure are installed (used by the base role).
 packages_present:
   - git
+  - python3-venv                 # repo-local toolchain (scripts/ensure-venv.sh)
   - htop
   - vlc
   - kate
@@ -26,6 +27,10 @@ packages_present:
 # Packages to ensure are removed. Keep entries here permanently so fresh
 # installs stay clean. Never list a package in both lists.
 packages_absent:
+  # System-wide ansible — replaced by the repo-local .venv toolchain
+  # (scripts/ensure-venv.sh); the venv-run playbook can remove it safely.
+  - ansible
+  - ansible-core
   # Browser / mail — using Brave + webmail
   - firefox
   - firefox-locale-en

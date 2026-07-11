@@ -5,35 +5,26 @@
 #
 # CI (.github/workflows/ci.yml) runs exactly this script, so a local pass means
 # a CI pass. Steps:
-#   1. toolchain bootstrap  — venv in .venv/ (gitignored), ansible-lint via pip
-#   2. galaxy collections   — requirements.yml into .ansible/ (gitignored)
-#   3. ansible syntax check
-#   4. ansible-lint         — 'production' profile (see .ansible-lint)
-#   5. secret scan          — tracked files only; generic patterns below, plus
+#   1. toolchain            — scripts/ensure-venv.sh: pinned python tools
+#                             (requirements.txt) + galaxy collections into the
+#                             gitignored .venv/ + .ansible/
+#   2. ansible syntax check
+#   3. ansible-lint         — 'production' profile (see .ansible-lint)
+#   4. secret scan          — tracked files only; generic patterns below, plus
 #                             optional private patterns from .secret-patterns.local
 #                             (gitignored — put machine/domain identifiers there,
 #                             one extended regex per line, '#' comments allowed)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PYTHON="${PYTHON:-python3}"
 VENV=.venv
 
 step() { printf '\n=== %s ===\n' "$1"; }
 
-step "toolchain (.venv)"
-if [ ! -x "$VENV/bin/ansible-lint" ]; then
-  "$PYTHON" -m venv "$VENV"
-  "$VENV/bin/pip" install --quiet --upgrade pip
-  "$VENV/bin/pip" install --quiet ansible-lint
-fi
-"$VENV/bin/ansible-lint" --version
-
-step "galaxy collections (.ansible)"
+step "toolchain (.venv + collections)"
+./scripts/ensure-venv.sh
 export ANSIBLE_COLLECTIONS_PATH="$PWD/.ansible/collections"
-"$VENV/bin/ansible-galaxy" collection install -r requirements.yml \
-  -p "$ANSIBLE_COLLECTIONS_PATH" >/dev/null
-echo "OK"
+"$VENV/bin/ansible-lint" --version
 
 step "ansible syntax check"
 "$VENV/bin/ansible-playbook" --syntax-check -i inventory.ini site.yml

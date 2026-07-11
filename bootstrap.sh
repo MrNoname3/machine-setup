@@ -10,8 +10,11 @@
 # to the terminal so the menu below can actually prompt.
 #
 # What it does (idempotent, safe to re-run):
-#   1. Installs git + ansible the OS-appropriate way (apt on Debian/Mint,
-#      Homebrew on Bazzite where git is preinstalled).
+#   1. Installs the bare minimum to get going: git + python3-venv (apt on
+#      Debian/Mint; nothing on Bazzite — both ship with the image). Ansible
+#      itself is NOT installed system-wide: scripts/apply.sh bootstraps the
+#      pinned toolchain into the repo-local .venv on first use, so deleting
+#      the repo directory later leaves nothing behind.
 #   2. Clones (or fast-forwards) this repo into ~/Projects/machine-setup.
 #   3. Lets you pick an inventory host and optionally runs the playbook for it
 #      (first run uses -K: it asks your sudo password once).
@@ -35,25 +38,19 @@ die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 case "${ID:-} ${ID_LIKE:-}" in
   *bazzite*)
     OS_FAMILY=bazzite
-    msg "Bazzite detected — using Homebrew for ansible (git ships with the image)"
-    if ! command -v brew >/dev/null 2>&1; then
-      [ -x /home/linuxbrew/.linuxbrew/bin/brew ] \
-        || die "Homebrew not found (expected on Bazzite at /home/linuxbrew/.linuxbrew)"
-      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-    fi
-    command -v ansible-playbook >/dev/null 2>&1 || brew install ansible
+    msg "Bazzite detected — git + python3 ship with the image, nothing to install"
     ;;
   *debian*|*ubuntu*|*linuxmint*)
     OS_FAMILY=debian
-    msg "Debian-family detected — using apt"
+    msg "Debian-family detected — ensuring git + python3-venv (apt)"
     NEED=()
     command -v git >/dev/null 2>&1 || NEED+=(git)
-    command -v ansible-playbook >/dev/null 2>&1 || NEED+=(ansible)
+    python3 -c 'import ensurepip' 2>/dev/null || NEED+=(python3-venv)
     if [ "${#NEED[@]}" -gt 0 ]; then
       sudo apt-get update -y
       sudo apt-get install -y "${NEED[@]}"
     else
-      msg "git + ansible already installed"
+      msg "git + python3-venv already installed"
     fi
     ;;
   *)
@@ -109,8 +106,8 @@ fi
 
 if [ "$RUN" = yes ]; then
   msg "Applying the playbook for '$HOST' (you will be asked for your sudo password once)"
-  cd "$REPO_DIR"
-  ansible-playbook -c local -l "$HOST" -K site.yml
+  # scripts/apply.sh bootstraps the repo-local toolchain (.venv + collections).
+  "$REPO_DIR/scripts/apply.sh" "$HOST" -K
 fi
 
 # --- 4. What to run day-to-day -------------------------------------------------
@@ -118,12 +115,11 @@ msg "Done. Day-to-day usage:"
 echo "    cd $REPO_DIR && git pull --ff-only"
 case "$OS_FAMILY" in
   bazzite)
-    echo "    eval \"\$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"   # if brew is not on PATH"
-    echo "    ansible-playbook -c local -l ${HOST:-desktop-bazzite} -e ansible_become=false site.yml"
+    echo "    ./scripts/apply.sh ${HOST:-desktop-bazzite} -e ansible_become=false"
     echo "    # use -K instead of '-e ansible_become=false' when a task needs root (e.g. flatpak install)"
     ;;
   *)
-    echo "    ansible-playbook -c local -l ${HOST:-laptop-old} site.yml"
+    echo "    ./scripts/apply.sh ${HOST:-laptop-old}"
     echo "    # (passwordless sudo is set up by the playbook; use -K only on the first run)"
     ;;
 esac
