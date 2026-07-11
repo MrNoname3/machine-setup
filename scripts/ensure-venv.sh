@@ -34,5 +34,17 @@ fi
 # Fast no-op when already satisfied; picks up Renovate bumps of the pins.
 "$VENV/bin/pip" install --quiet -r requirements.txt
 
-"$VENV/bin/ansible-galaxy" collection install -r requirements.yml \
-  -p .ansible/collections >/dev/null
+# galaxy.ansible.com is occasionally flaky — retry a couple of times before
+# declaring failure (pip already retries its downloads on its own).
+for attempt in 1 2 3; do
+  if "$VENV/bin/ansible-galaxy" collection install -r requirements.yml \
+    -p .ansible/collections >/dev/null; then
+    break
+  elif [ "$attempt" = 3 ]; then
+    echo "ERROR: ansible-galaxy collection install failed after 3 attempts" >&2
+    exit 1
+  else
+    echo "ansible-galaxy failed (attempt $attempt), retrying..." >&2
+    sleep 5
+  fi
+done
