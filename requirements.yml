@@ -1,0 +1,9 @@
+---
+# Ansible Galaxy collections used by the roles. CI (and a fresh local checkout)
+# install these with:  ansible-galaxy collection install -r requirements.yml
+# Renovate tracks and bumps the versions below.
+collections:
+  - name: community.general
+    version: ">=13.1.0"
+  - name: ansible.posix
+    version: ">=2.2.1"

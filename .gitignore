@@ -13,3 +13,7 @@ secrets.yml
 
 # Machine-local values (prompted + saved by site.yml pre_tasks) — never commit.
 host_vars/*/local.yml
+
+# Local CI/lint artifacts (throwaway venv, ansible-lint cache, installed collections)
+.venv/
+.ansible/

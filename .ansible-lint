@@ -1,0 +1,14 @@
+---
+# Config for ansible-lint (run in CI — see .github/workflows/ci.yml).
+# Start at the 'basic' profile; the skips below are deliberate, documented
+# exceptions so CI stays green without a repo-wide refactor.
+profile: basic
+
+exclude_paths:
+  - .github/          # CI workflow YAML is not Ansible content
+
+skip_list:
+  - role-name                    # role dirs use hyphens (luks-unlock, ssh-access, synology-drive) by choice
+  - var-naming[no-role-prefix]   # not every role var is role-prefixed; a rename is deferred, not urgent
+  - command-instead-of-module    # site.yml intentionally shells out to `git` to read/repoint the origin
+  - yaml[line-length]            # a couple of long URLs are not worth wrapping
