@@ -197,6 +197,9 @@
           when:
             - git_origin_url is not defined
             - git_origin_now.rc == 0
+            # Only relevant while origin still points at the public mirror — a
+            # checkout already on Gitea (or anywhere else) has nothing to fix.
+            - "'github.com' in git_origin_now.stdout"
 
         - name: Ask for the Gitea origin URL
           ansible.builtin.pause:
