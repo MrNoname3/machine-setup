@@ -171,6 +171,31 @@ wg_home_gateway_macs:
 git_origin_url: "https://gitea.example/you/machine-setup.git"   # or 'keep'
 ```
 
+### Checks — local run == CI run
+
+Everything CI checks is one script, and CI runs exactly that script:
+
+```sh
+./scripts/check.sh
+```
+
+It bootstraps its own toolchain into the gitignored `.venv/` + `.ansible/`
+(first run is slower), then runs: **ansible syntax check** → **ansible-lint**
+(`production` profile, config in `.ansible-lint`) → **secret scan** over the
+tracked files (private keys, IPv4s, MACs, UUIDs — with the documentation
+placeholders allowlisted).
+
+Because the repo is public, the scan's built-in patterns are generic on
+purpose. Personal identifiers (your domain, hostnames, ports, ...) go into
+**`.secret-patterns.local`** — one extended regex per line, `#` comments
+allowed. The file is gitignored and picked up automatically, so your private
+patterns guard every local run without ever being published.
+
+Lint exception policy: a rule violated by one deliberate task gets an inline
+`# noqa: <rule>` next to a justifying comment; `skip_list` in `.ansible-lint`
+is reserved for rules that would force a repo-wide rename (see the comments
+there).
+
 ### Removing a package
 Move its name from `packages_present` to `packages_absent` in the relevant vars
 file and re-run. Keep entries in `packages_absent` permanently so fresh installs

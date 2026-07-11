@@ -3,6 +3,9 @@ name: CI
 # Runs on both GitHub Actions and Gitea Actions. Gitea also scans
 # .github/workflows, and this job uses no actions/cache and no github-only
 # guard, so it runs cleanly on either platform.
+#
+# The job just calls the release gate — the same script developers run locally
+# (./scripts/check.sh) — so local green means CI green, by construction.
 on:
   push:
     branches: [main]
@@ -10,20 +13,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  ansible-lint:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up ansible-lint + collections (in a venv)
-        run: |
-          python3 -m venv /tmp/venv
-          /tmp/venv/bin/pip install --quiet --upgrade pip
-          /tmp/venv/bin/pip install --quiet ansible-lint
-          /tmp/venv/bin/ansible-galaxy collection install -r requirements.yml
-
-      - name: Syntax check
-        run: /tmp/venv/bin/ansible-playbook --syntax-check -i inventory.ini site.yml
-
-      - name: ansible-lint
-        run: /tmp/venv/bin/ansible-lint
+      - name: Run the release gate (same script as local runs)
+        run: ./scripts/check.sh

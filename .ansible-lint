@@ -1,14 +1,24 @@
 ---
-# Config for ansible-lint (run in CI — see .github/workflows/ci.yml).
-# Start at the 'basic' profile; the skips below are deliberate, documented
-# exceptions so CI stays green without a repo-wide refactor.
-profile: basic
+# Config for ansible-lint. Run it (and everything else CI runs) locally with:
+#   ./scripts/check.sh
+# CI executes the same script, so local green == CI green.
+#
+# 'production' is the strictest published profile. Narrow, task-specific
+# exceptions live inline as `# noqa: <rule>` comments next to a justification;
+# only rules that would force a repo-wide rename are skipped globally.
+profile: production
 
 exclude_paths:
   - .github/          # CI workflow YAML is not Ansible content
+  - .venv/            # local toolchain (gitignored)
+  - .ansible/         # locally installed collections (gitignored)
 
 skip_list:
-  - role-name                    # role dirs use hyphens (luks-unlock, ssh-access, synology-drive) by choice
-  - var-naming[no-role-prefix]   # not every role var is role-prefixed; a rename is deferred, not urgent
-  - command-instead-of-module    # site.yml intentionally shells out to `git` to read/repoint the origin
-  - yaml[line-length]            # a couple of long URLs are not worth wrapping
+  # Role directories are deliberately hyphenated (luks-unlock, ssh-access,
+  # synology-drive). Complying means renaming the dirs + site.yml entries +
+  # every roles_enabled list for zero functional gain.
+  - role-name
+  # Role vars/registers are not all role-prefixed (container_*, keepassxc_*,
+  # printers, ...). Several are part of the host_vars interface, so a rename
+  # would break users' host_vars; deliberately deferred.
+  - var-naming[no-role-prefix]

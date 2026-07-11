@@ -17,3 +17,6 @@ host_vars/*/local.yml
 # Local CI/lint artifacts (throwaway venv, ansible-lint cache, installed collections)
 .venv/
 .ansible/
+
+# Private secret-scan patterns for scripts/check.sh (own domains/MACs/etc.) — never commit.
+.secret-patterns.local
