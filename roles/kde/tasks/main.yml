@@ -7,9 +7,9 @@
 #     default browser, file-dialog behaviour, hot-corner off, ...
 #   - Dolphin preferences — applied only while Dolphin is closed (it rewrites
 #     dolphinrc on exit, which would clobber a live edit).
-#   - Installs + enables the "Remember Window Positions" kwin script from the
-#     author's pinned GitHub release (the GUI-installed KDE Store copy is the
-#     same package).
+#   - "Remember Window Positions" kwin script: when missing, asks whether to
+#     install the latest GitHub release or leave it for a manual KDE Store
+#     install; non-interactive runs skip the question (gate pattern).
 #   - Applies the global look-and-feel with plasma-apply-lookandfeel (writing
 #     the kdeglobals key alone would not pull in the colour scheme).
 #   - Forces the on-screen input method OFF (kwinrc [Wayland] InputMethod=""):
@@ -91,25 +91,43 @@
       changed_when: true # guarded below: runs only when the current value differs
       when: kde_lnf_current.stdout != 'LookAndFeelPackage=' + kde_lookandfeel
 
-    # --- Remember Window Positions kwin script ---
+    # --- Remember Window Positions kwin script (prompt-gated install) ---
+    # Missing script -> ask: install the latest GitHub release now, or leave it
+    # for a manual KDE Store install (that route keeps Discover updates).
+    # Non-interactive runs skip the question and simply move on.
     - name: Check whether the Remember Window Positions script is installed
       ansible.builtin.stat:
         path: "{{ kde_rwp_dir }}"
       register: kde_rwp_installed
 
-    - name: Download the Remember Window Positions package (pinned release)
+    - name: Ask how to install the Remember Window Positions script
+      ansible.builtin.pause:
+        prompt: |-
+          The "Remember Window Positions" kwin script is not installed.
+            y) install the latest release from the author's GitHub now
+            s) skip - install it yourself from the KDE Store (System Settings ->
+               Window Management -> KWin Scripts -> Get New...; that route keeps
+               Discover updates working)
+          Enter y or s
+      register: kde_rwp_ask
+      when: not kde_rwp_installed.stat.exists
+
+    - name: Download the Remember Window Positions package (latest release)
       ansible.builtin.get_url:
         url: "{{ kde_rwp_package_url }}"
-        dest: "/tmp/rememberwindowpositions-{{ kde_rwp_version }}.kwinscript"
+        dest: /tmp/rememberwindowpositions.kwinscript
         mode: "0644"
-      when: not kde_rwp_installed.stat.exists
+      when:
+        - not kde_rwp_installed.stat.exists
+        - (kde_rwp_ask.user_input | default('') | trim | lower) == 'y'
 
     - name: Install the Remember Window Positions kwin script
       ansible.builtin.command: >-
-        kpackagetool6 --type KWin/Script
-        -i /tmp/rememberwindowpositions-{{ kde_rwp_version }}.kwinscript
-      changed_when: true # guarded below: runs only when not installed yet
-      when: not kde_rwp_installed.stat.exists
+        kpackagetool6 --type KWin/Script -i /tmp/rememberwindowpositions.kwinscript
+      changed_when: true # guarded: runs only on an explicit 'y' answer
+      when:
+        - not kde_rwp_installed.stat.exists
+        - (kde_rwp_ask.user_input | default('') | trim | lower) == 'y'
 
     # --- Make KWin pick up changed settings without waiting for a re-login ---
     - name: Reconfigure KWin

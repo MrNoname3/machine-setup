@@ -58,7 +58,9 @@ kde_dolphin_settings:
 # the colour scheme etc. — writing the kdeglobals key alone would not).
 kde_lookandfeel: org.kde.breezedark.desktop
 
-# Remember Window Positions kwin script — pinned release from the author's
-# GitHub (the GUI installs it from the KDE Store; this reproduces it headless).
-kde_rwp_version: "5.1.0"
-kde_rwp_package_url: "https://github.com/rxappdev/RememberWindowPositions/releases/download/v{{ kde_rwp_version }}/rememberwindowpositions.kwinscript"
+# Remember Window Positions kwin script. When it is missing, the play asks
+# whether to install the latest release from the author's GitHub, or to leave
+# it for a manual KDE Store install (which keeps Discover updates working);
+# non-interactive runs skip the question. The /latest/ URL always serves the
+# newest release asset.
+kde_rwp_package_url: "https://github.com/rxappdev/RememberWindowPositions/releases/latest/download/rememberwindowpositions.kwinscript"
