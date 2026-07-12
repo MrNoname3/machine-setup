@@ -1,6 +1,7 @@
 ---
-# vscode role: install VS Code from the Microsoft apt repo, deploy the user's
-# settings, and install the desktop's extension set (idempotently).
+# vscode role: install VS Code from the Microsoft apt repo (on Mint; the
+# Bazzite flatpak comes from the flatpaks role), then deploy the user's
+# settings and extension set to whichever variant the host runs.
 
 - name: Ensure apt keyrings directory exists
   ansible.builtin.file:
@@ -87,9 +88,9 @@
   become: false
   when: ansible_facts['os_family'] != "Debian"
 
-# Extensions are managed on Mint only for now: the flatpak's `code` CLI needs a
-# `flatpak run` wrapper and its extensions update in-app — revisit if drift
-# ever becomes a problem there.
+# The extension list is additive (extras installed by hand are left alone) and
+# the extensions self-update in-app on both hosts; only the `code` CLI wrapping
+# differs. On Bazzite the flatpak's CLI is reached via `flatpak run --command`.
 - name: List installed VS Code extensions
   ansible.builtin.command: code --list-extensions
   become: false
@@ -104,4 +105,22 @@
   when:
     - ansible_facts['os_family'] == "Debian"
     - item not in (vscode_installed.stdout_lines | default([]))
+  changed_when: true
+
+- name: List installed VS Code extensions (flatpak)
+  ansible.builtin.command: >-
+    flatpak run --command=code com.visualstudio.code --list-extensions
+  become: false
+  changed_when: false
+  register: vscode_flatpak_installed
+  when: ansible_facts['os_family'] != "Debian"
+
+- name: Install VS Code extensions (flatpak)
+  ansible.builtin.command: >-
+    flatpak run --command=code com.visualstudio.code --install-extension {{ item }}
+  become: false
+  loop: "{{ vscode_extensions }}"
+  when:
+    - ansible_facts['os_family'] != "Debian"
+    - item not in (vscode_flatpak_installed.stdout_lines | default([]))
   changed_when: true
