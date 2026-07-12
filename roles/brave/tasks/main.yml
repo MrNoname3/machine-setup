@@ -103,6 +103,43 @@
     - x-scheme-handler/unknown
     - application/pdf
 
+# --- Extra launch flags (user-local desktop-entry override) ----------------
+# The official package's launcher reads no flags file (brave-flags.conf is a
+# distro-packaging convention Brave's own deb lacks), so the flags are baked
+# into a user-local copy of the desktop entry, which shadows the system one
+# for menu / panel / default-browser launches. Removed when brave_flags is
+# empty, falling back to the stock entry.
+- name: Ensure the user applications directory exists
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.local/share/applications"
+    state: directory
+    mode: "0755"
+  become: false
+  when: brave_flags | length > 0
+
+- name: Read the system Brave desktop entry
+  ansible.builtin.slurp:
+    src: /usr/share/applications/brave-browser.desktop
+  register: brave_desktop_entry
+  when: brave_flags | length > 0
+
+- name: Deploy the flagged Brave desktop entry (shadows the system one)
+  ansible.builtin.copy:
+    dest: "/home/{{ primary_user }}/.local/share/applications/brave-browser.desktop"
+    content: >-
+      {{ brave_desktop_entry.content | b64decode
+         | regex_replace('(?m)^Exec=(\S+)', 'Exec=\1 ' ~ (brave_flags | join(' '))) }}
+    mode: "0644"
+  become: false
+  when: brave_flags | length > 0
+
+- name: Remove the desktop-entry override when no flags are set
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.local/share/applications/brave-browser.desktop"
+    state: absent
+  become: false
+  when: brave_flags | length == 0
+
 # --- Local (non-syncing) preferences --------------------------------------
 # These have no managed-policy equivalent, so we edit only the specific dotted
 # keys in the relevant JSON file, leaving the rest intact. Most live in the

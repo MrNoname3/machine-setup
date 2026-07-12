@@ -85,3 +85,10 @@ brave_local_state_path: "/home/{{ primary_user }}/.config/BraveSoftware/Brave-Br
 brave_local_state_prefs:
   # Enable Widevine (streaming DRM). Brave downloads the CDM on first launch.
   brave.widevine_opted_in: true
+
+# Extra command-line flags, appended to every Exec= line of a user-local copy
+# of the desktop entry (the official package reads no flags file). The local
+# entry shadows the system one, so menu / default-browser launches pick the
+# flags up. Empty list = no override (the local copy is removed). Per-host —
+# see host_vars.
+brave_flags: []
