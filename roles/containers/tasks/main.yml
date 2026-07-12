@@ -124,6 +124,17 @@
   changed_when: "'Created symlink' in (podman_socket.stderr + podman_socket.stdout)"
   when: ansible_facts['os_family'] == "Debian"
 
+# This is what makes `--restart=always/unless-stopped` containers come back
+# after a reboot (Docker-like behaviour; Podman has no daemon to do it).
+# Same service the Bazzite block enables below — kept in parity.
+- name: Enable the podman-restart service (restart-policy containers at boot)
+  ansible.builtin.command: >-
+    sudo -u {{ primary_user }} XDG_RUNTIME_DIR=/run/user/{{ primary_uid.stdout }}
+    systemctl --user enable podman-restart.service
+  register: podman_restart
+  changed_when: "'Created symlink' in (podman_restart.stderr + podman_restart.stdout)"
+  when: ansible_facts['os_family'] == "Debian"
+
 # ===========================================================================
 # Bazzite: the image ships the whole Podman stack (podman, netavark,
 # aardvark-dns, distrobox), so there is nothing to install — only the user
