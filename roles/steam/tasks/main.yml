@@ -50,6 +50,21 @@
   become: false
   when: ansible_facts['os_family'] != "Debian"
 
+# ProtonPlus is a GTK4/libadwaita app; on the laptop's old iGPU the default
+# NGL renderer stutters, and the old GL renderer measurably helps (the rest of
+# the residual window-drag lag is Cinnamon compositing the large GTK4 shadow
+# surface — not fixable app-side). Modern-GPU hosts don't need the override.
+- name: Use the old GL renderer for ProtonPlus (flatpak override)
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.local/share/flatpak/overrides/com.vysp3r.ProtonPlus"
+    section: Environment
+    option: GSK_RENDERER
+    value: gl
+    no_extra_spaces: true
+    mode: "0644"
+  become: false
+  when: ansible_facts['os_family'] == "Debian"
+
 # --- Manual gate ----------------------------------------------------------
 # Steam stores logged-in accounts in loginusers.vdf, created on first sign-in.
 # Pause ONLY while that file is missing, so a logged-in machine passes through
