@@ -51,12 +51,17 @@
     update_cache: true
   when: ansible_facts['os_family'] == "Debian"
 
+# The SAME settings.json (colour theme "Dark Modern", editor prefs, ...) is the
+# source of truth for both hosts — only the destination differs: native config
+# dir on Mint, the flatpak's app dir on Bazzite (VS Code itself is installed by
+# the flatpaks role there).
 - name: Ensure the VS Code user config directory exists
   ansible.builtin.file:
     path: "/home/{{ primary_user }}/.config/Code/User"
     state: directory
     mode: "0755"
   become: false
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Deploy VS Code user settings
   ansible.builtin.copy:
@@ -64,16 +69,39 @@
     dest: "/home/{{ primary_user }}/.config/Code/User/settings.json"
     mode: "0644"
   become: false
+  when: ansible_facts['os_family'] == "Debian"
 
+- name: Ensure the VS Code (flatpak) user config directory exists
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.var/app/com.visualstudio.code/config/Code/User"
+    state: directory
+    mode: "0755"
+  become: false
+  when: ansible_facts['os_family'] != "Debian"
+
+- name: Deploy VS Code user settings (flatpak)
+  ansible.builtin.copy:
+    src: settings.json
+    dest: "/home/{{ primary_user }}/.var/app/com.visualstudio.code/config/Code/User/settings.json"
+    mode: "0644"
+  become: false
+  when: ansible_facts['os_family'] != "Debian"
+
+# Extensions are managed on Mint only for now: the flatpak's `code` CLI needs a
+# `flatpak run` wrapper and its extensions update in-app — revisit if drift
+# ever becomes a problem there.
 - name: List installed VS Code extensions
   ansible.builtin.command: code --list-extensions
   become: false
   changed_when: false
   register: vscode_installed
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Install VS Code extensions
   ansible.builtin.command: "code --install-extension {{ item }}"
   become: false
   loop: "{{ vscode_extensions }}"
-  when: item not in vscode_installed.stdout_lines
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - item not in (vscode_installed.stdout_lines | default([]))
   changed_when: true

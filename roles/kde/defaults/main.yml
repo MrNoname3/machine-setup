@@ -1,0 +1,64 @@
+---
+# KDE Plasma settings for the Bazzite desktop, reverse-engineered from the
+# manually configured live system. KConfig files are ini-compatible, so each
+# entry is one ini_file edit under ~/.config. Nested KConfig groups like
+# [Libinput][1234][5678][Name] are expressed by embedding the extra brackets in
+# the section string.
+kde_config_settings:
+  # Night Colour: always on, constant 5800 K (the Mint night-light's twin)
+  - { file: kwinrc, section: NightColor, option: Active, value: "true" }
+  - { file: kwinrc, section: NightColor, option: Mode, value: "Constant" }
+  - { file: kwinrc, section: NightColor, option: NightTemperature, value: "5800" }
+  # Overview effect: hot corner disabled (9 = no electric border)
+  - { file: kwinrc, section: Effect-overview, option: BorderActivate, value: "9" }
+  # Remember Window Positions kwin script (installed by this role)
+  - { file: kwinrc, section: Plugins, option: rememberwindowpositionsEnabled, value: "true" }
+  # NumLock on at login (0 = turn on)
+  - { file: kcminputrc, section: Keyboard, option: NumLock, value: "0" }
+  # Flat mouse profile (no acceleration) for the USB mouse — device-keyed group
+  - { file: kcminputrc, section: "Libinput][7847][17][USB Mouse", option: PointerAcceleration, value: "0.000" }
+  # English UI with Hungarian regional formats
+  - { file: plasma-localerc, section: Formats, option: LANG, value: "en_GB.UTF-8" }
+  - { file: plasma-localerc, section: Formats, option: LC_ADDRESS, value: "hu_HU.UTF-8" }
+  - { file: plasma-localerc, section: Formats, option: LC_MEASUREMENT, value: "hu_HU.UTF-8" }
+  - { file: plasma-localerc, section: Formats, option: LC_MONETARY, value: "hu_HU.UTF-8" }
+  - { file: plasma-localerc, section: Formats, option: LC_NAME, value: "hu_HU.UTF-8" }
+  - { file: plasma-localerc, section: Formats, option: LC_PAPER, value: "hu_HU.UTF-8" }
+  - { file: plasma-localerc, section: Formats, option: LC_TELEPHONE, value: "hu_HU.UTF-8" }
+  - { file: plasma-localerc, section: Formats, option: LC_TIME, value: "hu_HU.UTF-8" }
+  # Brave as KDE's default browser
+  - { file: kdeglobals, section: General, option: BrowserApplication, value: "brave-browser.desktop" }
+  # File-dialog behaviour (show hidden files, detailed tree, date sort, ...)
+  - { file: kdeglobals, section: KFileDialog Settings, option: Allow Expansion, value: "false" }
+  - { file: kdeglobals, section: KFileDialog Settings, option: Automatically select filename extension, value: "true" }
+  - { file: kdeglobals, section: KFileDialog Settings, option: Breadcrumb Navigation, value: "false" }
+  - { file: kdeglobals, section: KFileDialog Settings, option: Decoration position, value: "2" }
+  - { file: kdeglobals, section: KFileDialog Settings, option: Show Full Path, value: "false" }
+  - { file: kdeglobals, section: KFileDialog Settings, option: Show Inline Previews, value: "true" }
+  - { file: kdeglobals, section: KFileDialog Settings, option: Show Preview, value: "false" }
+  - { file: kdeglobals, section: KFileDialog Settings, option: Show Speedbar, value: "true" }
+  - { file: kdeglobals, section: KFileDialog Settings, option: Show hidden files, value: "true" }
+  - { file: kdeglobals, section: KFileDialog Settings, option: Sort by, value: "Date" }
+  - { file: kdeglobals, section: KFileDialog Settings, option: Sort directories first, value: "true" }
+  - { file: kdeglobals, section: KFileDialog Settings, option: Sort hidden files last, value: "false" }
+  - { file: kdeglobals, section: KFileDialog Settings, option: Sort reversed, value: "false" }
+  - { file: kdeglobals, section: KFileDialog Settings, option: Speedbar Width, value: "196" }
+  - { file: kdeglobals, section: KFileDialog Settings, option: View Style, value: "DetailTree" }
+
+# Dolphin rewrites its rc on exit, so these are applied only while Dolphin is
+# closed (separate task) — same pattern as the Brave local prefs.
+kde_dolphin_settings:
+  - { file: dolphinrc, section: MainWindow, option: MenuBar, value: "Disabled" }
+  - { file: dolphinrc, section: General, option: BrowseThroughArchives, value: "true" }
+  - { file: dolphinrc, section: General, option: ShowFullPathInTitlebar, value: "true" }
+  - { file: dolphinrc, section: General, option: ShowStatusBar, value: "FullWidth" }
+  - { file: dolphinrc, section: Notification Messages, option: warnAboutRisksBeforeActingAsAdmin, value: "false" }
+
+# Global look-and-feel (applied with plasma-apply-lookandfeel, which also sets
+# the colour scheme etc. — writing the kdeglobals key alone would not).
+kde_lookandfeel: org.kde.breezedark.desktop
+
+# Remember Window Positions kwin script — pinned release from the author's
+# GitHub (the GUI installs it from the KDE Store; this reproduces it headless).
+kde_rwp_version: "5.1.0"
+kde_rwp_package_url: "https://github.com/rxappdev/RememberWindowPositions/releases/download/v{{ kde_rwp_version }}/rememberwindowpositions.kwinscript"

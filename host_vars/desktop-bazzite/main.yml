@@ -13,7 +13,8 @@ roles_enabled:
   - synology-drive  # sync gate + home bind mounts (client via flatpaks)
   - steam           # autostart (Steam ships with the Bazzite image)
   - keyring         # KeePassXC as the SSH agent
-  - kde             # Plasma tweaks + user services
+  - kde             # Plasma tweaks (audited System Settings) + user services
+  - vscode          # user settings for the flatpak VS Code (install via flatpaks)
   - containers      # rootless Podman user services (stack ships with the image)
 
 # primary_user defaults to the running user (group_vars/all.yml); override in

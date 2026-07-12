@@ -1,39 +1,126 @@
 ---
 # kde role: KDE Plasma (Wayland) desktop tweaks for the Bazzite host.
 #
-# What it does today:
-#   Force the on-screen input method OFF (System Settings -> Keyboard ->
-#   Virtual Keyboard = "None").
+# What it does:
+#   - Pins the audited System Settings choices (kde_config_settings in
+#     defaults): Night Colour, NumLock, flat mouse profile, locale formats,
+#     default browser, file-dialog behaviour, hot-corner off, ...
+#   - Dolphin preferences — applied only while Dolphin is closed (it rewrites
+#     dolphinrc on exit, which would clobber a live edit).
+#   - Installs + enables the "Remember Window Positions" kwin script from the
+#     author's pinned GitHub release (the GUI-installed KDE Store copy is the
+#     same package).
+#   - Applies the global look-and-feel with plasma-apply-lookandfeel (writing
+#     the kdeglobals key alone would not pull in the colour scheme).
+#   - Forces the on-screen input method OFF (kwinrc [Wayland] InputMethod=""):
+#     Bazzite ships a full input-method stack and a stray click can enable the
+#     Virtual Keyboard, which injects an accent/emoji candidate popup while
+#     typing on a physical keyboard.
+#   - Enables mpris-proxy (BT headset media buttons).
 #
-#   Bazzite's image ships a full input-method stack (ibus* and fcitx5*), and
-#   KDE's Virtual Keyboard can get switched on unintentionally (e.g. a stray
-#   click). Once on, it wires a text-input method into KWin and shows a
-#   candidate popup while typing -- numbered accent/emoji variants that replace
-#   the last character -- which is unwanted on a plain physical keyboard.
-#
-#   The live culprit here was exactly that (kwinrc [Wayland] InputMethod set to
-#   an engine); ibus itself was NOT running -- only a stale ~/.config/ibus dir
-#   remained, which we removed. Pinning InputMethod empty keeps the Virtual
-#   Keyboard on "None" across reboots. Takes effect at the next Plasma login.
+# KConfig edits mostly take effect at the next Plasma login; KWin is told to
+# reconfigure right away when something changed.
 
 - name: KDE Plasma desktop tweaks (Wayland)
   when: ansible_facts['os_family'] != "Debian" # KDE/Fedora-atomic host only (not the Mint laptop)
   become: false # user-scoped config, no root needed
   vars:
-    kwinrc: "/home/{{ primary_user }}/.config/kwinrc"
+    kde_conf_dir: "/home/{{ primary_user }}/.config"
+    kde_rwp_dir: "/home/{{ primary_user }}/.local/share/kwin/scripts/rememberwindowpositions"
   block:
 
     - name: Disable the on-screen input method (Virtual Keyboard = None)
-      # kwinrc is a KConfig .ini file. An empty [Wayland] InputMethod is what
-      # System Settings writes for "None" (it stores the key with a [$d] default
-      # marker; a plain empty value is read the same way). Idempotent.
+      # An empty [Wayland] InputMethod is what System Settings writes for
+      # "None" (it stores the key with a [$d] marker; empty reads the same).
       community.general.ini_file:
-        path: "{{ kwinrc }}"
+        path: "{{ kde_conf_dir }}/kwinrc"
         section: Wayland
         option: InputMethod
         value: ""
         no_extra_spaces: true
         mode: "0644"
+      register: kde_im_result
+
+    - name: Apply the audited KDE settings (KConfig ini edits)
+      community.general.ini_file:
+        path: "{{ kde_conf_dir }}/{{ item.file }}"
+        section: "{{ item.section }}"
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+        no_extra_spaces: true
+        mode: "0644"
+      loop: "{{ kde_config_settings }}"
+      loop_control:
+        label: "{{ item.file }} [{{ item.section }}] {{ item.option }}"
+      register: kde_cfg_result
+
+    # --- Dolphin: only while it is closed (it rewrites dolphinrc on exit) ---
+    - name: Check whether Dolphin is running
+      ansible.builtin.command: pgrep -x dolphin
+      register: kde_dolphin_running
+      changed_when: false
+      failed_when: false
+
+    - name: Apply the Dolphin preferences
+      community.general.ini_file:
+        path: "{{ kde_conf_dir }}/{{ item.file }}"
+        section: "{{ item.section }}"
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+        no_extra_spaces: true
+        mode: "0644"
+      loop: "{{ kde_dolphin_settings }}"
+      loop_control:
+        label: "[{{ item.section }}] {{ item.option }}"
+      when: kde_dolphin_running.rc != 0
+
+    - name: Warn that Dolphin settings were skipped because Dolphin is running
+      ansible.builtin.debug:
+        msg: Dolphin is running, so its preferences were not applied. Close it and re-run.
+      when: kde_dolphin_running.rc == 0
+
+    # --- Global look-and-feel (Breeze Dark) ---
+    - name: Read the current look-and-feel package
+      ansible.builtin.command: grep -E '^LookAndFeelPackage=' {{ kde_conf_dir }}/kdeglobals
+      register: kde_lnf_current
+      changed_when: false
+      failed_when: false
+
+    - name: Apply the look-and-feel (theme + colour scheme)
+      ansible.builtin.command: "plasma-apply-lookandfeel -a {{ kde_lookandfeel }}"
+      changed_when: true # guarded below: runs only when the current value differs
+      when: kde_lnf_current.stdout != 'LookAndFeelPackage=' + kde_lookandfeel
+
+    # --- Remember Window Positions kwin script ---
+    - name: Check whether the Remember Window Positions script is installed
+      ansible.builtin.stat:
+        path: "{{ kde_rwp_dir }}"
+      register: kde_rwp_installed
+
+    - name: Download the Remember Window Positions package (pinned release)
+      ansible.builtin.get_url:
+        url: "{{ kde_rwp_package_url }}"
+        dest: "/tmp/rememberwindowpositions-{{ kde_rwp_version }}.kwinscript"
+        mode: "0644"
+      when: not kde_rwp_installed.stat.exists
+
+    - name: Install the Remember Window Positions kwin script
+      ansible.builtin.command: >-
+        kpackagetool6 --type KWin/Script
+        -i /tmp/rememberwindowpositions-{{ kde_rwp_version }}.kwinscript
+      changed_when: true # guarded below: runs only when not installed yet
+      when: not kde_rwp_installed.stat.exists
+
+    # --- Make KWin pick up changed settings without waiting for a re-login ---
+    - name: Reconfigure KWin
+      ansible.builtin.command: >-
+        gdbus call --session --dest org.kde.KWin
+        --object-path /KWin --method org.kde.KWin.reconfigure
+      environment:
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts['user_uid'] }}/bus"
+      changed_when: false
+      failed_when: false # no running session (e.g. fresh install) is fine
+      when: kde_im_result is changed or kde_cfg_result is changed
 
     - name: Enable mpris-proxy (media keys / MPRIS for Bluetooth devices)
       # Bridges MPRIS players to Bluetooth AVRCP so BT headset buttons control
