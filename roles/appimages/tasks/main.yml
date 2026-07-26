@@ -76,6 +76,100 @@
   loop_control:
     label: "{{ item.section }} -> {{ item.option }}"
 
+# --- Desktop-entry repairs ------------------------------------------------
+# Gear Lever regenerates an app's desktop entry from the AppImage's own internal
+# entry on every update, and copies whatever it finds — including nothing. When an
+# upstream build ships a stripped entry (no Icon/Comment/Categories) and carries
+# no icon file, the app ends up with the generic 'applications-other' icon and
+# loses its menu category. Saleae Logic 2.4.45 does exactly that. The `desktop:`
+# mapping in host_vars puts those keys back after every update.
+#
+# Icons are referenced by NAME, never by path: Gear Lever's uninstall step (which
+# also runs as the second half of an update) deletes the icon file outright if the
+# entry's Icon is a path, so a path-referenced icon would not survive one update.
+# Installed into the user's hicolor theme, where the name resolves and Gear Lever
+# cannot reach it.
+- name: Install AppImage icons into the user icon theme
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/home/{{ primary_user }}/.local/share/icons/hicolor/256x256/apps/{{ item | basename }}"
+    mode: "0644"
+  become: false
+  with_fileglob: icons/*.png
+
+# The repair is deliberately self-limiting. A stripped upstream desktop entry is
+# almost certainly a packaging accident that gets fixed in a later release, and an
+# unconditional override would then keep forcing this repo's copy of the icon over
+# the vendor's current one — silently, forever.
+#
+# The test is whether the entry's Icon is an absolute PATH. Gear Lever writes a
+# path whenever it successfully extracted an icon from the AppImage, and the
+# generic 'applications-other' (or this role's own name-referenced icon) otherwise.
+# So a path means upstream ships an icon again: the guard goes false, the role
+# stops touching the entry, and it says so. Testing for 'applications-other'
+# instead would misfire on the second run, once our own repair is in place.
+- name: Read the current desktop entry of apps with declared repairs
+  ansible.builtin.slurp:
+    src: >-
+      /home/{{ primary_user }}/.local/share/applications/{{
+        item.file | regex_replace('\.appimage$', '.desktop') }}
+  register: appimages_desktop_now
+  become: false
+  failed_when: false # a not-yet-integrated app simply has no entry
+  loop: "{{ appimages | selectattr('desktop', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Flatten the desktop-entry repairs that are still needed
+  ansible.builtin.set_fact:
+    appimages_desktop_entries: >-
+      {{ (appimages_desktop_entries | default([]))
+         + (item.item.desktop | dict2items(key_name='option', value_name='value')
+            | map('combine', {'file': item.item.file | regex_replace('\.appimage$', '.desktop')})
+            | list) }}
+  vars:
+    icon_now: >-
+      {{ ((item.content | default('') | b64decode
+           | regex_search('(?m)^Icon=(.*)$', '\1'))
+          | default([], true) | first | default('', true)) | trim }}
+  loop: "{{ appimages_desktop_now.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.content is defined
+    - not icon_now.startswith('/')
+
+- name: Report repairs that upstream has since fixed
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.item.name }}: the AppImage ships its own icon again
+      ({{ icon_now }}), so the `desktop:` override in host_vars is no longer
+      applied and can be dropped.
+  vars:
+    icon_now: >-
+      {{ ((item.content | default('') | b64decode
+           | regex_search('(?m)^Icon=(.*)$', '\1'))
+          | default([], true) | first | default('', true)) | trim }}
+  loop: "{{ appimages_desktop_now.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.content is defined
+    - icon_now.startswith('/')
+
+- name: Restore the desktop-entry keys Gear Lever drops on update
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.local/share/applications/{{ item.file }}"
+    section: Desktop Entry
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    no_extra_spaces: true
+    mode: "0644"
+  become: false
+  loop: "{{ appimages_desktop_entries | default([]) }}"
+  loop_control:
+    label: "{{ item.file }} -> {{ item.option }}"
+
 # Opt-in only (see install.yml). Runs after the update sources are written, so a
 # freshly integrated app is update-aware immediately, and before the check below,
 # so a filename mismatch surfaces in the same run.

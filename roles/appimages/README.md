@@ -88,6 +88,68 @@ Lever actually gave the AppImage (it derives it from the AppImage's own desktop
 entry, lower-cased with `_`). A mismatch is silent: the config lands under a
 hash nothing looks up.
 
+## What an update can undo — re-run the role afterwards
+
+Updating an AppImage can throw away both the update source and the desktop entry,
+so **re-run this role after updating** and it puts everything back:
+
+```sh
+./scripts/apply.sh desktop-bazzite --tags appimages -e ansible_become=false
+```
+
+**The update source.** Gear Lever has two update paths, and they differ:
+
+- the **GUI** path (`AppDetails.py`) calls `uninstall(old_version)` before
+  installing the new file. `uninstall()` ends with
+  `Config.delete_app_config(el)` + `Config.delete_app_update_config(el)`
+  *unconditionally* — its `remove_configuration=False` argument is dead code —
+  and `delete_app_config` removes the `.update_manager` section too. Since old and
+  new share the same path, they share the same md5 key, so uninstalling the old
+  version deletes the **new** one's update config;
+- the **CLI** path (`update_from_url`, used by `--update`) never calls
+  `uninstall()`, so the config survives.
+
+Observed exactly that on the 2.4.45 update: Logic lost its `[app.<md5>.update_manager]`
+section and went back to `UpdatesNotAvailable`, while LM Studio, updated minutes
+apart, kept its own.
+
+**The desktop entry.** Gear Lever regenerates it from the AppImage's *internal*
+entry on every update, copying whatever it finds there — including nothing. Saleae
+Logic 2.4.45 ships this as its complete internal entry:
+
+```ini
+[Desktop Entry]
+Version=1.5
+Type=Application
+Name=Logic
+Exec=Logic %U
+X-AppImage-Name=logic
+X-AppImage-Version=2.4.45
+X-AppImage-Arch=x86_64
+```
+
+No `Icon`, no `Comment`, no `Categories`, and the archive contains no icon file at
+all (no `.DirIcon`, nothing under `usr/share/icons` — verified by extracting it).
+2.4.44 had all of them, so this is an upstream packaging regression, and the entry
+looks machine-generated rather than authored. Gear Lever behaved correctly on that
+input and fell back to `Icon=applications-other`, which is how the icon vanished.
+
+The `desktop:` mapping in host_vars puts the missing keys back. Two details make it
+survive:
+
+- **icons are referenced by name, never by path.** `uninstall()` also does
+  `if '/' in icon and os.path.isfile(icon): os.remove(icon)` — a path-referenced
+  icon is *deleted*, not merely dereferenced. So the icon ships in
+  `roles/appimages/files/icons/`, is installed into
+  `~/.local/share/icons/hicolor/256x256/apps/`, and the entry names it
+  (`Icon=logic-appimage`). Gear Lever cannot reach it there;
+- **the repair switches itself off.** It only applies while the entry's `Icon` is
+  *not* an absolute path. Gear Lever writes a path whenever it did extract an icon,
+  so the day upstream fixes its packaging, the guard goes false, the role stops
+  overriding the entry and prints a note saying the `desktop:` block can be
+  dropped. Testing for `applications-other` instead would misfire on the second
+  run, once the role's own icon name is in place.
+
 ## The update managers, and why each app uses the one it does
 
 | App | Manager | Source |

@@ -100,6 +100,17 @@ appimages:
       # Redirects (302) to the current versioned AppImage and answers HEAD with
       # a content-length, which is what StaticFileUpdater compares against.
       url: "https://logic2api.saleae.com/download?os=linux&arch=x64"
+    # Saleae regressed here in 2.4.45: the AppImage's internal desktop entry has
+    # no Icon/Comment/Categories, and the archive carries no icon file at all, so
+    # Gear Lever's update left a generic 'applications-other' icon and no menu
+    # category. These keys restore what 2.4.44 shipped; the icon comes from
+    # roles/appimages/files/icons/ and is referenced by NAME so that Gear Lever's
+    # uninstall step cannot delete the file.
+    desktop:
+      Icon: logic-appimage
+      Comment: Debug hardware like a pro
+      Categories: Utility;
+      StartupWMClass: Logic
   - name: LM-Studio                  # local LLM runner; name has a '-' (see README)
     file: lm_studio.appimage
     manager: StaticFileUpdater
