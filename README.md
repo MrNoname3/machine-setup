@@ -47,6 +47,7 @@ machine-setup/
     ├── ssh-access/      # hardened SSH server
     ├── brave/           # browser (apt on Mint, rpm-ostree layer on Bazzite)
     ├── flatpaks/        # per-host Flatpak app set
+    ├── appimages/       # Gear Lever's AppImage set + update sources (Bazzite)
     ├── brew/            # Homebrew CLI packages (Bazzite)
     ├── synology-drive/  # Synology Drive client
     ├── steam/           # Steam (+ flatpak on Bazzite)
@@ -144,11 +145,12 @@ works with any command above:
 prediction is less complete than on an already-provisioned one. With the
 bootstrap one-liner, pick `0) clone/update only`, then dry-run by hand.)
 
-**Single role** — the keyring role is tagged; tag more roles in `site.yml` as
-needed:
+**Single role** — the keyring and appimages roles are tagged; tag more roles in
+`site.yml` as needed:
 
 ```sh
 ./scripts/apply.sh laptop-old --tags keyring
+./scripts/apply.sh desktop-bazzite --tags appimages -e ansible_become=false
 ```
 
 ### Machine-local values (not in git)

@@ -1,0 +1,21 @@
+---
+# AppImages managed through Gear Lever (it.mijorus.gearlever — installed by the
+# flatpaks role). Empty default = the role is a no-op unless the host defines
+# its list; see host_vars/desktop-bazzite/main.yml for the entry schema.
+appimages: []
+
+# Where Gear Lever keeps integrated AppImages. '~/AppImages' is its built-in
+# default (GSettings key 'appimages-default-folder'); the per-app update config
+# is keyed by the AppImage's absolute path, so this MUST match the folder the
+# app actually uses, or the config lands under a hash nothing looks up.
+appimages_dir: "/home/{{ primary_user }}/AppImages"
+
+# Gear Lever's config file, inside the flatpak's per-app config dir.
+gearlever_config: "/home/{{ primary_user }}/.var/app/it.mijorus.gearlever/config/gearlever.conf"
+
+# Check for AppImage updates on session start and notify about them. Kept at
+# Gear Lever's own default (off). The value here only mirrors the setting into
+# the config file — the effective switch is the GSettings key that the GUI owns
+# together with a background-portal permission, so turning this on is a manual
+# GUI step (see the role README).
+gearlever_fetch_updates_in_background: false

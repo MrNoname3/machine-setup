@@ -9,6 +9,7 @@
 roles_enabled:
   - brave           # rpm-ostree layered + policies/prefs (common tasks)
   - flatpaks        # the app set below
+  - appimages       # Gear Lever's AppImage set + their update sources
   - brew            # CLI tools below
   - synology-drive  # sync gate + home bind mounts (client via flatpaks)
   - steam           # autostart (Steam ships with the Bazzite image)
@@ -65,6 +66,45 @@ flatpak_apps:
   - org.keepassxc.KeePassXC
   - org.mozilla.firefox
   - org.virt_manager.virt-manager
+
+# AppImages integrated with Gear Lever, with the update source each one needs.
+# `file:` is the name Gear Lever gave the file in appimages_dir (it derives it
+# from the AppImage's own desktop entry) — the update config is keyed by that
+# path, so it has to match exactly. Verified against the live upstreams; see
+# roles/appimages/README.md for how each source was chosen.
+appimages:
+  - name: FlightCore                 # Northstar (Titanfall 2) mod manager
+    file: flightcore.appimage
+    manager: GithubUpdater
+    config:
+      repo: R2NorthstarTools/FlightCore
+      repo_filename: "FlightCore_*_amd64.AppImage"
+      # Upstream publishes only full releases, so /releases/latest is the right
+      # endpoint — and it carries a sha256 digest, which beats a size compare.
+      allow_prereleases: false
+  - name: MQTT Explorer
+    file: mqtt_explorer.appimage
+    manager: GithubUpdater
+    config:
+      repo: thomasnordquist/MQTT-Explorer
+      # Matches the arm64/armv7l assets too; Gear Lever discards those by
+      # filename on an x86_64 host and keeps the plain (amd64) AppImage.
+      repo_filename: "MQTT-Explorer-*.AppImage"
+      # REQUIRED: the whole 0.4.x line is tagged pre-release, so the
+      # /releases/latest endpoint would offer a *downgrade* to 0.3.5.
+      allow_prereleases: true
+  - name: Logic                      # Saleae Logic 2 analyser software
+    file: logic.appimage
+    manager: StaticFileUpdater
+    config:
+      # Redirects (302) to the current versioned AppImage and answers HEAD with
+      # a content-length, which is what StaticFileUpdater compares against.
+      url: "https://logic2api.saleae.com/download?os=linux&arch=x64"
+  - name: LM-Studio                  # local LLM runner; name has a '-' (see README)
+    file: lm_studio.appimage
+    manager: StaticFileUpdater
+    config:
+      url: "https://lmstudio.ai/download/latest/linux/x64?format=AppImage"
 
 # Homebrew CLI tools (leaves — dependencies follow automatically).
 brew_packages:

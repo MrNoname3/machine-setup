@@ -296,6 +296,10 @@
       when: "'brave' in (roles_enabled | default([]))"
     - role: flatpaks
       when: "'flatpaks' in (roles_enabled | default([]))"
+    # appimages runs after flatpaks: it configures Gear Lever, which flatpaks installs.
+    - role: appimages
+      when: "'appimages' in (roles_enabled | default([]))"
+      tags: appimages
     - role: brew
       when: "'brew' in (roles_enabled | default([]))"
     - role: synology-drive

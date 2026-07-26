@@ -1,0 +1,103 @@
+---
+# appimages role: record the AppImage set Gear Lever manages, and — the part
+# that actually needs managing — each app's *update source*.
+#
+# Gear Lever stores an app's update config in gearlever.conf, in a section keyed
+# by the md5 of the AppImage's absolute path:
+#
+#   [app.<md5 of file_path>.update_manager]
+#   manager = StaticFileUpdater | GithubUpdater | ...
+#   <manager-specific keys>       # url= / repo=+repo_filename=+allow_prereleases=
+#
+# Writing those keys is equivalent to
+#   flatpak run it.mijorus.gearlever --set-update-source <file> --manager <m> k=v
+# except that this is idempotent per key, while the CLI always rewrites the
+# section (and so always reports a change). Without a `manager` key Gear Lever
+# falls back to the AppImage's embedded update info, and reports
+# "UpdatesNotAvailable" when there is none — see the README for how a Gear Lever
+# migration bug silently emptied these sections.
+#
+# All user-level (become: false): Gear Lever is a per-user flatpak and the
+# AppImages live in the user's home.
+
+- name: Ensure the AppImages directory exists
+  ansible.builtin.file:
+    path: "{{ appimages_dir }}"
+    state: directory
+    mode: "0755"
+  become: false
+  when: appimages | length > 0
+
+# Created here rather than left to Gear Lever's first launch, so a fresh machine
+# can be configured before the app has ever been opened.
+- name: Ensure Gear Lever's config directory exists
+  ansible.builtin.file:
+    path: "{{ gearlever_config | dirname }}"
+    state: directory
+    mode: "0755"
+  become: false
+  when: appimages | length > 0
+
+- name: Mirror the background update check into Gear Lever's config
+  community.general.ini_file:
+    path: "{{ gearlever_config }}"
+    section: DEFAULT
+    option: fetch-updates-in-background
+    value: "{{ 'yes' if gearlever_fetch_updates_in_background else 'no' }}"
+    mode: "0644"
+  become: false
+  when: appimages | length > 0
+
+# One flat (section, option, value) list for the single ini_file loop below:
+# every app contributes its `manager` key plus its manager-specific config keys.
+- name: Flatten the per-app update sources into INI triples
+  ansible.builtin.set_fact:
+    gearlever_update_entries: >-
+      {{ (gearlever_update_entries | default([]))
+         + ((([{'option': 'manager', 'value': item.manager}])
+             + (item.config | dict2items(key_name='option', value_name='value')))
+            | map('combine', {'section': 'app.'
+                              ~ ((appimages_dir ~ '/' ~ item.file) | hash('md5'))
+                              ~ '.update_manager'})
+            | list) }}
+  loop: "{{ appimages }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Configure each AppImage's update source
+  community.general.ini_file:
+    path: "{{ gearlever_config }}"
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+  become: false
+  loop: "{{ gearlever_update_entries | default([]) }}"
+  loop_control:
+    label: "{{ item.section }} -> {{ item.option }}"
+
+# --- Manual gate ----------------------------------------------------------
+# Integrating an AppImage means downloading a multi-hundred-MB binary and
+# letting Gear Lever extract its icon/desktop entry, so the role does not do it
+# unattended; it reports what is missing instead. The update source above is
+# already written, so a later integration is picked up with no further work.
+- name: Check which declared AppImages are present
+  ansible.builtin.stat:
+    path: "{{ appimages_dir }}/{{ item.file }}"
+  register: appimage_files
+  become: false
+  loop: "{{ appimages }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Report AppImages that still need a one-time manual integration
+  ansible.builtin.debug:
+    msg: >-
+      Not integrated yet: {{ missing | map(attribute='name') | join(', ') }}.
+      Download each AppImage, then integrate it with:
+      flatpak run it.mijorus.gearlever --integrate <downloaded-file> -y
+      Gear Lever names the installed file after the app itself; if the result
+      differs from the `file:` value in host_vars, correct host_vars to match.
+  vars:
+    missing: "{{ appimage_files.results | rejectattr('stat.exists') | map(attribute='item') | list }}"
+  when: missing | length > 0
