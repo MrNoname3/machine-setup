@@ -119,6 +119,16 @@ Either way the repair is the same — re-run the role and it puts everything bac
 ./scripts/apply.sh desktop-bazzite --tags appimages -e ansible_become=false
 ```
 
+**The role checks its own work.** Writing the config is not proof that Gear Lever
+accepts it, so the last step asks (`--list-installed --json`) which manager it
+actually resolves for each declared app, and fails with an actionable message if
+an integrated app resolves no manager, a different one, or a different path than
+host_vars declares. That last check matters as much as the first: because the
+config is keyed by md5 of the AppImage's path, a `file:` value that has drifted
+from the name Gear Lever gave the file writes a perfectly valid section under a
+hash nothing ever reads — silent, and otherwise indistinguishable from working.
+Apps that are not integrated yet are skipped, and reported separately.
+
 ## The desktop entry, and the icon that vanished with it
 
 Gear Lever regenerates an app's desktop entry from the AppImage's *internal* entry

@@ -204,3 +204,55 @@
   vars:
     missing: "{{ appimage_files.results | rejectattr('stat.exists') | map(attribute='item') | list }}"
   when: missing | length > 0
+
+# --- Verification ---------------------------------------------------------
+# Ask Gear Lever what it actually resolves, instead of trusting that writing the
+# config was enough. This catches the two failure modes that are otherwise silent
+# — an app that reports no update manager looks exactly like one that never had a
+# source configured:
+#
+#   * the update source was dropped behind our back. The GUI's "Reload metadata"
+#     does precisely this (see the README), so a mismatch here is expected after
+#     poking at an app in Gear Lever — this run has already repaired it, and the
+#     assertion just confirms the repair landed;
+#   * the file name drifted away from `file:` in host_vars. The update config is
+#     keyed by md5 of the AppImage's path, so a stale `file:` writes a perfectly
+#     valid section under a hash nothing ever looks up.
+#
+# Only integrated apps are checked; ones still missing are reported above.
+- name: Ask Gear Lever which update manager it resolves for each app
+  ansible.builtin.command: flatpak run it.mijorus.gearlever --list-installed --json
+  become: false
+  changed_when: false
+  register: appimages_verify
+  when: appimages | length > 0
+
+- name: Verify every integrated AppImage resolves its declared update manager
+  ansible.builtin.assert:
+    that:
+      - actual | length == 1
+      - actual[0].manager == item.manager
+      - actual[0].path == (appimages_dir ~ '/' ~ item.file)
+    fail_msg: >-
+      {{ item.name }}: Gear Lever resolves
+      '{{ actual[0].manager | default('no update manager', true) }}' at
+      '{{ actual[0].path | default('?', true) }}', but host_vars declares
+      '{{ item.manager }}' at '{{ appimages_dir }}/{{ item.file }}'.
+      {{ hint_dropped if actual[0].manager != item.manager else hint_renamed }}
+    success_msg: "{{ item.name }} -> {{ item.manager }}"
+    quiet: true
+  vars:
+    installed: "{{ (appimages_verify.stdout | from_json).installed }}"
+    actual: "{{ installed | selectattr('name', 'eq', item.name) | list }}"
+    hint_dropped: >-
+      Something dropped the update source after this role wrote it — the GUI's
+      "Reload metadata" button does exactly that. Re-run the role.
+    hint_renamed: >-
+      Gear Lever renamed the file, so the config was written under an md5 nothing
+      looks up. Correct `file:` in host_vars to the path above.
+  loop: "{{ appimages }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - appimages_verify is not skipped
+    - item.name in (installed | map(attribute='name') | list)
