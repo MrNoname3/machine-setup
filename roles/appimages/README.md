@@ -88,34 +88,42 @@ Lever actually gave the AppImage (it derives it from the AppImage's own desktop
 entry, lower-cased with `_`). A mismatch is silent: the config lands under a
 hash nothing looks up.
 
-## What an update can undo — re-run the role afterwards
+## What silently drops the update source — re-run the role afterwards
 
-Updating an AppImage can throw away both the update source and the desktop entry,
-so **re-run this role after updating** and it puts everything back:
+**"Reload metadata" in the GUI wipes an app's update source.** That button
+(`AppDetails.py` → `AppImageProvider.reload_metadata()`) copies the AppImage aside
+and calls:
+
+```python
+self.uninstall(el, remove_configuration=False)
+```
+
+but that argument is **dead code**: `uninstall()` ends with an unconditional
+`Config.delete_app_config(el)` + `Config.delete_app_update_config(el)`, and
+`delete_app_config` removes the `.update_manager` section too. The re-install that
+follows restores only `[app.<md5>]`, never the update source. So the app goes back
+to `UpdatesNotAvailable` — the same silent failure mode as the migration bug.
+
+Verified from the log: Logic lost its section at 15:32:54 on 2026-07-26, right
+after `Reloading metadata for …/logic.appimage`.
+
+**Ordinary updates are fine.** In the same session both Logic (2.4.44 → 2.4.45)
+and LM Studio (0.4.7+4 → 0.4.20+1) updated without touching their config —
+no `uninstall` in the log for either. The GUI's update path does contain an
+`uninstall(old_version)` call, but it did not fire here, so updating through the
+GUI is not the thing to avoid. There is no need to prefer the CLI for safety.
+
+Either way the repair is the same — re-run the role and it puts everything back:
 
 ```sh
 ./scripts/apply.sh desktop-bazzite --tags appimages -e ansible_become=false
 ```
 
-**The update source.** Gear Lever has two update paths, and they differ:
+## The desktop entry, and the icon that vanished with it
 
-- the **GUI** path (`AppDetails.py`) calls `uninstall(old_version)` before
-  installing the new file. `uninstall()` ends with
-  `Config.delete_app_config(el)` + `Config.delete_app_update_config(el)`
-  *unconditionally* — its `remove_configuration=False` argument is dead code —
-  and `delete_app_config` removes the `.update_manager` section too. Since old and
-  new share the same path, they share the same md5 key, so uninstalling the old
-  version deletes the **new** one's update config;
-- the **CLI** path (`update_from_url`, used by `--update`) never calls
-  `uninstall()`, so the config survives.
-
-Observed exactly that on the 2.4.45 update: Logic lost its `[app.<md5>.update_manager]`
-section and went back to `UpdatesNotAvailable`, while LM Studio, updated minutes
-apart, kept its own.
-
-**The desktop entry.** Gear Lever regenerates it from the AppImage's *internal*
-entry on every update, copying whatever it finds there — including nothing. Saleae
-Logic 2.4.45 ships this as its complete internal entry:
+Gear Lever regenerates an app's desktop entry from the AppImage's *internal* entry
+on every update, copying whatever it finds there — including nothing. Saleae Logic
+2.4.45 ships this as its complete internal entry:
 
 ```ini
 [Desktop Entry]
@@ -133,6 +141,11 @@ all (no `.DirIcon`, nothing under `usr/share/icons` — verified by extracting i
 2.4.44 had all of them, so this is an upstream packaging regression, and the entry
 looks machine-generated rather than authored. Gear Lever behaved correctly on that
 input and fell back to `Icon=applications-other`, which is how the icon vanished.
+
+This is upstream-specific, not a Gear Lever problem: LM Studio updated in the same
+session kept its `Comment`, `Categories`, `StartupWMClass` and a freshly extracted
+icon, because its AppImage ships a complete internal entry. Only apps that regress
+their own packaging need a `desktop:` block.
 
 The `desktop:` mapping in host_vars puts the missing keys back. Two details make it
 survive:
