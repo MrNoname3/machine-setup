@@ -169,6 +169,27 @@ startup*. Everything else in Gear Lever's GSettings is at its schema default on
 this host (including `appimages-default-folder = ~/AppImages`), so there is
 nothing else to record.
 
+Note that the check only *notifies*; it never installs. Also worth knowing before
+enabling it: the notification carries an "Open Gear Lever" action and Gear Lever
+waits on it, so the fetch process lingers for up to its 10-minute expiry on every
+session start.
+
+### Why Bazzite's automatic updater does not cover these
+
+Asked and answered, so it does not need re-deriving: `uupd` (the `ublue-update`
+successor, `uupd.timer`, daily 04:00, `Persistent=true`) has exactly four
+modules — `system` (bootc/rpm-ostree), `flatpak` (system *and* per-user), `brew`
+and `distrobox`. **There is no AppImage module**, and `uupd` is a fixed-module Go
+binary whose config schema only accepts `disable` plus binary paths, so unlike its
+predecessor's TOML it takes no custom hooks or user scripts. AppImages sit outside
+every package manager by design — which is exactly why Gear Lever exists, and why
+their update sources could go missing without anything noticing.
+
+Deliberately **not** added here: a systemd user timer running `--update --all -y`
+(or `--fetch-updates`). It would work, and it would match how the rest of the
+machine updates, but AppImage updates stay a manual, deliberate step by choice.
+The commands are in the next section.
+
 ## Checking and applying updates
 
 ```sh
