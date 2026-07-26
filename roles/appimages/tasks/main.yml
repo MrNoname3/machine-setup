@@ -76,11 +76,20 @@
   loop_control:
     label: "{{ item.section }} -> {{ item.option }}"
 
+# Opt-in only (see install.yml). Runs after the update sources are written, so a
+# freshly integrated app is update-aware immediately, and before the check below,
+# so a filename mismatch surfaces in the same run.
+- name: Download and integrate the missing AppImages
+  ansible.builtin.include_tasks: install.yml
+  when:
+    - appimages | length > 0
+    - appimages_install_missing | bool
+
 # --- Manual gate ----------------------------------------------------------
-# Integrating an AppImage means downloading a multi-hundred-MB binary and
-# letting Gear Lever extract its icon/desktop entry, so the role does not do it
-# unattended; it reports what is missing instead. The update source above is
-# already written, so a later integration is picked up with no further work.
+# Without appimages_install_missing, integrating an AppImage stays a manual step
+# (multi-hundred-MB binaries), so the role reports what is missing rather than
+# silently doing nothing. The update source above is already written, so a later
+# integration is picked up with no further work.
 - name: Check which declared AppImages are present
   ansible.builtin.stat:
     path: "{{ appimages_dir }}/{{ item.file }}"

@@ -1,0 +1,115 @@
+---
+# Opt-in bootstrap: download and integrate any declared AppImage that Gear Lever
+# does not know about yet. Skipped entirely unless appimages_install_missing is
+# true, because these binaries are hundreds of MB each (~1.5 GB for the current
+# set) and a day-to-day run has no business downloading them.
+#
+#   ./scripts/apply.sh desktop-bazzite --tags appimages \
+#     -e ansible_become=false -e appimages_install_missing=true
+#
+# Presence is decided by the app NAME Gear Lever reports, never by the file name:
+# Gear Lever derives the file name from the AppImage's own desktop entry, so an
+# upstream rename would make a filename check re-download on every single run.
+
+- name: List the AppImages Gear Lever has integrated
+  ansible.builtin.command: flatpak run it.mijorus.gearlever --list-installed --json
+  become: false
+  changed_when: false
+  register: appimages_integrated
+
+- name: Determine which declared AppImages are not integrated yet
+  ansible.builtin.set_fact:
+    appimages_to_install: >-
+      {{ appimages | rejectattr('name', 'in',
+           (appimages_integrated.stdout | from_json).installed
+           | map(attribute='name') | list) | list }}
+
+- name: Collect the static download URLs
+  ansible.builtin.set_fact:
+    appimages_downloads: >-
+      {{ (appimages_downloads | default([]))
+         + [{'name': item.name, 'url': item.config.url}] }}
+  loop: "{{ appimages_to_install | selectattr('manager', 'eq', 'StaticFileUpdater') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# GitHub apps need the asset resolved from the releases API — the same lookup
+# Gear Lever does when it checks for updates. Without pre-releases allowed the
+# API returns a single release object, otherwise a newest-first list.
+- name: Query the GitHub releases of the missing AppImages
+  ansible.builtin.uri:
+    url: >-
+      https://api.github.com/repos/{{ item.config.repo }}/releases{{
+        '' if item.config.allow_prereleases | bool else '/latest' }}
+  register: appimages_gh
+  become: false
+  loop: "{{ appimages_to_install | selectattr('manager', 'eq', 'GithubUpdater') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# Assets of all candidate releases, newest first, filtered exactly as Gear Lever
+# filters them: glob match on the declared file name, then drop anything whose
+# name marks it as another architecture. `first` therefore yields the newest
+# x86_64 asset.
+- name: Resolve the GitHub asset for each missing AppImage
+  ansible.builtin.set_fact:
+    appimages_downloads: >-
+      {{ (appimages_downloads | default([]))
+         + [{'name': item.item.name,
+             'url': (releases | map(attribute='assets') | flatten
+                     | selectattr('name', 'match', name_pattern)
+                     | rejectattr('name', 'search', other_arch)
+                     | map(attribute='browser_download_url') | first)}] }}
+  vars:
+    releases: "{{ [item.json] if item.json is mapping else item.json }}"
+    name_pattern: "^{{ item.item.config.repo_filename | replace('.', '\\.') | replace('*', '.*') }}$"
+    other_arch: "[-_.](arm64|aarch64|armv7l)[-_.]"
+  loop: "{{ appimages_gh.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Show what will be downloaded
+  ansible.builtin.debug:
+    msg: >-
+      {{ appimages_downloads | default([]) | length }} AppImage(s) to fetch:
+      {{ appimages_downloads | default([]) | map(attribute='url') | join(' ') }}
+
+# /var/tmp, not /tmp: /tmp is a tmpfs here, and LM Studio alone is over 1 GB —
+# staging it in RAM would be a bad surprise on a machine that is mid-provision.
+- name: Ensure the download staging directory exists
+  ansible.builtin.file:
+    path: "{{ appimages_download_dir }}"
+    state: directory
+    mode: "0700"
+  become: false
+  when: appimages_downloads | default([]) | length > 0
+
+- name: Download the missing AppImages
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "{{ appimages_download_dir }}/{{ item.name | replace(' ', '_') }}.AppImage"
+    mode: "0755"
+  become: false
+  register: appimages_downloaded
+  loop: "{{ appimages_downloads | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# Gear Lever moves the file into appimages_dir, extracts the icon and writes the
+# desktop entry. The update source was already configured by the caller, so an
+# integrated app is immediately update-aware.
+- name: Integrate the downloaded AppImages with Gear Lever
+  ansible.builtin.command: >-
+    flatpak run it.mijorus.gearlever --integrate {{ item.dest | quote }} -y
+  become: false
+  changed_when: true
+  loop: "{{ appimages_downloaded.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Remove the download staging directory
+  ansible.builtin.file:
+    path: "{{ appimages_download_dir }}"
+    state: absent
+  become: false
+  when: appimages_downloads | default([]) | length > 0

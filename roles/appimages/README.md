@@ -128,15 +128,37 @@ Other managers Gear Lever supports, if an app ever needs one:
 
 ## Manual steps (the GUI/app owns these)
 
-**Integrating a new AppImage.** The role reports any declared AppImage missing
-from `~/AppImages` instead of downloading it unattended. Download it, then:
+**Integrating the declared AppImages.** A normal run never downloads anything —
+it only reports which declared entries are missing. Bootstrapping a fresh machine
+is opt-in, because the current set is about 1.5 GB (LM Studio alone is over 1 GB):
+
+```sh
+./scripts/apply.sh desktop-bazzite --tags appimages \
+  -e ansible_become=false -e appimages_install_missing=true
+```
+
+That resolves each app's download URL — the vendor URL for `StaticFileUpdater`
+apps, the newest matching release asset from the API for `GithubUpdater` ones,
+using the same glob and architecture filtering Gear Lever itself applies — stages
+it in `/var/tmp` (**not** `/tmp`, which is a tmpfs), and hands it to
+`--integrate … -y`.
+
+It decides what is missing from the **app name** Gear Lever reports
+(`--list-installed --json`), never from the file name: Gear Lever derives the file
+name from the AppImage's own desktop entry, so a filename check would re-download
+on every run after an upstream rename.
+
+Note that this installs whatever is *current* upstream, not the version recorded
+here — the role reproduces a working machine, not an exact set of versions.
+
+Adding a new app by hand instead:
 
 ```sh
 flatpak run it.mijorus.gearlever --integrate ~/Downloads/Whatever.AppImage -y
 flatpak run it.mijorus.gearlever --list-installed     # confirm the file name
 ```
 
-Then add the app to `appimages:` in host_vars with that exact `file:` value.
+Then add it to `appimages:` in host_vars with that exact `file:` value.
 
 **Background update checks** (`gearlever_fetch_updates_in_background`) are off,
 Gear Lever's own default. The role only mirrors the value into the config file;

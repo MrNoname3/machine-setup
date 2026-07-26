@@ -13,6 +13,17 @@ appimages_dir: "/home/{{ primary_user }}/AppImages"
 # Gear Lever's config file, inside the flatpak's per-app config dir.
 gearlever_config: "/home/{{ primary_user }}/.var/app/it.mijorus.gearlever/config/gearlever.conf"
 
+# Download and integrate any declared AppImage that is not integrated yet.
+# Off by default: the current set is ~1.5 GB, which a day-to-day run must never
+# pull. Turn it on for a fresh machine with
+#   ./scripts/apply.sh <host> --tags appimages -e appimages_install_missing=true
+appimages_install_missing: false
+
+# Where the bootstrap stages downloads before handing them to Gear Lever, which
+# then moves them into appimages_dir. /var/tmp on purpose — /tmp is a tmpfs here,
+# and staging a 1 GB AppImage in RAM mid-provision is a bad surprise.
+appimages_download_dir: /var/tmp/appimages-bootstrap
+
 # Check for AppImage updates on session start and notify about them. Kept at
 # Gear Lever's own default (off). The value here only mirrors the setting into
 # the config file — the effective switch is the GSettings key that the GUI owns
