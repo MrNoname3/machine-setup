@@ -34,6 +34,8 @@ machine-setup/
 │   ├── apply.sh                 # run the playbook with the repo-local toolchain
 │   ├── check.sh                 # release gate (CI runs exactly this)
 │   └── ensure-venv.sh           # bootstraps .venv/ + .ansible/ (gitignored)
+├── tools/                       # standalone tooling — not part of the playbook
+│   └── gpu-tune/                # measure an AMD GPU undervolt (see its README)
 ├── site.yml                     # maps each host to its enabled roles
 ├── group_vars/
 │   └── all.yml                  # shared variables (package lists, ssh_keys_dir, ...)
@@ -55,7 +57,7 @@ machine-setup/
     ├── luks-unlock/     # remote root unlock at boot (dropbear in the initramfs)
     ├── keyring/         # KeePassXC as the SSH agent (both OSes)
     ├── kde/             # Plasma desktop tweaks (Bazzite)
-    ├── graphics/        # nouveau reclocking, PRIME offload (laptop only)
+    ├── graphics/        # phantom VGA (laptop) + AMD undervolt profiles (Bazzite)
     ├── firewall/        # ufw
     ├── storage/         # data-disk crypttab/mount
     ├── wireguard/       # auto-VPN when away from home
@@ -145,13 +147,18 @@ works with any command above:
 prediction is less complete than on an already-provisioned one. With the
 bootstrap one-liner, pick `0) clone/update only`, then dry-run by hand.)
 
-**Single role** — the keyring and appimages roles are tagged; tag more roles in
-`site.yml` as needed:
+**Single role** — the keyring, appimages and graphics roles are tagged; tag more
+roles in `site.yml` as needed:
 
 ```sh
 ./scripts/apply.sh laptop-old --tags keyring
 ./scripts/apply.sh desktop-bazzite --tags appimages -e ansible_become=false
+./scripts/apply.sh desktop-bazzite --tags graphics -K
 ```
+
+Note the difference on Bazzite: most roles there run unprivileged
+(`-e ansible_become=false`), but `graphics` writes `/usr/local/bin` and
+`/etc/systemd/system`, so it needs `-K` and a sudo password instead.
 
 ### Machine-local values (not in git)
 

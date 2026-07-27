@@ -55,6 +55,19 @@ Profiles are data (`/etc/amdgpu-tune/profiles.conf`, generated from
 
 ## The measurements
 
+Produced with [`tools/gpu-tune/`](../../tools/gpu-tune/README.md), which
+documents the full procedure and can reproduce all of it on any amdgpu card. The
+short version:
+
+```
+./od-discover.sh                        # what the driver actually exposes
+./bench.sh baseline-stock 4             # reference + measurement noise
+SUDO_ASKPASS=/usr/bin/ksshaskpass sudo -A ./amdgpu-tuned.sh &
+./sweep.sh 20 -200 2                    # undervolt sweep
+./validate.sh -100 4 300000             # long-form validation
+./capsweep.sh -100 300 280 260 240 221  # the speed/heat exchange rate
+```
+
 Benchmark: FurMark 2 Vulkan (`furmark-vk`), 1920x1080, no vsync, 60 s runs, each
 preceded by a cooldown to 50 °C junction so no run starts on a hotter card than
 the one it is compared against. First run of every set discarded as warm-up.
@@ -62,6 +75,10 @@ the one it is compared against. First run of every set discarded as warm-up.
 Repeatability was established before anything was tuned: **0.11% standard
 deviation, 0.24% range** over three runs. That is what makes a 2% difference
 meaningful and a 0.3% difference noise.
+
+Re-measure before copying any of this to another card: the stable undervolt is a
+property of the individual chip, and the useful cap depends on where that chip's
+frequency curve flattens.
 
 ### Voltage offset
 
@@ -120,6 +137,9 @@ GDDR6 spec, so this is a closed question rather than an open problem. **The stoc
 fan curve is left alone**, and no profile sets fan values.
 
 ## The trap that cost a whole measurement round
+<!-- Kept here as well as in tools/gpu-tune: this one dictates the order of
+     writes in amdgpu-tune, so it belongs next to the code it constrains. -->
+
 
 Writing the reset/commit pair (`r` then `c`) to anything under
 `gpu_od/fan_ctrl/` **silently drops an already-applied voltage offset** — while
