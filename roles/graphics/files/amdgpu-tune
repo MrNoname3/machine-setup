@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# Apply a named AMD GPU tuning profile.
+#
+#   amdgpu-tune <profile>     apply it now
+#   amdgpu-tune --list        show the profiles this machine knows about
+#   amdgpu-tune --status      show what the GPU is actually doing
+#
+# Profiles are data, not code: they come from /etc/amdgpu-tune/profiles.conf,
+# which Ansible writes from amdgpu_profiles in host_vars. Adding one is a
+# host_vars edit, not a change to this script.
+#
+# Needs root (it writes sysfs), and needs amdgpu.ppfeaturemask to have the
+# OverDrive bit set -- without it pp_od_clk_voltage does not exist and only the
+# power cap can be applied. See the role README.
+
+set -uo pipefail
+
+CONF=/etc/amdgpu-tune/profiles.conf
+CAP_FLOOR_W=100          # refuse absurd values even if the config asks for them
+VOFF_FLOOR_MV=-250
+
+die() { echo "amdgpu-tune: $*" >&2; exit 1; }
+
+# Strip a trailing comment and all whitespace from a config field. The generated
+# file keeps notes on their own lines, but a hand-edited profiles.conf should not
+# be able to turn a comment into part of a number.
+trim() { local s=${1%%#*}; s=${s//[[:space:]]/}; printf '%s' "$s"; }
+
+# Resolve the amdgpu card rather than hardcoding an index: cardN and hwmonN both
+# move between boots, and the PCI address differs per machine.
+DEV=""
+for d in /sys/class/drm/card*/device; do
+  [ -r "$d/uevent" ] || continue
+  grep -qx 'DRIVER=amdgpu' "$d/uevent" 2>/dev/null && { DEV=$d; break; }
+done
+[ -n "$DEV" ] || die "no amdgpu device found"
+
+HWMON=""
+for h in "$DEV"/hwmon/hwmon*; do
+  [ -r "$h/name" ] && [ "$(cat "$h/name")" = amdgpu ] && { HWMON=$h; break; }
+done
+[ -n "$HWMON" ] || die "no amdgpu hwmon node under $DEV"
+
+OD="$DEV/pp_od_clk_voltage"
+
+# Measured core voltage under load is the only trustworthy evidence that a
+# voltage offset actually took effect -- see the note in apply_profile().
+measured_mv() { cat "$HWMON/in0_input" 2>/dev/null || echo "?"; }
+
+show_status() {
+  echo "device        : $(basename "$(dirname "$DEV")")  ($(cat "$DEV/uevent" | sed -n 's/^PCI_SLOT_NAME=//p'))"
+  echo "power cap     : $(( $(cat "$HWMON/power1_cap") / 1000000 ))W  (stock $(( $(cat "$HWMON/power1_cap_default") / 1000000 ))W)"
+  if [ -r "$OD" ]; then
+    echo "voltage offset: $(awk '/^OD_VDDGFX_OFFSET:/{getline; print; exit}' "$OD") (as reported)"
+  else
+    echo "voltage offset: unavailable -- OverDrive is not enabled"
+  fi
+  echo "measured vddgfx: $(measured_mv) mV  (meaningful only under load)"
+  echo "perf level    : $(cat "$DEV/power_dpm_force_performance_level" 2>/dev/null)"
+  [ -r /etc/amdgpu-tune/active ] && echo "last applied  : $(cat /etc/amdgpu-tune/active)"
+}
+
+list_profiles() {
+  [ -r "$CONF" ] || die "no profile config at $CONF"
+  printf '%-14s %10s %8s\n' PROFILE OFFSET CAP
+  while IFS=: read -r name voff cap; do
+    name=$(trim "$name"); voff=$(trim "$voff"); cap=$(trim "$cap")
+    case "$name" in ''|\#*) continue ;; esac
+    printf '%-14s %8s mV %6s W\n' "$name" "$voff" "$cap"
+  done < "$CONF"
+}
+
+apply_profile() {
+  local want="$1" name voff cap found=0
+  [ -r "$CONF" ] || die "no profile config at $CONF"
+
+  while IFS=: read -r name voff cap; do
+    name=$(trim "$name"); voff=$(trim "$voff"); cap=$(trim "$cap")
+    case "$name" in ''|\#*) continue ;; esac
+    [ "$name" = "$want" ] && { found=1; break; }
+  done < "$CONF"
+  [ "$found" = 1 ] || die "unknown profile '$want' (try --list)"
+
+  [ "$(id -u)" -eq 0 ] || die "must run as root"
+
+  case "$cap" in ''|*[!0-9]*) die "profile $want: bad cap '$cap'" ;; esac
+  case "$voff" in ''|*[!0-9-]*) die "profile $want: bad offset '$voff'" ;; esac
+  [ "$cap" -ge "$CAP_FLOOR_W" ] || die "profile $want: cap ${cap}W below floor"
+  [ "$voff" -le 0 ] || die "profile $want: positive offset refused"
+  [ "$voff" -ge "$VOFF_FLOOR_MV" ] || die "profile $want: offset ${voff}mV below floor"
+
+  # Order matters. Writing the reset/commit pair to anything under
+  # gpu_od/fan_ctrl silently drops an already-applied voltage offset while
+  # pp_od_clk_voltage keeps REPORTING the old value -- so any fan work has to
+  # happen before the offset, never after. No profile sets fan values today;
+  # this ordering exists so that adding one later cannot quietly break the
+  # undervolt. Same reason the offset is applied last.
+  echo $(( cap * 1000000 )) > "$HWMON/power1_cap" \
+    || die "failed to set power cap"
+
+  if [ "$voff" -ne 0 ]; then
+    [ -w "$OD" ] || die "OverDrive not available -- is amdgpu.ppfeaturemask set? (reboot needed after adding it)"
+    echo "vo $voff" > "$OD" || die "failed to stage voltage offset"
+    echo c        > "$OD" || die "failed to commit voltage offset"
+  elif [ -w "$OD" ]; then
+    echo r > "$OD" && echo c > "$OD"
+  fi
+
+  mkdir -p /etc/amdgpu-tune
+  printf '%s\n' "$want" > /etc/amdgpu-tune/active
+
+  local got_cap got_off
+  got_cap=$(( $(cat "$HWMON/power1_cap") / 1000000 ))
+  got_off=$(awk '/^OD_VDDGFX_OFFSET:/{getline; gsub(/[^0-9-]/,""); print; exit}' "$OD" 2>/dev/null || echo 0)
+  [ "$got_cap" = "$cap" ] || die "cap did not stick: wanted ${cap}W, got ${got_cap}W"
+  [ "${got_off:-0}" = "$voff" ] || die "offset did not stick: wanted ${voff}mV, got ${got_off}mV"
+
+  echo "amdgpu-tune: profile '$want' applied (${voff}mV, ${cap}W)"
+}
+
+case "${1:-}" in
+  ''|-h|--help) echo "usage: amdgpu-tune <profile> | --list | --status"; exit 0 ;;
+  --list)       list_profiles ;;
+  --status)     show_status ;;
+  -*)           die "unknown option $1" ;;
+  *)            apply_profile "$1" ;;
+esac

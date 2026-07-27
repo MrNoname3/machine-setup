@@ -315,6 +315,7 @@
       tags: keyring
     - role: graphics
       when: "'graphics' in (roles_enabled | default([]))"
+      tags: graphics
     - role: kde
       when: "'kde' in (roles_enabled | default([]))"
     - role: firewall

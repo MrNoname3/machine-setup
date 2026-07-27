@@ -1,0 +1,18 @@
+[Unit]
+# Templated on purpose: every profile in profiles.conf is startable as
+# amdgpu-tune@<profile>, so switching is one systemctl call and needs no Ansible
+# run. Ansible enables exactly one of them (amdgpu_active_profile) for boot.
+Description=Apply AMD GPU tuning profile %i
+Documentation=file:/etc/amdgpu-tune/profiles.conf
+After=sysinit.target
+ConditionPathExistsGlob=/sys/class/drm/card*/device/hwmon/hwmon*/power1_cap
+
+[Service]
+Type=oneshot
+# The settings are volatile sysfs values, not a running process; RemainAfterExit
+# keeps the unit showing as active so `systemctl status` reflects reality.
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/amdgpu-tune %i
+
+[Install]
+WantedBy=multi-user.target

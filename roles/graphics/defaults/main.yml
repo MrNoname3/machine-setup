@@ -1,0 +1,28 @@
+---
+# AMD GPU tuning (Bazzite / amdgpu). Empty default = the role does no GPU tuning
+# unless the host defines profiles; see host_vars/desktop-bazzite/main.yml.
+#
+# Each profile is a voltage offset in mV (negative = undervolt, 0 = none) plus a
+# board power cap in watts. Values are host-specific and must be MEASURED, not
+# copied: the safe undervolt depends on the individual chip, and the useful cap
+# depends on where that chip's frequency curve flattens out. The role README
+# documents how the numbers below were arrived at.
+amdgpu_profiles: {}
+
+# Which profile is applied at boot. Switching temporarily needs no Ansible run:
+#   sudo amdgpu-tune performance          # or: systemctl start amdgpu-tune@performance
+# Change this value and re-run the role to make a different profile the default.
+amdgpu_active_profile: ""
+
+# OverDrive is off in the stock driver, so the voltage offset does not exist as
+# a control until this kernel argument is set and the machine has rebooted.
+#
+# 0xfff7ffff is the stock default (0xfff7bfff) plus PP_OVERDRIVE_MASK (0x4000)
+# and nothing else. The 0xffffffff seen in most guides ALSO re-enables
+# PP_GFX_DCS_MASK (0x80000), which AMD disables deliberately -- there is no
+# reason to take that along just to get a voltage offset.
+amdgpu_ppfeaturemask: "0xfff7ffff"
+
+# Set false to leave the kernel argument alone (e.g. to keep a machine stock
+# while still shipping the profiles for later use).
+amdgpu_enable_overdrive: true

@@ -1,0 +1,12 @@
+{{ ansible_managed | comment }}
+# AMD GPU tuning profiles: <name>:<voltage offset mV>:<power cap W>
+#
+# Generated from amdgpu_profiles in host_vars. Edit there, not here.
+# Apply one with:  sudo amdgpu-tune <name>      (or systemctl start amdgpu-tune@<name>)
+{% for name, p in amdgpu_profiles | dictsort %}
+
+{% if p.note is defined %}
+# {{ p.note }}
+{% endif %}
+{{ name }}:{{ p.voffset }}:{{ p.cap }}
+{% endfor %}

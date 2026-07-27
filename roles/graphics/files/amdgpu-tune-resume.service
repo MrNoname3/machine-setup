@@ -1,0 +1,14 @@
+[Unit]
+# Every tuning value lives in sysfs and is therefore volatile. A reboot is fine
+# -- the templated unit re-applies on boot -- but a suspend/resume cycle can
+# come back with the firmware defaults and nothing would notice. This re-applies
+# whichever profile was last applied.
+Description=Re-apply the active AMD GPU tuning profile after resume
+After=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c '[ -r /etc/amdgpu-tune/active ] && exec /usr/local/bin/amdgpu-tune "$(cat /etc/amdgpu-tune/active)"'
+
+[Install]
+WantedBy=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target

@@ -1,14 +1,25 @@
 ---
-# graphics role: NVIDIA GT 520M (Fermi) + Intel HD 3000, Optimus laptop.
+# graphics role: per-GPU fixes and tuning. Two unrelated halves, split by OS
+# family the same way the brave role is:
 #
-# Implemented: kill the phantom VGA display. An unrouted analog VGA connector
-# floats and is wrongly reported "connected", making the desktop extend onto a
-# non-existent 1024x768 monitor. Because the DRM card enumeration order swaps
-# between boots (nouveau <-> i915), the ghost appears on either VGA-1 or VGA-2,
-# so we disable BOTH VGA outputs at the kernel level.
+#   Mint laptop     -- NVIDIA GT 520M (Fermi) + Intel HD 3000 Optimus: kill the
+#                      phantom VGA display.
+#   Bazzite desktop -- Radeon RX 9070 XT (Navi 48 / RDNA4): undervolt and power
+#                      profiles. See README.md for how the numbers were measured.
+#
+# The Bazzite half needs root (it writes /usr/local/bin and /etc/systemd/system),
+# so it cannot run under the `-e ansible_become=false` invocation the other
+# Bazzite roles use:
+#   ./scripts/apply.sh desktop-bazzite --tags graphics -K
+
+# --- Mint laptop: phantom VGA output ---------------------------------------
+# An unrouted analog VGA connector floats and is wrongly reported "connected",
+# making the desktop extend onto a non-existent 1024x768 monitor. Because the
+# DRM card enumeration order swaps between boots (nouveau <-> i915), the ghost
+# appears on either VGA-1 or VGA-2, so we disable BOTH VGA outputs at the kernel
+# level.
 # NOTE: this also disables the laptop's physical VGA port for real monitors;
 # remove the relevant video=...:d if you ever need to drive a VGA display.
-
 - name: Disable phantom VGA outputs via the kernel cmdline (both GPUs)
   ansible.builtin.replace:
     path: /etc/default/grub
@@ -19,6 +30,101 @@
     - "video=VGA-2:d"
   notify: Update grub
   when: ansible_facts['os_family'] == "Debian"
+
+# --- Bazzite desktop: amdgpu tuning ----------------------------------------
+- name: Configure AMD GPU tuning profiles
+  when:
+    - ansible_facts['os_family'] != "Debian"
+    - amdgpu_profiles | length > 0
+  block:
+
+    # Without PP_OVERDRIVE_MASK the pp_od_clk_voltage interface does not exist
+    # and the voltage offset is simply unavailable -- the power cap still works.
+    # rpm-ostree stages this for the next boot; --unchanged-exit-77 is what keeps
+    # a converged run green.
+    - name: Enable the OverDrive bit in amdgpu's feature mask
+      ansible.builtin.command: >-
+        rpm-ostree kargs
+        --append-if-missing=amdgpu.ppfeaturemask={{ amdgpu_ppfeaturemask }}
+        --unchanged-exit-77
+      register: amdgpu_karg
+      changed_when: amdgpu_karg.rc == 0
+      failed_when: amdgpu_karg.rc not in [0, 77]
+      when: amdgpu_enable_overdrive | bool
+
+    - name: Install the profile applier
+      ansible.builtin.copy:
+        src: amdgpu-tune
+        dest: /usr/local/bin/amdgpu-tune
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Ensure the profile config directory exists
+      ansible.builtin.file:
+        path: /etc/amdgpu-tune
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Write the tuning profiles
+      ansible.builtin.template:
+        src: profiles.conf.j2
+        dest: /etc/amdgpu-tune/profiles.conf
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Install the tuning units
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "/etc/systemd/system/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - "amdgpu-tune@.service"
+        - amdgpu-tune-resume.service
+      notify: Reload systemd
+
+    - name: Flush handlers so the units exist before they are enabled
+      ansible.builtin.meta: flush_handlers
+
+    # Volatile sysfs values do not survive a suspend/resume cycle, and nothing
+    # would report that they were lost.
+    - name: Re-apply the active profile after resume
+      ansible.builtin.systemd_service:
+        name: amdgpu-tune-resume.service
+        enabled: true
+
+    # Enabling one profile has to disable the others first, or two of them would
+    # fight over the same sysfs values on the next boot in whatever order systemd
+    # happens to pick.
+    - name: Disable the profiles that are not selected
+      ansible.builtin.systemd_service:
+        name: "amdgpu-tune@{{ item }}.service"
+        enabled: false
+      loop: "{{ amdgpu_profiles.keys() | list }}"
+      when: item != amdgpu_active_profile
+
+    - name: Select the boot-time profile
+      ansible.builtin.systemd_service:
+        name: "amdgpu-tune@{{ amdgpu_active_profile }}.service"
+        enabled: true
+        state: started
+      when: amdgpu_active_profile | length > 0
+
+    - name: Report that the kernel argument needs a reboot
+      ansible.builtin.debug:
+        msg: >-
+          amdgpu.ppfeaturemask was just added to the kernel command line. Until
+          this machine reboots, pp_od_clk_voltage does not exist and only the
+          power cap part of profile '{{ amdgpu_active_profile }}' is in effect.
+      when:
+        - amdgpu_enable_overdrive | bool
+        - amdgpu_karg is defined
+        - amdgpu_karg.changed
 
 # --- Notes ---
 # - nouveau manual reclocking is NOT possible on this GT 520M (GF108/NVC1):

@@ -14,6 +14,7 @@ roles_enabled:
   - synology-drive  # sync gate + home bind mounts (client via flatpaks)
   - steam           # autostart (Steam ships with the Bazzite image)
   - keyring         # KeePassXC as the SSH agent
+  - graphics        # Radeon RX 9070 XT undervolt + power profiles
   - kde             # Plasma tweaks (audited System Settings) + user services
   - vscode          # user settings for the flatpak VS Code (install via flatpaks)
   - containers      # rootless Podman user services (stack ships with the image)
@@ -116,6 +117,52 @@ appimages:
     manager: StaticFileUpdater
     config:
       url: "https://lmstudio.ai/download/latest/linux/x64?format=AppImage"
+
+# Radeon RX 9070 XT (Navi 48 / RDNA4) tuning. Every number here was measured on
+# THIS card -- see roles/graphics/README.md for the method and the raw results.
+# Do not copy these to another machine: the stable undervolt is a property of the
+# individual chip.
+#
+# -100 mV is the knee of this chip's curve, not its limit. It held -160 mV in
+# testing and hung at -180 mV, but the core clock stops rising at about -100
+# (2591 MHz) and gains only 4 MHz more by -140 -- so everything below -100 buys
+# risk without performance.
+#
+# Reference point: stock (0 mV, 317 W) scores 367 fps in the benchmark used.
+amdgpu_profiles:
+  performance:
+    voffset: -100
+    cap: 317
+    note: "402 fps, +9.5% -- same heat and noise as stock, just faster"
+  balanced:
+    voffset: -100
+    cap: 300
+    note: "390 fps, +6.3% -- 17 W and 3 C below stock"
+  efficient:
+    voffset: -100
+    cap: 280
+    note: "371 fps, +1.1% -- stock speed for 37 W less, 5 C cooler, 660 rpm quieter"
+  quiet:
+    voffset: -100
+    cap: 260
+    note: "349 fps, -4.9% -- 80 C junction, 1590 rpm"
+  eco:
+    voffset: -100
+    cap: 240
+    note: "328 fps, -10.6% -- 79 C junction, 1358 rpm"
+  minimal:
+    voffset: -100
+    cap: 221
+    note: "313 fps, -14.7% -- the driver's lowest cap, 78 C, 1208 rpm"
+  stock:
+    voffset: 0
+    cap: 317
+    note: "no tuning at all -- for isolating the GPU when diagnosing something"
+
+# Applied at boot. Switch temporarily without an Ansible run:
+#   sudo amdgpu-tune performance
+# and change this value (plus re-run the role) to move the default.
+amdgpu_active_profile: efficient
 
 # Homebrew CLI tools (leaves — dependencies follow automatically).
 brew_packages:
