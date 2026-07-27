@@ -89,18 +89,28 @@ frequency curve flattens.
 
 ### Voltage offset
 
-| offset | score | vs stock | core clock |
-|-------:|------:|---------:|-----------:|
-|   0 mV | 22080 |        — |  2338 MHz |
-| −20 mV | 22595 |   +2.33% |  2410 MHz |
-| −60 mV | 23524 |   +6.54% |  2509 MHz |
-| −100 mV | 24208 |  **+9.64%** | 2591 MHz |
-| −140 mV | 24281 |   +9.97% |  2602 MHz |
-| −160 mV | 24274 |   +9.94% |  2602 MHz |
-| −180 mV |     — | **GPU hang** | — |
+| offset | score | vs stock | core clock | measured vddgfx |
+|-------:|------:|---------:|-----------:|----------------:|
+|   0 mV | 22080 |        — |  2338 MHz | 801 mV |
+| −20 mV | 22595 |   +2.33% |  2410 MHz | 797 mV |
+| −60 mV | 23524 |   +6.54% |  2509 MHz | 780 mV |
+| −100 mV | 24208 |  **+9.64%** | 2591 MHz | **767 mV** |
+| −140 mV | 24281 |   +9.97% |  2602 MHz | 766 mV |
+| −160 mV | 24274 |   +9.94% |  2602 MHz | 766 mV |
+| −180 mV |     — | **GPU hang** | — | — |
 
 `-180 mV` produced `ring gfx_0.0.0 timeout` followed by a successful GPU reset —
 the machine recovered on its own.
+
+**The measured voltage does not drop by the offset.** −160 mV of offset moves the
+actual voltage by 35 mV. The offset shifts the *V/f curve*, not the operating
+point: the card is power-bound, so it spends the freed budget on clocks, and the
+higher clock claims most of the voltage back. Note that the power column of every
+one of these runs sits at the 317 W cap. At −100 mV the card runs 2591 MHz at
+767 mV — a point that would need ~867 mV on the stock curve, and a clock it could
+therefore never reach within 317 W. What lowers voltage is the cap, not the
+offset: at −100 mV throughout, 767 mV at a 317 W cap, 750 mV at 280 W, 728 mV at
+221 W. `efficient`'s 750 mV comes from its cap, not from its undervolt.
 
 **Why −100 mV and not −160.** The clock stops responding at about −100: steps
 before it gain 40–52 MHz each, the two after gain 7 MHz and 4 MHz. The card is no
