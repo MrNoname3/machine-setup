@@ -39,8 +39,11 @@ ships it. The role sets this with `rpm-ostree kargs --append-if-missing`.
 
 ## Choosing a profile
 
+Seven profiles ship on this machine; what each one is worth is in the power-cap
+table under [The measurements](#power-cap-all-at-100-mv).
+
 ```
-amdgpu-tune --list           # what this machine knows about
+amdgpu-tune --list           # profiles and their settings
 amdgpu-tune --status         # what the GPU is actually doing right now
 sudo amdgpu-tune performance # switch immediately
 ```
@@ -48,7 +51,11 @@ sudo amdgpu-tune performance # switch immediately
 `systemctl start amdgpu-tune@performance` does the same thing. Either way the
 change lasts until reboot, when the profile Ansible enabled comes back. To move
 the default permanently, change `amdgpu_active_profile` in host_vars and re-run
-the role.
+the role:
+
+```
+./scripts/apply.sh desktop-bazzite --tags graphics -K
+```
 
 Profiles are data (`/etc/amdgpu-tune/profiles.conf`, generated from
 `amdgpu_profiles`), so adding one is a host_vars edit, not a code change.
@@ -108,14 +115,20 @@ artifacts, 0.03% score spread, 367.0 → 401.7 fps.
 
 ### Power cap (all at −100 mV)
 
-| cap | fps | vs stock | junction | VRAM | fan |
-|----:|----:|---------:|---------:|-----:|----:|
-| 317 W | 401.7 | +9.5% | 87 °C | 90 °C | 2530 rpm |
-| 300 W | 390.0 | +6.3% | 84 °C | 90 °C | 2175 rpm |
-| **280 W** | 371.0 | **+1.1%** | 82 °C | 88 °C | 1870 rpm |
-| 260 W | 349.0 | −4.9% | 80 °C | 88 °C | 1590 rpm |
-| 240 W | 328.0 | −10.6% | 79 °C | 88 °C | 1358 rpm |
-| 221 W | 313.0 | −14.7% | 78 °C | 86 °C | 1208 rpm |
+This is also the profile list — each row is a shipped profile, all at −100 mV:
+
+| profile | cap | fps | vs stock | junction | VRAM | fan |
+|---------|----:|----:|---------:|---------:|-----:|----:|
+| `performance` | 317 W | 401.7 | +9.5% | 87 °C | 90 °C | 2530 rpm |
+| `balanced` | 300 W | 390.0 | +6.3% | 84 °C | 90 °C | 2175 rpm |
+| **`efficient`** | **280 W** | 371.0 | **+1.1%** | 82 °C | 88 °C | 1870 rpm |
+| `quiet` | 260 W | 349.0 | −4.9% | 80 °C | 88 °C | 1590 rpm |
+| `eco` | 240 W | 328.0 | −10.6% | 79 °C | 88 °C | 1358 rpm |
+| `minimal` | 221 W | 313.0 | −14.7% | 78 °C | 86 °C | 1208 rpm |
+
+`efficient` is the default. There is a seventh, `stock` (0 mV, 317 W), which is
+not a tuning setting but an off switch — useful for ruling the GPU out when
+diagnosing something unrelated.
 
 280 W is the break-even point: stock performance for 37 W less, 5 °C cooler and
 660 rpm quieter. Efficiency improves monotonically downwards (1.27 → 1.41 fps/W),
