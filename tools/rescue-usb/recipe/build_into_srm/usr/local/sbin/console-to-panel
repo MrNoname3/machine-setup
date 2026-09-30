@@ -1,0 +1,34 @@
+#!/usr/bin/python3
+# Puts the text consoles on the framebuffer of the GPU that drives the built-in
+# panel. fbcon takes the first framebuffer registered, which on a laptop with
+# two GPUs can belong to the one with no panel attached, leaving the screen dark.
+import fcntl
+import glob
+import os
+import re
+import struct
+
+FBIOPUT_CON2FBMAP = 0x4610
+
+
+def read(path):
+    try:
+        with open(path) as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+for conn in glob.glob("/sys/class/drm/card*-*"):
+    m = re.fullmatch(r"(card\d+)-(LVDS|eDP)-\d+", os.path.basename(conn))
+    if not m or read(conn + "/status") != "connected":
+        continue
+    # Absent until that GPU's driver has set up its framebuffer; the udev rule
+    # runs this again when it appears.
+    for fb in glob.glob(f"/sys/class/drm/{m[1]}/device/graphics/fb*"):
+        fd = os.open("/dev/" + os.path.basename(fb), os.O_RDWR)
+        for console in range(1, 13):
+            fcntl.ioctl(fd, FBIOPUT_CON2FBMAP,
+                        struct.pack("II", console, int(os.path.basename(fb)[2:])))
+        os.close(fd)
+        raise SystemExit

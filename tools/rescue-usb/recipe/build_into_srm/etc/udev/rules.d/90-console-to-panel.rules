@@ -1,0 +1,2 @@
+# Each GPU registers its framebuffer on its own schedule; re-check on every one.
+ACTION=="add", SUBSYSTEM=="graphics", KERNEL=="fb[0-9]*", RUN+="/usr/local/sbin/console-to-panel"

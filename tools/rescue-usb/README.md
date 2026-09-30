@@ -16,7 +16,7 @@ image, so one stick covers normal PCs and tablets with 32-bit UEFI firmware.
 | **Host key** | fixed, created on the first build and reused, so the client can verify it is talking to this stick and not to whatever else answers on that address |
 | **Firewall** | SystemRescue's default rule set, plus SSH from private address ranges (RFC 1918) |
 | **32-bit UEFI** | an IA32 GRUB loader, so a 64-bit CPU behind 32-bit firmware (Bay Trail tablets such as the Lenovo Miix 2) can boot the 64-bit kernel |
-| **Console** | Hungarian keyboard, Budapest time zone |
+| **Console** | keyboard layout and time zone from [500-remote.yaml](recipe/iso_add/sysrescue.d/500-remote.yaml), and on laptops with two GPUs it goes to the one driving the built-in panel (otherwise it can land on the other GPU and the screen stays dark) |
 
 Everything else is stock SystemRescue. All the changes live in [recipe/](recipe/),
 which `sysrescue-customize` applies to the downloaded ISO.
