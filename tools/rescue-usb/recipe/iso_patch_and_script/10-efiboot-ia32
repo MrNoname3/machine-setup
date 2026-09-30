@@ -1,0 +1,5 @@
+#!/bin/sh
+# Firmware booting the ISO written to a stick as-is reads the loaders from the
+# El Torito EFI image, not from the ISO file system.
+set -e
+mcopy -o -i EFI/archiso/efiboot.img EFI/boot/bootia32.efi ::/efi/boot/bootia32.efi

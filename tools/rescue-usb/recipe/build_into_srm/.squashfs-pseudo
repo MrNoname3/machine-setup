@@ -1,0 +1,2 @@
+/etc/ssh/ssh_host_ed25519_key m 600 root root
+/etc/ssh/ssh_host_ed25519_key.pub m 644 root root
