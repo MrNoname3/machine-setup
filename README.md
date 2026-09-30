@@ -24,6 +24,7 @@ only *procedures and templates*. If a secret must live here, encrypt it with
 ```
 machine-setup/
 ├── README.md                    # this file — runbook + usage
+├── AGENTS.md                    # instructions for coding agents (CLAUDE.md imports it)
 ├── bootstrap.sh                 # curl-able bootstrap (see Workflow step 2)
 ├── machine-setup.code-workspace # portable VS Code workspace
 ├── ansible.cfg                  # local-run defaults
@@ -38,6 +39,7 @@ machine-setup/
 │   ├── gpu-tune/                # measure an AMD GPU undervolt (see its README)
 │   ├── mem-tune/                # measure memory latency, bandwidth, capacity
 │   └── rescue-usb/              # SystemRescue stick that is driven over SSH
+├── work/                        # working files; in the repo, out of git (see AGENTS.md)
 ├── site.yml                     # maps each host to its enabled roles
 ├── group_vars/
 │   └── all.yml                  # shared variables (package lists, ssh_keys_dir, ...)

@@ -23,6 +23,10 @@
 		},
 		// Point the Ansible extension at this repo's config (relative, portable).
 		"ansible.ansible.useFullyQualifiedCollectionNames": true,
+		// work/ stays visible in the explorer; its downloads and images are kept
+		// out of search and file watching.
+		"search.exclude": { "work/**": true },
+		"files.watcherExclude": { "**/work/**": true },
 		"files.trimTrailingWhitespace": true,
 		"files.insertFinalNewline": true
 	},

@@ -20,3 +20,8 @@ host_vars/*/local.yml
 
 # Private secret-scan patterns for scripts/check.sh (own domains/MACs/etc.) — never commit.
 .secret-patterns.local
+
+# Working files: an agent's own temp directory is not on the host's filesystem,
+# so anything the user has to see or delete lands here instead.
+work/*
+!work/.gitkeep

@@ -12,6 +12,7 @@ exclude_paths:
   - .github/          # CI workflow YAML is not Ansible content
   - .venv/            # local toolchain (gitignored)
   - .ansible/         # locally installed collections (gitignored)
+  - work/             # scratch files, not repo content (gitignored)
 
 skip_list:
   # Role directories are deliberately hyphenated (luks-unlock, ssh-access,
