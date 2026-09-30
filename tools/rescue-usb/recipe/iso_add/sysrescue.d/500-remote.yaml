@@ -1,0 +1,8 @@
+---
+global:
+    setkmap: "hu"
+
+sysconfig:
+    timezone: "Europe/Budapest"
+    # build.sh appends one entry per public key it is given, so this stays last.
+    authorized_keys:

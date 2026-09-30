@@ -36,7 +36,8 @@ machine-setup/
 │   └── ensure-venv.sh           # bootstraps .venv/ + .ansible/ (gitignored)
 ├── tools/                       # standalone tooling — not part of the playbook
 │   ├── gpu-tune/                # measure an AMD GPU undervolt (see its README)
-│   └── mem-tune/                # measure memory latency, bandwidth, capacity
+│   ├── mem-tune/                # measure memory latency, bandwidth, capacity
+│   └── rescue-usb/              # SystemRescue stick that is driven over SSH
 ├── site.yml                     # maps each host to its enabled roles
 ├── group_vars/
 │   └── all.yml                  # shared variables (package lists, ssh_keys_dir, ...)
