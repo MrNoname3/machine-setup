@@ -19,6 +19,9 @@ only *procedures and templates*. If a secret must live here, encrypt it with
   SSD + HDD, Optimus. Runs Linux Mint (Cinnamon).
 - **desktop-bazzite** — main desktop, Bazzite (immutable, rpm-ostree). Uses a different
   package model than apt; the `base` role's apt tasks are guarded and will not run here.
+- **tablet-miix** — Lenovo Miix 2 8 (Atom Z3740, 2 GB RAM), Debian 13 with Phosh,
+  installed from the image [tools/tablet-image](tools/tablet-image/) builds. The image
+  carries the hardware support and the apps; the playbook adds access and /etc tracking.
 
 ## Repository layout
 ```
@@ -38,18 +41,20 @@ machine-setup/
 ├── tools/                       # standalone tooling — not part of the playbook
 │   ├── gpu-tune/                # measure an AMD GPU undervolt (see its README)
 │   ├── mem-tune/                # measure memory latency, bandwidth, capacity
-│   └── rescue-usb/              # SystemRescue stick that is driven over SSH
+│   ├── rescue-usb/              # SystemRescue stick that is driven over SSH
+│   └── tablet-image/            # Debian + Phosh disk image for Bay Trail tablets
 ├── work/                        # working files; in the repo, out of git (see AGENTS.md)
 ├── site.yml                     # maps each host to its enabled roles
 ├── group_vars/
-│   └── all.yml                  # shared variables (package lists, ssh_keys_dir, ...)
+│   └── all.yml                  # shared variables (primary_user, ssh_keys_dir)
 ├── host_vars/
 │   ├── laptop-old/
 │   │   ├── main.yml             # per-host settings (roles_enabled, ...)
 │   │   └── local.yml            # machine identifiers — untracked; prompted+saved by site.yml
-│   └── desktop-bazzite/         # same layout (main.yml + untracked local.yml)
+│   ├── desktop-bazzite/         # same layout (main.yml + untracked local.yml)
+│   └── tablet-miix/             # same layout
 └── roles/
-    ├── base/            # packages (present/absent), sudo, MIME/dconf defaults
+    ├── base/            # packages (present/absent), sudo; Cinnamon defaults where base_cinnamon
     ├── ssh-access/      # hardened SSH server
     ├── brave/           # browser (apt on Mint, rpm-ostree layer on Bazzite)
     ├── flatpaks/        # per-host Flatpak app set
@@ -138,6 +143,14 @@ First run, or whenever a task needs root (e.g. the KeePassXC flatpak install):
 
 ```sh
 ./scripts/apply.sh desktop-bazzite -K
+```
+
+**tablet-miix** — the image already gives the user passwordless sudo, so every
+run, the first included, is:
+
+```sh
+cd ~/Projects/machine-setup && git pull --ff-only
+./scripts/apply.sh tablet-miix
 ```
 
 **Dry run** — show what *would* change (with diffs) without touching anything;
