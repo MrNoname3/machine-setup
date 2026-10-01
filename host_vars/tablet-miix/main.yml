@@ -12,6 +12,7 @@
 roles_enabled:
   - base
   - ssh-access
+  - phosh
   - firewall
   - etckeeper
 
@@ -22,6 +23,7 @@ ssh_authorized_key_file: tablet.pub
 packages_present:
   - git
   - python3-venv                 # repo-local toolchain (scripts/ensure-venv.sh)
+  - python3-psutil               # community.general.dconf (phosh role)
   - htop
   - portfolio-filemanager        # file manager made for phones and tablets
   - loupe                        # image viewer
@@ -31,3 +33,11 @@ packages_present:
 # Inbound: only SSH; the tablet runs no other network service.
 firewall_allowed:
   - { port: "{{ ssh_port }}", proto: tcp, comment: "SSH" }
+
+# Phosh session settings (phosh role).
+phosh_dconf_settings:
+  - { key: /org/gnome/desktop/interface/color-scheme, value: "'prefer-dark'" }
+  - { key: /org/gnome/desktop/interface/show-battery-percentage, value: "true" }
+  - { key: /org/gnome/desktop/wm/preferences/num-workspaces, value: "1" }
+  # The default layout keeps the windows' close button.
+  - { key: /org/gnome/desktop/wm/preferences/button-layout, state: absent }
