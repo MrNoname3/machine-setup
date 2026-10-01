@@ -16,10 +16,14 @@ echo Europe/Budapest >/etc/timezone
 sed -i 's/^XKBLAYOUT=.*/XKBLAYOUT="hu"/' /etc/default/keyboard
 
 # UID 1000 is the account phosh.service logs in. Its password stays locked
-# until one is set over SSH; the screen lock is off until then.
+# until one is set over SSH; the screen lock is off until then, and sudo asks
+# for no password.
 useradd -m -u 1000 -s /bin/bash -G sudo,audio,video,input,netdev,render "$TI_USER"
-chmod 700 /root/.ssh
-chmod 600 /root/.ssh/authorized_keys
+install -d -m 700 -o "$TI_USER" -g "$TI_USER" "/home/$TI_USER/.ssh"
+install -m 600 -o "$TI_USER" -g "$TI_USER" /tmp/authorized_keys "/home/$TI_USER/.ssh/authorized_keys"
+rm /tmp/authorized_keys
+printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$TI_USER" >"/etc/sudoers.d/90-$TI_USER-nopasswd"
+chmod 440 "/etc/sudoers.d/90-$TI_USER-nopasswd"
 
 dconf update
 

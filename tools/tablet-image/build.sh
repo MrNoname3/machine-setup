@@ -8,9 +8,9 @@
 # size of the device on first boot.
 #
 # The image carries no secrets. The user logs in automatically and joins Wi-Fi
-# on the touch screen; after that the given keys reach root over SSH, which is
-# how the unlock PIN gets set. Each machine creates its own SSH host keys on
-# first boot.
+# on the touch screen; after that the given keys log in as that user over SSH,
+# with sudo needing no password, which is how the unlock PIN gets set. Each
+# machine creates its own SSH host keys on first boot.
 #
 # Runs as root inside a throwaway Debian 13 container; nothing needs loop
 # devices or mounts.
@@ -161,8 +161,7 @@ mmdebstrap --mode=root --variant=apt \
   --include="$(IFS=,; echo "${PACKAGES[*]}")" \
   --aptopt='APT::Install-Recommends "false"' \
   --customize-hook="sync-in '$SRC/overlay' /" \
-  --customize-hook='mkdir -p "$1/root/.ssh"' \
-  --customize-hook="upload '$WORK/authorized_keys' /root/.ssh/authorized_keys" \
+  --customize-hook="upload '$WORK/authorized_keys' /tmp/authorized_keys" \
   "${VBT_HOOKS[@]}" "${HOOKS[@]}" \
   --customize-hook="upload '$SRC/customize.sh' /tmp/customize.sh" \
   --customize-hook="chroot \"\$1\" env TI_USER='$TI_USER' TI_HOSTNAME='$TI_HOSTNAME' sh /tmp/customize.sh" \
