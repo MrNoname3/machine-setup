@@ -37,14 +37,32 @@ fi
 
 # firefox-esr-mobile-config sets a desktop user agent with "Mobile;" added,
 # which Google search rejects as an unsupported browser; its own per-site
-# rules still apply on top of Firefox's regular user agent.
+# rules still apply on top of Firefox's regular user agent. The rest trims
+# what Firefox does at start on a slow CPU: fewer content processes, no
+# preloaded tab or spare process, no local AI features.
 if [ -f /etc/firefox/policies/policies.json ]; then
   python3 - <<'EOF'
 import json
 p = "/etc/firefox/policies/policies.json"
 d = json.load(open(p))
-d["policies"].setdefault("Preferences", {})["general.useragent.override"] = \
-    {"Value": "", "Status": "locked"}
+pol = d["policies"]
+prefs = pol.setdefault("Preferences", {})
+prefs["general.useragent.override"] = {"Value": "", "Status": "locked"}
+for k, v in {
+    "dom.ipc.processCount": 2,
+    "dom.ipc.processPrelaunch.enabled": False,
+    "browser.newtab.preload": False,
+    "browser.ml.enable": False,
+    "browser.ml.chat.enabled": False,
+    "browser.ml.linkPreview.enabled": False,
+    "browser.tabs.groups.smart.enabled": False,
+    "extensions.htmlaboutaddons.recommendations.enabled": False,
+}.items():
+    prefs[k] = {"Value": v, "Status": "default"}
+pol.setdefault("FirefoxHome", {}).update(
+    {"SponsoredTopSites": False, "SponsoredPocket": False, "Stories": False, "SponsoredStories": False})
+pol.setdefault("UserMessaging", {}).update(
+    {"SkipOnboarding": True, "MoreFromMozilla": False, "FirefoxLabs": False})
 json.dump(d, open(p, "w"), indent=4)
 EOF
 fi
