@@ -43,7 +43,9 @@ fi
 # which Google search rejects as an unsupported browser; its own per-site
 # rules still apply on top of Firefox's regular user agent. The rest trims
 # what Firefox does at start on a slow CPU: fewer content processes, no
-# preloaded tab or spare process, no local AI features.
+# preloaded tab or spare process, no local AI features. Without VP9 and AV1,
+# which Bay Trail decodes only in software, YouTube sends H.264, which VA-API
+# decodes.
 if [ -f /etc/firefox/policies/policies.json ]; then
   python3 - <<'EOF'
 import json
@@ -61,6 +63,8 @@ for k, v in {
     "browser.ml.linkPreview.enabled": False,
     "browser.tabs.groups.smart.enabled": False,
     "extensions.htmlaboutaddons.recommendations.enabled": False,
+    "media.av1.enabled": False,
+    "media.mediasource.vp9.enabled": False,
 }.items():
     prefs[k] = {"Value": v, "Status": "default"}
 pol.setdefault("FirefoxHome", {}).update(

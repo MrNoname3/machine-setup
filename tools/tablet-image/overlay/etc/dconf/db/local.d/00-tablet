@@ -11,3 +11,7 @@ sources=[('xkb', 'hu')]
 
 [org/gnome/desktop/a11y/applications]
 screen-keyboard-enabled=true
+
+# Celluloid decodes through VA-API where the GPU can, in software elsewhere.
+[io/github/celluloid-player/celluloid]
+mpv-options='--hwdec=auto-safe'
