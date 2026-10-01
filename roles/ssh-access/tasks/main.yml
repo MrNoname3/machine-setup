@@ -33,6 +33,27 @@
   ansible.builtin.command: sshd -t
   changed_when: false
 
+# sshd keeps the first value it reads, so a drop-in sorting before ours can
+# override it; check what sshd will actually use.
+- name: Read the effective sshd settings
+  ansible.builtin.command: sshd -T
+  register: sshd_effective
+  changed_when: false
+
+- name: Require the hardened settings to be the effective ones
+  vars:
+    sshd_lines: "{{ sshd_effective.stdout_lines }}"
+  ansible.builtin.assert:
+    that:
+      - "'port ' ~ ssh_port in sshd_lines"
+      - "'permitrootlogin no' in sshd_lines"
+      - "'passwordauthentication no' in sshd_lines"
+      - "'kbdinteractiveauthentication no' in sshd_lines"
+    fail_msg: >-
+      Another file under /etc/ssh overrides the hardening drop-in; see sshd -T
+      and the files in /etc/ssh/sshd_config.d.
+  when: not ansible_check_mode
+
 - name: Disable ssh socket activation (so the Port directive controls the listener)
   ansible.builtin.systemd_service:
     name: ssh.socket
