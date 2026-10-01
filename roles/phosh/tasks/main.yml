@@ -1,0 +1,20 @@
+---
+# phosh role: the user's settings in a Phosh session, written to dconf.
+# A run over SSH reaches the logged-in session's bus, so running apps pick the
+# change up at once.
+
+- name: Find the session bus of the primary user
+  ansible.builtin.stat:
+    path: "/run/user/{{ ansible_facts['user_uid'] }}/bus"
+  register: phosh_session_bus
+
+- name: Apply the Phosh session's dconf settings
+  become: false
+  environment: "{{ {'DBUS_SESSION_BUS_ADDRESS': 'unix:path=' ~ phosh_session_bus.stat.path} if phosh_session_bus.stat.exists else {} }}"
+  community.general.dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+  loop: "{{ phosh_dconf_settings }}"
+  loop_control:
+    label: "{{ item.key }}"

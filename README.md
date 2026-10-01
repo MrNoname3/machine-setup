@@ -67,6 +67,7 @@ machine-setup/
     ├── luks-unlock/     # remote root unlock at boot (dropbear in the initramfs)
     ├── keyring/         # KeePassXC as the SSH agent (both OSes)
     ├── kde/             # Plasma desktop tweaks (Bazzite)
+    ├── phosh/           # Phosh session settings in dconf (tablet)
     ├── graphics/        # phantom VGA (laptop) + AMD undervolt profiles (Bazzite)
     ├── firewall/        # ufw
     ├── storage/         # data-disk crypttab/mount
