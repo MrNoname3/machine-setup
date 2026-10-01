@@ -1,8 +1,9 @@
 ---
 # Per-host settings for tablet-miix: a Lenovo Miix 2 8 running Debian 13 with
-# Phosh, installed from the image tools/tablet-image builds. The image already
-# carries the hardware fixes, the desktop and the applications; this playbook
-# configures access and keeps track of /etc.
+# Phosh, installed from the image tools/tablet-image builds. The image carries
+# the hardware fixes, the desktop and the core applications; this playbook
+# configures access, keeps track of /etc and adds the applications the system
+# works without.
 #
 # Machine-local values (ssh_port) live in local.yml next to this file —
 # untracked by git (see the pre_tasks in site.yml).
@@ -21,6 +22,11 @@ ssh_authorized_key_file: tablet.pub
 packages_present:
   - git
   - python3-venv                 # repo-local toolchain (scripts/ensure-venv.sh)
+  - htop
+  - portfolio-filemanager        # file manager made for phones and tablets
+  - loupe                        # image viewer
+  - gnome-calculator
+  - gnome-text-editor
 
 # Inbound: only SSH; the tablet runs no other network service.
 firewall_allowed:

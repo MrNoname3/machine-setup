@@ -21,7 +21,8 @@ only *procedures and templates*. If a secret must live here, encrypt it with
   package model than apt; the `base` role's apt tasks are guarded and will not run here.
 - **tablet-miix** — Lenovo Miix 2 8 (Atom Z3740, 2 GB RAM), Debian 13 with Phosh,
   installed from the image [tools/tablet-image](tools/tablet-image/) builds. The image
-  carries the hardware support and the apps; the playbook adds access and /etc tracking.
+  carries the hardware support and the core apps; the playbook adds access, /etc tracking
+  and the further apps.
 
 ## Repository layout
 ```
