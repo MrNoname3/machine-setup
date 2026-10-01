@@ -1,0 +1,55 @@
+#!/usr/bin/python3
+"""miix-isp-pci-mode [linux|windows]
+
+Shows or sets the firmware's hidden "ISP PCI Device Selection". atomisp only
+finds the camera ISP as PCI device 00:03.0 ("linux"); the Windows camera
+driver wants it inside the GPU ("windows", the factory setting). A change
+takes effect on the next boot.
+"""
+import os
+import subprocess
+import sys
+
+VAR = "/sys/firmware/efi/efivars/Setup-a04a27f4-df00-4d42-b552-39511302113d"
+ISP_ENABLE, ISP_SELECT = 0x12A, 0x12B  # offsets in the variable's data
+MODES = {"windows": 1, "linux": 2}
+DMI = "/sys/class/dmi/id/"
+
+
+def die(msg):
+    sys.exit("miix-isp-pci-mode: " + msg)
+
+
+def dmi(name):
+    with open(DMI + name) as f:
+        return f.read().strip()
+
+
+if dmi("product_version") != "Lenovo Miix 2 8" or dmi("bios_version") != "90CN20WW(V1.03)":
+    die("this is not a Lenovo Miix 2 8 with BIOS 90CN20WW, whose layout this knows")
+
+with open(VAR, "rb") as f:
+    raw = bytearray(f.read())
+# efivarfs prepends the 4-byte attributes; the data is the BIOS's 700-byte Setup.
+if len(raw) != 4 + 700 or raw[4 + ISP_ENABLE] != 1 or raw[4 + ISP_SELECT] not in MODES.values():
+    die("the Setup variable does not look as expected; not touching it")
+
+current = {v: k for k, v in MODES.items()}[raw[4 + ISP_SELECT]]
+if len(sys.argv) == 1:
+    print(current)
+    sys.exit(0)
+if len(sys.argv) != 2 or sys.argv[1] not in MODES:
+    die("usage: miix-isp-pci-mode [linux|windows]")
+if sys.argv[1] == current:
+    print(current)
+    sys.exit(0)
+
+raw[4 + ISP_SELECT] = MODES[sys.argv[1]]
+subprocess.run(["chattr", "-i", VAR], check=True)
+fd = os.open(VAR, os.O_WRONLY)
+os.write(fd, bytes(raw))  # efivarfs takes attributes and data in one write
+os.close(fd)
+with open(VAR, "rb") as f:
+    if f.read() != bytes(raw):
+        die("the firmware did not keep the new value")
+print(sys.argv[1], "(from the next boot)")

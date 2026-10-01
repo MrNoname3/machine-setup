@@ -1,0 +1,13 @@
+# The user's password is locked until one is set over SSH, so neither idle
+# locking nor the lock screen phosh starts with may ask for it until then.
+[org/gnome/desktop/screensaver]
+lock-enabled=false
+
+[sm/puri/phosh/lockscreen]
+require-unlock=false
+
+[org/gnome/desktop/input-sources]
+sources=[('xkb', 'hu')]
+
+[org/gnome/desktop/a11y/applications]
+screen-keyboard-enabled=true

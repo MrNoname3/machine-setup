@@ -1,0 +1,4 @@
+# x-systemd.growfs grows the file system after systemd-repart has grown the
+# partition to the size of the device.
+UUID=@ROOT_UUID@  /          ext4  defaults,noatime,commit=60,x-systemd.growfs  0 1
+UUID=@ESP_UUID@   /boot/efi  vfat  umask=0077,noauto,x-systemd.automount        0 2

@@ -1,0 +1,12 @@
+set timeout=2
+search --no-floppy --fs-uuid --set=root @ROOT_UUID@
+
+menuentry 'Debian' {
+    linux /vmlinuz root=UUID=@ROOT_UUID@ ro quiet @CMDLINE@
+    initrd /initrd.img
+}
+
+menuentry 'Debian (previous kernel)' {
+    linux /vmlinuz.old root=UUID=@ROOT_UUID@ ro quiet @CMDLINE@
+    initrd /initrd.img.old
+}

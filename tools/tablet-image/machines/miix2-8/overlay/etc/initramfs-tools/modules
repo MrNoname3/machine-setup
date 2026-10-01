@@ -1,0 +1,3 @@
+# The PMIC's GPIOs switch the touchscreen's power; ACPI only runs the
+# touchscreen's power-up sequence in full once this driver is bound.
+gpio_crystalcove

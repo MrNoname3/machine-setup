@@ -1,0 +1,258 @@
+From ec7d9bb136a31b9fbd0caee63569d6832a25b2f9 Mon Sep 17 00:00:00 2001
+From: tablet-image <tablet-image@localhost>
+Date: Thu, 1 Oct 2026 14:12:44 +0200
+Subject: [PATCH 1/2] media: atomisp: backport streaming error-path fixes to
+ 6.12
+
+Upstream 751d13a0cffb, 41dd1f2fac32, 2194e6066ae0 and 0193cce58b19.
+Without them a failed STREAMON leaves buffers queued in the driver and the
+next one corrupts the vb2 list.
+---
+ .../media/atomisp/pci/atomisp_compat_css20.c  |   2 +-
+ .../staging/media/atomisp/pci/atomisp_fops.c  |   5 +-
+ .../staging/media/atomisp/pci/atomisp_ioctl.c | 135 +++++++++---------
+ .../media/atomisp/pci/atomisp_subdev.h        |   3 -
+ 4 files changed, 67 insertions(+), 78 deletions(-)
+
+diff --git a/drivers/staging/media/atomisp/pci/atomisp_compat_css20.c b/drivers/staging/media/atomisp/pci/atomisp_compat_css20.c
+index a62a5c0b3..bf0e43a1c 100644
+--- a/drivers/staging/media/atomisp/pci/atomisp_compat_css20.c
++++ b/drivers/staging/media/atomisp/pci/atomisp_compat_css20.c
+@@ -398,7 +398,7 @@ static int __destroy_stream(struct atomisp_sub_device *asd,
+ 	}
+ 
+ 	if (stream_env->stream_state == CSS_STREAM_STARTED) {
+-		timeout = jiffies + msecs_to_jiffies(40);
++		timeout = jiffies + msecs_to_jiffies(200);
+ 		while (1) {
+ 			if (ia_css_stream_has_stopped(stream_env->stream))
+ 				break;
+diff --git a/drivers/staging/media/atomisp/pci/atomisp_fops.c b/drivers/staging/media/atomisp/pci/atomisp_fops.c
+index b180fcbea..d86a84bbf 100644
+--- a/drivers/staging/media/atomisp/pci/atomisp_fops.c
++++ b/drivers/staging/media/atomisp/pci/atomisp_fops.c
+@@ -245,9 +245,6 @@ static int atomisp_q_video_buffers_to_css(struct atomisp_sub_device *asd,
+ 	if (WARN_ON(css_pipe_id >= IA_CSS_PIPE_ID_NUM))
+ 		return -EINVAL;
+ 
+-	if (pipe->stopping)
+-		return -EINVAL;
+-
+ 	space = ATOMISP_CSS_Q_DEPTH - atomisp_buffers_in_css(pipe);
+ 	while (space--) {
+ 		struct ia_css_frame *frame;
+@@ -378,7 +375,7 @@ static void atomisp_buf_queue(struct vb2_buffer *vb)
+ 	mutex_lock(&asd->isp->mutex);
+ 
+ 	ret = atomisp_pipe_check(pipe, false);
+-	if (ret || pipe->stopping) {
++	if (ret) {
+ 		spin_lock_irqsave(&pipe->irq_lock, irqflags);
+ 		atomisp_buffer_done(frame, VB2_BUF_STATE_ERROR);
+ 		spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
+diff --git a/drivers/staging/media/atomisp/pci/atomisp_ioctl.c b/drivers/staging/media/atomisp/pci/atomisp_ioctl.c
+index 0de2ae7f9..ccf157b31 100644
+--- a/drivers/staging/media/atomisp/pci/atomisp_ioctl.c
++++ b/drivers/staging/media/atomisp/pci/atomisp_ioctl.c
+@@ -867,6 +867,62 @@ static void atomisp_dma_burst_len_cfg(struct atomisp_sub_device *asd)
+ 		atomisp_css2_hw_store_32(DMA_BURST_SIZE_REG, 0x00);
+ }
+ 
++static void atomisp_stop_stream(struct atomisp_video_pipe *pipe,
++				bool stop_sensor, enum vb2_buffer_state state)
++{
++	struct atomisp_sub_device *asd = pipe->asd;
++	struct atomisp_device *isp = asd->isp;
++	struct pci_dev *pdev = to_pci_dev(isp->dev);
++	unsigned long flags;
++	int ret;
++
++	spin_lock_irqsave(&isp->lock, flags);
++	asd->streaming = false;
++	spin_unlock_irqrestore(&isp->lock, flags);
++
++	atomisp_clear_css_buffer_counters(asd);
++	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
++
++	atomisp_css_stop(asd, false);
++
++	atomisp_subdev_cleanup_pending_events(asd);
++
++	if (stop_sensor) {
++		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
++				       video, s_stream, 0);
++		if (ret)
++			dev_warn(isp->dev, "Stopping sensor stream failed: %d\n", ret);
++	}
++
++	/* Disable the CSI interface on ANN B0/K0 */
++	if (isp->media_dev.hw_revision >= ((ATOMISP_HW_REVISION_ISP2401 <<
++					    ATOMISP_HW_REVISION_SHIFT) | ATOMISP_HW_STEPPING_B0)) {
++		pci_write_config_word(pdev, MRFLD_PCI_CSI_CONTROL,
++				      isp->saved_regs.csi_control & ~MRFLD_PCI_CSI_CONTROL_CSI_READY);
++	}
++
++	if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_LOW, false))
++		dev_warn(isp->dev, "DFS failed.\n");
++
++	/*
++	 * ISP work around, need to reset ISP to allow next stream on to work.
++	 * Streams have already been destroyed by atomisp_css_stop().
++	 * Disable PUNIT/ISP acknowlede/handshake - SRSE=3 and then reset.
++	 */
++	pci_write_config_dword(pdev, PCI_I_CONTROL,
++			       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
++	atomisp_reset(isp);
++
++	atomisp_flush_video_pipe(pipe, state, false);
++
++	/* Streams were destroyed by atomisp_css_stop(), recreate them. */
++	ret = atomisp_create_pipes_stream(&isp->asd);
++	if (ret)
++		dev_warn(isp->dev, "Recreating streams failed: %d\n", ret);
++
++	media_pipeline_stop(&asd->video_out.vdev.entity.pads[0]);
++}
++
+ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
+ {
+ 	struct atomisp_video_pipe *pipe = vq_to_pipe(vq);
+@@ -881,8 +937,10 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
+ 	mutex_lock(&isp->mutex);
+ 
+ 	ret = atomisp_pipe_check(pipe, false);
+-	if (ret)
++	if (ret) {
++		atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_QUEUED, true);
+ 		goto out_unlock;
++	}
+ 
+ 	/*
+ 	 * When running a classic v4l2 app after a media-controller aware
+@@ -895,6 +953,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
+ 	mutex_unlock(&isp->media_dev.graph_mutex);
+ 	if (ret) {
+ 		dev_err(isp->dev, "Error starting mc pipeline: %d\n", ret);
++		atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_QUEUED, true);
+ 		goto out_unlock;
+ 	}
+ 
+@@ -918,6 +977,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
+ 	ret = atomisp_css_start(asd);
+ 	if (ret) {
+ 		atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_QUEUED, true);
++		media_pipeline_stop(&asd->video_out.vdev.entity.pads[0]);
+ 		goto out_unlock;
+ 	}
+ 
+@@ -957,11 +1017,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
+ 			       video, s_stream, 1);
+ 	if (ret) {
+ 		dev_err(isp->dev, "Starting sensor stream failed: %d\n", ret);
+-		spin_lock_irqsave(&isp->lock, irqflags);
+-		asd->streaming = false;
+-		spin_unlock_irqrestore(&isp->lock, irqflags);
+-		ret = -EINVAL;
+-		goto out_unlock;
++		atomisp_stop_stream(pipe, false, VB2_BUF_STATE_QUEUED);
+ 	}
+ 
+ out_unlock:
+@@ -972,77 +1028,16 @@ out_unlock:
+ void atomisp_stop_streaming(struct vb2_queue *vq)
+ {
+ 	struct atomisp_video_pipe *pipe = vq_to_pipe(vq);
+-	struct atomisp_sub_device *asd = pipe->asd;
+-	struct atomisp_device *isp = asd->isp;
+-	struct pci_dev *pdev = to_pci_dev(isp->dev);
+-	unsigned long flags;
+-	int ret;
++	struct atomisp_device *isp = pipe->asd->isp;
+ 
+ 	dev_dbg(isp->dev, "Stop stream\n");
+ 
+ 	mutex_lock(&isp->mutex);
+-	/*
+-	 * There is no guarantee that the buffers queued to / owned by the ISP
+-	 * will properly be returned to the queue when stopping. Set a flag to
+-	 * avoid new buffers getting queued and then wait for all the current
+-	 * buffers to finish.
+-	 */
+-	pipe->stopping = true;
+-	mutex_unlock(&isp->mutex);
+-	/* wait max 1 second */
+-	ret = wait_event_timeout(pipe->vb_queue.done_wq,
+-				 atomisp_buffers_in_css(pipe) == 0, HZ);
+-	mutex_lock(&isp->mutex);
+-	pipe->stopping = false;
+-	if (ret == 0)
+-		dev_warn(isp->dev, "Warning timeout waiting for CSS to return buffers\n");
+-
+-	spin_lock_irqsave(&isp->lock, flags);
+-	asd->streaming = false;
+-	spin_unlock_irqrestore(&isp->lock, flags);
+-
+-	atomisp_clear_css_buffer_counters(asd);
+-	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
+-
+-	atomisp_css_stop(asd, false);
+-
+-	atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_ERROR, true);
+-
+-	atomisp_subdev_cleanup_pending_events(asd);
+-
+-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
+-			       video, s_stream, 0);
+-	if (ret)
+-		dev_warn(isp->dev, "Stopping sensor stream failed: %d\n", ret);
+-
+-	/* Disable the CSI interface on ANN B0/K0 */
+-	if (isp->media_dev.hw_revision >= ((ATOMISP_HW_REVISION_ISP2401 <<
+-					    ATOMISP_HW_REVISION_SHIFT) | ATOMISP_HW_STEPPING_B0)) {
+-		pci_write_config_word(pdev, MRFLD_PCI_CSI_CONTROL,
+-				      isp->saved_regs.csi_control & ~MRFLD_PCI_CSI_CONTROL_CSI_READY);
+-	}
+-
+-	if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_LOW, false))
+-		dev_warn(isp->dev, "DFS failed.\n");
+-
+-	/*
+-	 * ISP work around, need to reset ISP to allow next stream on to work.
+-	 * Streams have already been destroyed by atomisp_css_stop().
+-	 * Disable PUNIT/ISP acknowlede/handshake - SRSE=3 and then reset.
+-	 */
+-	pci_write_config_dword(pdev, PCI_I_CONTROL,
+-			       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
+-	atomisp_reset(isp);
+-
+-	/* Streams were destroyed by atomisp_css_stop(), recreate them. */
+-	ret = atomisp_create_pipes_stream(&isp->asd);
+-	if (ret)
+-		dev_warn(isp->dev, "Recreating streams failed: %d\n", ret);
+-
+-	media_pipeline_stop(&asd->video_out.vdev.entity.pads[0]);
++	atomisp_stop_stream(pipe, true, VB2_BUF_STATE_ERROR);
+ 	mutex_unlock(&isp->mutex);
+ }
+ 
++
+ /*
+  * To get the current value of a control.
+  * applications initialize the id field of a struct v4l2_control and
+diff --git a/drivers/staging/media/atomisp/pci/atomisp_subdev.h b/drivers/staging/media/atomisp/pci/atomisp_subdev.h
+index b6c66a5d5..195d152e5 100644
+--- a/drivers/staging/media/atomisp/pci/atomisp_subdev.h
++++ b/drivers/staging/media/atomisp/pci/atomisp_subdev.h
+@@ -68,9 +68,6 @@ struct atomisp_video_pipe {
+ 	/* Filled through atomisp_get_css_frame_info() on queue setup */
+ 	struct ia_css_frame_info frame_info;
+ 
+-	/* Set from streamoff to disallow queuing further buffers in CSS */
+-	bool stopping;
+-
+ 	/*
+ 	 * irq_lock is used to protect video buffer state change operations and
+ 	 * also to make activeq and capq operations atomic.
+-- 
+2.55.0
+
