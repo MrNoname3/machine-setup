@@ -41,3 +41,15 @@ phosh_dconf_settings:
   - { key: /org/gnome/desktop/wm/preferences/num-workspaces, value: "1" }
   # The default layout keeps the windows' close button.
   - { key: /org/gnome/desktop/wm/preferences/button-layout, state: absent }
+  # Every installed app in the app grid, not only the adaptive ones.
+  - { key: /sm/puri/phosh/app-filter-mode, value: "@as []" }
+  # The default favorites are phone apps the tablet does not have.
+  - { key: /sm/puri/phosh/favorites, value: "@as []" }
+  # Debian's wallpaper as image files: phosh cannot load the slideshow XML the
+  # theme points to, and leaves the lock screen black.
+  - key: /org/gnome/desktop/background/picture-uri
+    value: "'file:///usr/share/desktop-base/ceratopsian-theme/wallpaper/contents/images/1280x800.svg'"
+  - key: /org/gnome/desktop/background/picture-uri-dark
+    value: "'file:///usr/share/desktop-base/ceratopsian-theme/wallpaper/contents/images/1280x800.svg'"
+  - key: /org/gnome/desktop/screensaver/picture-uri
+    value: "'file:///usr/share/desktop-base/ceratopsian-theme/lockscreen/contents/images/1280x800.svg'"
