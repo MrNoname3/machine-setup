@@ -1,4 +1,11 @@
 ---
+# Packages to install and to remove (apt); set per host.
+packages_present: []
+packages_absent: []
+
+# Apply the Linux Mint / Cinnamon desktop defaults (tasks/cinnamon.yml).
+base_cinnamon: false
+
 # Default video player (XDG MIME associations in the user's mimeapps.list).
 default_video_player: vlc.desktop
 video_mimetypes:
