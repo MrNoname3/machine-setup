@@ -13,7 +13,7 @@
 - name: Authorize the SSH public key for the primary user
   ansible.posix.authorized_key:
     user: "{{ primary_user }}"
-    key: "{{ lookup('file', 'laptop.pub') }}"
+    key: "{{ lookup('file', ssh_authorized_key_file) }}"
     state: present
 
 - name: Apply SSH hardening + custom port (drop-in)
