@@ -49,3 +49,23 @@
     label: "{{ item.dest }}"
   notify: Update the dconf database
   when: phosh_dconf_locked | length > 0
+
+- name: Ensure the user's autostart directory exists
+  become: false
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.config/autostart"
+    state: directory
+    mode: "0755"
+  when: phosh_autostart_hidden | length > 0
+
+- name: Skip autostart entries in the user's session
+  become: false
+  ansible.builtin.copy:
+    dest: "/home/{{ primary_user }}/.config/autostart/{{ item }}.desktop"
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name={{ item }}
+      Hidden=true
+    mode: "0644"
+  loop: "{{ phosh_autostart_hidden }}"

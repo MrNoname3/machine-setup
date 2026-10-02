@@ -7,3 +7,7 @@ phosh_dconf_settings: []
 # session itself rewrites (phosh sets the window buttons at every start).
 # Each item has a key and a GVariant value.
 phosh_dconf_locked: []
+
+# Session autostart entries (names under /etc/xdg/autostart, without
+# .desktop) the user's session skips.
+phosh_autostart_hidden: []
