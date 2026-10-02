@@ -9,6 +9,9 @@
 #   iwd                 iwd selects PSK-SHA256 on WPA2/WPA3 transition networks
 #                       even on hardware that cannot do management frame
 #                       protection, and such hardware never associates.
+#   intel-vaapi-driver  exporting a surface before anything rendered to it
+#                       fails, so Chromium's VA-API decoder falls back to
+#                       software.
 #
 # Runs as root inside a throwaway Debian 13 container with deb-src enabled.
 #

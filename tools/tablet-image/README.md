@@ -28,6 +28,7 @@ acpica-tools git`, and `deb-src` entries for `build-deb.sh`.
 
 ```
 bash tools/tablet-image/build-deb.sh iwd iwd                  # once: patched iwd
+bash tools/tablet-image/build-deb.sh intel-vaapi-driver i965-va-driver  # and VA-API driver
 TI_MACHINE=miix2-8 bash tools/tablet-image/build-atomisp.sh   # once: camera driver
 TI_USER=miix TI_HOSTNAME=tablet TI_MACHINE=miix2-8 TI_FIRMWARE=<dir> \
   bash tools/tablet-image/build.sh ~/path/to/key.pub
@@ -43,6 +44,10 @@ identifying the target by size and model.
   - [iwd](patches/iwd-psk-sha256-needs-mfp.patch): without it iwd picks
     PSK-SHA256 on WPA2/WPA3 networks even when the Wi-Fi chip cannot do
     management frame protection, and the chip never associates.
+  - [intel-vaapi-driver](patches/intel-vaapi-driver-export-unrendered-surface.patch):
+    the i965 driver could not export a surface before anything was decoded
+    into it, so Chromium-based browsers fell back to decoding video in
+    software.
 - **`build-atomisp.sh`** prepares the atomisp camera driver, which Debian does
   not ship, as a DKMS source: the staging driver of the kernel release the
   profile names, with the profile's `atomisp/*.patch` applied.
