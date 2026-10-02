@@ -1,0 +1,10 @@
+[Unit]
+Description=Probe the rear camera sensor again when it did not answer at boot
+After=systemd-udevd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/miix-rear-camera-probe
+
+[Install]
+WantedBy=multi-user.target
