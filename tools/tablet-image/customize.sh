@@ -76,7 +76,7 @@ EOF
 fi
 
 systemctl enable phosh.service NetworkManager.service iwd.service bluetooth.service \
-  ssh.service tablet-wifi-import.service systemd-timesyncd.service >/dev/null
+  ssh.service tablet-wifi-import.service systemd-timesyncd.service dkms-check.service >/dev/null
 systemctl set-default graphical.target >/dev/null
 
 # DKMS sources build.sh placed under /usr/src, built for every

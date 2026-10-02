@@ -1,0 +1,57 @@
+#!/bin/bash
+#
+# dkms-check installed|running
+#
+# Checks that every DKMS module is built for each installed kernel (after a
+# package run) or for the running one (at boot), and when one is not, logs it
+# and shows a notification in every session that has a desktop bus.
+#
+set -u
+
+case ${1:-} in
+  installed)
+    kernels=$(for k in /boot/vmlinuz-*; do [ -e "$k" ] && echo "${k#/boot/vmlinuz-}"; done)
+    body="Restarting into that kernel loses what they drive. If it already happened, choose 'Debian (previous kernel)' in the boot menu."
+    ;;
+  running)
+    kernels=$(uname -r)
+    body="Choose 'Debian (previous kernel)' in the boot menu at the next start."
+    ;;
+  *) echo "usage: dkms-check installed|running" >&2; exit 2 ;;
+esac
+
+missing=
+for conf in /usr/src/*/dkms.conf; do
+  [ -f "$conf" ] || continue
+  name=$(sed -n 's/^PACKAGE_NAME="\(.*\)"/\1/p' "$conf")
+  version=$(sed -n 's/^PACKAGE_VERSION="\(.*\)"/\1/p' "$conf")
+  for k in $kernels; do
+    dkms status -m "$name" -v "$version" -k "$k" 2>/dev/null | grep -q ': installed' ||
+      missing="$missing, $name for $k"
+  done
+done
+[ -n "$missing" ] || exit 0
+
+title="Kernel modules not built"
+body="Missing: ${missing#, }. $body"
+logger -t dkms-check -p user.warning "$title. $body"
+
+# At boot the desktop may not be up yet; wait for a session bus for a while.
+if [ "$1" = running ]; then
+  for _ in $(seq 60); do
+    compgen -G '/run/user/*/bus' >/dev/null && break
+    sleep 5
+  done
+fi
+for bus in /run/user/*/bus; do
+  [ -S "$bus" ] || continue
+  uid=$(basename "$(dirname "$bus")")
+  user=$(id -nu "$uid" 2>/dev/null) || continue
+  runuser -u "$user" -- env DBUS_SESSION_BUS_ADDRESS="unix:path=$bus" \
+    gdbus call --session --dest org.freedesktop.Notifications \
+      --object-path /org/freedesktop/Notifications \
+      --method org.freedesktop.Notifications.Notify \
+      dkms-check 0 dialog-warning "\"$title\"" "\"$body\"" '[]' "{'urgency': <byte 2>}" 0 \
+      >/dev/null 2>&1 || true
+done
+exit 0
