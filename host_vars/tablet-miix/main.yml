@@ -12,6 +12,7 @@
 roles_enabled:
   - base
   - ssh-access
+  - brave
   - phosh
   - firewall
   - etckeeper
@@ -53,3 +54,27 @@ phosh_dconf_settings:
     value: "'file:///usr/share/desktop-base/ceratopsian-theme/wallpaper/contents/images/1280x800.svg'"
   - key: /org/gnome/desktop/screensaver/picture-uri
     value: "'file:///usr/share/desktop-base/ceratopsian-theme/lockscreen/contents/images/1280x800.svg'"
+
+# Brave, with the laptop's policies and local preferences (brave role
+# defaults) and a profile of its own.
+brave_sync_gate: false
+brave_flags:
+  - "--ozone-platform=wayland"            # it looks for X11 otherwise and does not start
+  - "--enable-wayland-ime"                # the on-screen keyboard
+  - "--wayland-text-input-version=3"
+brave_policies_extra:
+  # enhanced-h264ify: YouTube sends H.264, which Brave decodes in software at
+  # about two thirds of AV1's cost; Bay Trail's VA-API cannot serve Chromium.
+  ExtensionInstallForcelist:
+    - omkfmpieigblcllmkgbflkikinpkodlk
+  # Features the tablet has no use for, off instead of only hidden.
+  BraveNewsDisabled: true
+  BraveTalkDisabled: true
+  BravePlaylistEnabled: false
+  BraveLocalAIEnabled: false
+  BraveStatsPingEnabled: false
+  # 2 GB of RAM and a slow CPU: inactive tabs are unloaded, and no page is
+  # loaded before it is opened.
+  HighEfficiencyModeEnabled: true
+  MemorySaverModeSavings: 1
+  NetworkPredictionOptions: 2
