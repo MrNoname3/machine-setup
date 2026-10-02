@@ -40,8 +40,6 @@ phosh_dconf_settings:
   - { key: /org/gnome/desktop/interface/color-scheme, value: "'prefer-dark'" }
   - { key: /org/gnome/desktop/interface/show-battery-percentage, value: "true" }
   - { key: /org/gnome/desktop/wm/preferences/num-workspaces, value: "1" }
-  # The default layout keeps the windows' close button.
-  - { key: /org/gnome/desktop/wm/preferences/button-layout, state: absent }
   # Every installed app in the app grid, not only the adaptive ones.
   - { key: /sm/puri/phosh/app-filter-mode, value: "@as []" }
   # The default favorites are phone apps the tablet does not have.
@@ -78,3 +76,7 @@ brave_policies_extra:
   HighEfficiencyModeEnabled: true
   MemorySaverModeSavings: 1
   NetworkPredictionOptions: 2
+
+# phosh drops the windows' buttons at every start; the close button stays.
+phosh_dconf_locked:
+  - { key: /org/gnome/desktop/wm/preferences/button-layout, value: "'appmenu:close'" }
