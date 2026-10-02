@@ -30,6 +30,8 @@ brave_policies_recommended:
   DefaultSearchProviderName: DuckDuckGo
   DefaultSearchProviderSearchURL: "https://duckduckgo.com/?q={searchTerms}"
   DefaultSearchProviderSuggestURL: "https://ac.duckduckgo.com/ac/?q={searchTerms}&type=list"
+  # A protected preference: Brave resets it when written into the profile.
+  ShowHomeButton: true
 
 # Local (non-syncing) profile preferences that have no policy equivalent.
 # Applied idempotently by editing only these dotted keys in the profile's
