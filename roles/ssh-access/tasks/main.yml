@@ -27,6 +27,7 @@
       PasswordAuthentication no
       KbdInteractiveAuthentication no
       PubkeyAuthentication yes
+      X11Forwarding no
   notify: Restart ssh service
 
 - name: Validate the sshd configuration
@@ -49,6 +50,7 @@
       - "'permitrootlogin no' in sshd_lines"
       - "'passwordauthentication no' in sshd_lines"
       - "'kbdinteractiveauthentication no' in sshd_lines"
+      - "'x11forwarding no' in sshd_lines"
     fail_msg: >-
       Another file under /etc/ssh overrides the hardening drop-in; see sshd -T
       and the files in /etc/ssh/sshd_config.d.
