@@ -19,6 +19,13 @@
   loop_control:
     label: "{{ item.key }}"
 
+- name: Ensure the system dconf database's lock directory exists
+  ansible.builtin.file:
+    path: /etc/dconf/db/local.d/locks
+    state: directory
+    mode: "0755"
+  when: phosh_dconf_locked | length > 0
+
 - name: Fix and lock settings in the system dconf database
   ansible.builtin.copy:
     dest: "{{ item.dest }}"
