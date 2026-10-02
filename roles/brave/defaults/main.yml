@@ -104,6 +104,11 @@ brave_local_state_prefs:
   # Enable Widevine (streaming DRM). Brave downloads the CDM on first launch.
   brave.widevine_opted_in: true
 
+  # Filter list "Cookie notice blocker" (EasyList Cookie) off: hiding cookie
+  # consent pop-ups breaks some sites. Lists are keyed by their ID in Brave's
+  # list catalog.
+  brave.ad_block.regional_filters.AC023D22-AE88-4060-A978-4FEEEC4221693.enabled: false
+
   # Social media blocking (Shields) — block all
   brave.shields.fb_embed_default: false       # Facebook
   brave.shields.twitter_embed_default: false  # X / Twitter
