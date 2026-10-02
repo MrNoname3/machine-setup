@@ -2,3 +2,8 @@
 # dconf settings of the Phosh session; set per host. Each item has a key and
 # a GVariant value, or state: absent to return the key to its default.
 phosh_dconf_settings: []
+
+# Settings fixed in the system dconf database and locked there, for keys the
+# session itself rewrites (phosh sets the window buttons at every start).
+# Each item has a key and a GVariant value.
+phosh_dconf_locked: []

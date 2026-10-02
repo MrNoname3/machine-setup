@@ -18,3 +18,27 @@
   loop: "{{ phosh_dconf_settings }}"
   loop_control:
     label: "{{ item.key }}"
+
+- name: Fix and lock settings in the system dconf database
+  ansible.builtin.copy:
+    dest: "{{ item.dest }}"
+    content: "{{ item.content }}"
+    mode: "0644"
+  loop:
+    - dest: /etc/dconf/db/local.d/50-phosh-role
+      content: |
+        {% for dir in phosh_dconf_locked | map(attribute='key') | map('dirname') | unique %}
+        [{{ dir[1:] }}]
+        {% for item in phosh_dconf_locked if (item.key | dirname) == dir %}
+        {{ item.key | basename }}={{ item.value }}
+        {% endfor %}
+        {% endfor %}
+    - dest: /etc/dconf/db/local.d/locks/50-phosh-role
+      content: |
+        {% for item in phosh_dconf_locked %}
+        {{ item.key }}
+        {% endfor %}
+  loop_control:
+    label: "{{ item.dest }}"
+  notify: Update the dconf database
+  when: phosh_dconf_locked | length > 0
