@@ -62,11 +62,6 @@ brave_local_prefs:
   # DuckDuckGo in private windows too (the built-in engine's ID)
   brave.default_private_search_provider_guid: "485bf7d3-0215-45af-87dc-538868000501"
 
-  # Social media blocking (Shields) — block all
-  brave.fb_embed_default: false               # Facebook
-  brave.twitter_embed_default: false          # X / Twitter
-  brave.linkedin_embed_default: false         # LinkedIn
-
   # Telemetry off
   brave.p3a.enabled: false                    # privacy-preserving product analytics (P3A)
   brave.stats.reporting_enabled: false        # daily usage ping to Brave
@@ -104,6 +99,11 @@ brave_local_state_path: "/home/{{ primary_user }}/.config/BraveSoftware/Brave-Br
 brave_local_state_prefs:
   # Enable Widevine (streaming DRM). Brave downloads the CDM on first launch.
   brave.widevine_opted_in: true
+
+  # Social media blocking (Shields) — block all
+  brave.shields.fb_embed_default: false       # Facebook
+  brave.shields.twitter_embed_default: false  # X / Twitter
+  brave.shields.linkedin_embed_default: false # LinkedIn
 
 # Extra command-line flags, appended to every Exec= line of a user-local copy
 # of the desktop entry (the official package reads no flags file). The local
