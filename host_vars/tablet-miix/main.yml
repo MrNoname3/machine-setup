@@ -61,7 +61,8 @@ brave_flags:
   - "--enable-wayland-ime"                # the on-screen keyboard
   - "--wayland-text-input-version=3"
   # VA-API video decoding; it needs the i965 driver patched by tablet-image,
-  # and the driver check passed for i965.
+  # and the driver check passed for i965. How to check that a video gets it:
+  # tools/tablet-image/README.md, "Hardware video decoding".
   - "--enable-features=AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL,VaapiIgnoreDriverChecks"
 brave_policies_extra:
   # enhanced-h264ify: YouTube sends H.264, which Bay Trail decodes in

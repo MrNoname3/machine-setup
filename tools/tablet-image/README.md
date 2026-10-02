@@ -52,6 +52,25 @@ identifying the target by size and model.
   not ship, as a DKMS source: the staging driver of the kernel release the
   profile names, with the profile's `atomisp/*.patch` applied.
 
+## Hardware video decoding
+
+Bay Trail decodes H.264, MPEG-2 and VC-1 through VA-API (the i965 driver), not
+VP9, AV1 or HEVC. Firefox and Celluloid use it as the image sets them up.
+Chromium-based browsers need the patched driver from `build-deb.sh` and their
+VA-API features switched on, for example:
+
+```
+--enable-features=AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL,VaapiIgnoreDriverChecks
+```
+
+Chromium renames these features from time to time, and then decodes in
+software without saying so. To check, play a video, open
+`chrome://media-internals` (`brave://media-internals` in Brave), select the
+playing player and read **kVideoDecoderName**: `VaapiVideoDecoder` with
+**kIsPlatformVideoDecoder** `true` is the hardware decoder, `FFmpegVideoDecoder`
+is software. The "Video Decode" line of `chrome://gpu` reports what the
+browser could use, not what a video gets.
+
 ## Machine profiles
 
 A profile is a directory under `machines/` with:
