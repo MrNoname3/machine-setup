@@ -81,7 +81,7 @@
     mode: "0644"
     validate: "python3 -m json.tool %s"
   loop:
-    - { level: managed, policies: "{{ brave_policies }}" }
+    - { level: managed, policies: "{{ brave_policies | combine(brave_policies_extra) }}" }
     - { level: recommended, policies: "{{ brave_policies_recommended }}" }
   loop_control:
     label: "{{ item.level }}"
@@ -221,6 +221,7 @@
   failed_when: false
   changed_when: false
   become: false
+  when: brave_sync_gate
 
 - name: Gate — set up the Brave sync chain
   ansible.builtin.pause:
@@ -228,4 +229,6 @@
       Brave is not joined to a sync chain yet.
       Open Brave, set up Sync (enter or create your sync code), then press
       Enter to continue once the profile has synced.
-  when: brave_sync.rc != 0
+  when:
+    - brave_sync_gate
+    - brave_sync.rc != 0

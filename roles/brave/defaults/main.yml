@@ -18,6 +18,9 @@ brave_policies:
   BraveVPNDisabled: true
   BraveAIChatEnabled: false
 
+# Further MANDATORY policies for one host, merged over brave_policies.
+brave_policies_extra: {}
+
 # RECOMMENDED policies go to /etc/brave/policies/recommended/brave.json: they
 # pre-set a default but leave the UI editable. The default search engine lives
 # here (not mandatory) so the Search settings page — including the private-window
@@ -92,3 +95,7 @@ brave_local_state_prefs:
 # flags up. Empty list = no override (the local copy is removed). Per-host —
 # see host_vars.
 brave_flags: []
+
+# Wait for the Brave sync chain to be set up (the gate at the end of the role).
+# Off for a host whose profile stays on its own.
+brave_sync_gate: true
