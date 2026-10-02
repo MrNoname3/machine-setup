@@ -31,7 +31,7 @@ dconf update
 rm -f /etc/ssh/ssh_host_*
 : >/etc/machine-id
 
-# Locally built packages (build-iwd.sh) replace the archive's; the hold keeps
+# Locally built packages (build-deb.sh) replace the archive's; the hold keeps
 # an archive update from taking the patch back out.
 if [ -d /tmp/debs ]; then
   dpkg -i /tmp/debs/*.deb >/dev/null

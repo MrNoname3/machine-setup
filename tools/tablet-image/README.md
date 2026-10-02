@@ -24,10 +24,10 @@ touch, rotation, sound, Wi-Fi, Bluetooth and both cameras work.
 Everything runs as root in a throwaway Debian 13 container with this repository
 mounted; nothing needs loop devices. The container needs `mmdebstrap
 e2fsprogs dosfstools mtools fdisk grub-efi-ia32-bin grub-efi-amd64-bin
-acpica-tools git`, and `deb-src` entries for `build-iwd.sh`.
+acpica-tools git`, and `deb-src` entries for `build-deb.sh`.
 
 ```
-bash tools/tablet-image/build-iwd.sh                          # once: patched iwd
+bash tools/tablet-image/build-deb.sh iwd iwd                  # once: patched iwd
 TI_MACHINE=miix2-8 bash tools/tablet-image/build-atomisp.sh   # once: camera driver
 TI_USER=miix TI_HOSTNAME=tablet TI_MACHINE=miix2-8 TI_FIRMWARE=<dir> \
   bash tools/tablet-image/build.sh ~/path/to/key.pub
@@ -37,10 +37,12 @@ The results land in `work/tablet/` (`TI_OUT`); the header of each script lists
 its settings. Write `tablet-debian13-phosh.img` to the card or eMMC with `dd`,
 identifying the target by size and model.
 
-- **`build-iwd.sh`** builds Debian's iwd with
-  [patches/iwd-psk-sha256-needs-mfp.patch](patches/iwd-psk-sha256-needs-mfp.patch).
-  Without it iwd picks PSK-SHA256 on WPA2/WPA3 networks even when the Wi-Fi
-  chip cannot do management frame protection, and the chip never associates.
+- **`build-deb.sh`** builds a Debian package with the
+  [patches/](patches/) named after its source package; build.sh installs it
+  and holds it there.
+  - [iwd](patches/iwd-psk-sha256-needs-mfp.patch): without it iwd picks
+    PSK-SHA256 on WPA2/WPA3 networks even when the Wi-Fi chip cannot do
+    management frame protection, and the chip never associates.
 - **`build-atomisp.sh`** prepares the atomisp camera driver, which Debian does
   not ship, as a DKMS source: the staging driver of the kernel release the
   profile names, with the profile's `atomisp/*.patch` applied.

@@ -28,7 +28,7 @@
 #   TI_FIRMWARE  the directory holding the files a profile names; they are
 #                not redistributable, so they live outside the repository
 #   TI_DEBS      locally built packages to install and hold, such as the
-#                patched iwd from build-iwd.sh (default: \$TI_OUT/debs)
+#                patched iwd from build-deb.sh (default: \$TI_OUT/debs)
 #   TI_DKMS      locally prepared DKMS sources, such as the atomisp driver from
 #                build-atomisp.sh (default: \$TI_OUT/dkms)
 #   TI_OVERLAY   a further directory laid over the root file system
