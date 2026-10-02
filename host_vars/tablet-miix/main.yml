@@ -82,6 +82,10 @@ brave_policies_extra:
   MemorySaverModeSavings: 1
   NetworkPredictionOptions: 2
 
+# The tablet has no pen; the Wacom settings daemon only takes memory.
+phosh_autostart_hidden:
+  - org.gnome.SettingsDaemon.Wacom
+
 # phosh drops the windows' buttons at every start; the close button stays.
 phosh_dconf_locked:
   - { key: /org/gnome/desktop/wm/preferences/button-layout, value: "'appmenu:close'" }
