@@ -136,8 +136,8 @@ PACKAGES=(
   dbus-user-session libpam-systemd polkitd sudo locales tzdata
   console-setup keyboard-configuration zstd
   linux-image-amd64 initramfs-tools
-  intel-microcode firmware-brcm80211 firmware-intel-sound
-  e2fsprogs iproute2 python3-minimal efibootmgr
+  intel-microcode firmware-brcm80211 firmware-intel-sound wireless-regdb
+  e2fsprogs dosfstools iproute2 python3-minimal efibootmgr
   network-manager iwd openssh-server bluez
   unattended-upgrades ca-certificates
   # out-of-tree modules a machine profile needs, rebuilt on kernel updates
