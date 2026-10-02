@@ -60,9 +60,12 @@ brave_flags:
   - "--ozone-platform=wayland"            # it looks for X11 otherwise and does not start
   - "--enable-wayland-ime"                # the on-screen keyboard
   - "--wayland-text-input-version=3"
+  # VA-API video decoding; it needs the i965 driver patched by tablet-image,
+  # and the driver check passed for i965.
+  - "--enable-features=AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL,VaapiIgnoreDriverChecks"
 brave_policies_extra:
-  # enhanced-h264ify: YouTube sends H.264, which Brave decodes in software at
-  # about two thirds of AV1's cost; Bay Trail's VA-API cannot serve Chromium.
+  # enhanced-h264ify: YouTube sends H.264, which Bay Trail decodes in
+  # hardware, instead of VP9 or AV1, which it cannot.
   ExtensionInstallForcelist:
     - omkfmpieigblcllmkgbflkikinpkodlk
   # Features the tablet has no use for, off instead of only hidden.
