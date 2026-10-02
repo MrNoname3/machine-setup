@@ -62,6 +62,10 @@ brave_local_prefs:
   # DuckDuckGo in private windows too (the built-in engine's ID)
   brave.default_private_search_provider_guid: "485bf7d3-0215-45af-87dc-538868000501"
 
+  # No spell checking, and downloads go to the download folder without asking
+  browser.enable_spellchecking: false
+  download.prompt_for_download: false
+
   # Telemetry off
   brave.p3a.enabled: false                    # privacy-preserving product analytics (P3A)
   brave.stats.reporting_enabled: false        # daily usage ping to Brave
