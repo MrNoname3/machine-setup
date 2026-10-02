@@ -124,3 +124,7 @@ brave_flags: []
 # Wait for the Brave sync chain to be set up (the gate at the end of the role).
 # Off for a host whose profile stays on its own.
 brave_sync_gate: true
+
+# Let unattended-upgrades install Brave's updates too, for a host with no
+# update manager of its own (Debian hosts only).
+brave_unattended_upgrades: false

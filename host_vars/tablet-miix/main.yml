@@ -56,6 +56,7 @@ phosh_dconf_settings:
 # Brave, with the laptop's policies and local preferences (brave role
 # defaults) and a profile of its own.
 brave_sync_gate: false
+brave_unattended_upgrades: true
 brave_flags:
   - "--ozone-platform=wayland"            # it looks for X11 otherwise and does not start
   - "--enable-wayland-ime"                # the on-screen keyboard

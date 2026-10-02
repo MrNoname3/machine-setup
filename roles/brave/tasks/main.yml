@@ -34,6 +34,17 @@
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
+- name: Let unattended-upgrades update Brave
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52unattended-upgrades-brave
+    content: |
+      // Managed by Ansible (brave role)
+      Unattended-Upgrade::Origins-Pattern:: "origin=Brave Software,label=Brave Browser";
+    mode: "0644"
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - brave_unattended_upgrades
+
 # --- Bazzite: vendor rpm repo + rpm-ostree layering ------------------------
 # Layering changes the next deployment: after a fresh install a REBOOT is
 # needed before the browser exists. --idempotent makes re-runs safe, and the
