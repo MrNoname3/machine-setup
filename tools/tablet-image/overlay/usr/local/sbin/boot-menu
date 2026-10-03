@@ -26,7 +26,7 @@ mkdir -p "${env%/*}"
 } >"$env.new"
 size=$(wc -c <"$env.new")
 [ "$size" -le 1024 ] || { rm -f "$env.new"; echo "boot-menu: $env is full" >&2; exit 1; }
-head -c $((1024 - size)) /dev/zero | tr '\0' '#' >>"$env.new"
+printf '%*s' $((1024 - size)) '' | tr ' ' '#' >>"$env.new"
 # GRUB reads the file's blocks directly, so they have to be on disk.
 sync "$env.new"
 mv "$env.new" "$env"
