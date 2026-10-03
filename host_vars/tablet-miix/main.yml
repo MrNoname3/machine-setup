@@ -67,14 +67,6 @@ phosh_dconf_settings:
   - { key: /sm/puri/phosh/lockscreen/require-unlock, value: "true" }
   # The default favorites are phone apps the tablet does not have.
   - { key: /sm/puri/phosh/favorites, value: "@as []" }
-  # Debian's wallpaper as image files: phosh cannot load the slideshow XML the
-  # theme points to, and leaves the lock screen black.
-  - key: /org/gnome/desktop/background/picture-uri
-    value: "'file:///usr/share/desktop-base/ceratopsian-theme/wallpaper/contents/images/1280x800.svg'"
-  - key: /org/gnome/desktop/background/picture-uri-dark
-    value: "'file:///usr/share/desktop-base/ceratopsian-theme/wallpaper/contents/images/1280x800.svg'"
-  - key: /org/gnome/desktop/screensaver/picture-uri
-    value: "'file:///usr/share/desktop-base/ceratopsian-theme/lockscreen/contents/images/1280x800.svg'"
 
 # Brave, with the laptop's policies and local preferences (brave role
 # defaults) and a profile of its own.
