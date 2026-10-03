@@ -150,6 +150,8 @@ PACKAGES=(
   feedbackd at-spi2-core
   adwaita-icon-theme fonts-cantarell fonts-noto-core libjxl-gdk-pixbuf
   gnome-console
+  # boot splash: the firmware's logo with a spinner
+  plymouth plymouth-themes
   # applications
   firefox-esr firefox-esr-l10n-hu firefox-esr-mobile-config
   foliate celluloid i965-va-driver

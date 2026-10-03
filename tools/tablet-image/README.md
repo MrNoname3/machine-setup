@@ -13,7 +13,7 @@ touch, rotation, sound, Wi-Fi, Bluetooth and both cameras work.
 
 | | |
 |---|---|
-| **Boot** | IA32 and x64 GRUB on the ESP, both loading the kernel through Debian's `/vmlinuz` links, so kernel updates never touch the ESP |
+| **Boot** | IA32 and x64 GRUB on the ESP, both loading the kernel through Debian's `/vmlinuz` links, so kernel updates never touch the ESP; a plymouth splash with the firmware's logo, at shutdown too |
 | **Boot menu** | hidden; it shows for 10 seconds after a boot that never reached the graphical session, then starting the previous kernel, and once after `sudo boot-menu`; holding Shift on a USB keyboard shows it too. Tablet buttons do not work in it |
 | **Shell** | Phosh with Firefox ESR, Foliate (e-books), Celluloid (video); the user logs in automatically and the screen lock starts out off |
 | **Network** | NetworkManager with iwd; Wi-Fi is joined on the touch screen |

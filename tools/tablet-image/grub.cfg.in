@@ -26,12 +26,14 @@ if keystatus --shift; then
     set timeout=-1
 fi
 
+# fbcon keeps off the first console, so the firmware's logo stays until the
+# splash takes over.
 menuentry 'Debian' {
-    linux /vmlinuz root=UUID=@ROOT_UUID@ ro quiet @CMDLINE@
+    linux /vmlinuz root=UUID=@ROOT_UUID@ ro quiet splash fbcon=vc:2-6 @CMDLINE@
     initrd /initrd.img
 }
 
 menuentry 'Debian (previous kernel)' {
-    linux /vmlinuz.old root=UUID=@ROOT_UUID@ ro quiet @CMDLINE@
+    linux /vmlinuz.old root=UUID=@ROOT_UUID@ ro quiet splash fbcon=vc:2-6 @CMDLINE@
     initrd /initrd.img.old
 }
