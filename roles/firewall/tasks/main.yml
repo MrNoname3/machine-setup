@@ -26,6 +26,19 @@
     label: "{{ item.1.comment }} {{ item.1.port }}/{{ item.1.proto }} from {{ item.0 }}"
   when: ansible_facts['os_family'] == "Debian"
 
+- name: Allow inbound services on specific interfaces, from any source
+  community.general.ufw:
+    rule: allow
+    direction: in
+    interface: "{{ item.interface }}"
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_interface_allowed }}"
+  loop_control:
+    label: "{{ item.comment }} {{ item.port }}/{{ item.proto }} on {{ item.interface }}"
+  when: ansible_facts['os_family'] == "Debian"
+
 - name: Default-allow outgoing traffic
   community.general.ufw:
     direction: outgoing

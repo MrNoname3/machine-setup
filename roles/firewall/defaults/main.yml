@@ -15,3 +15,7 @@ firewall_private_ranges:
 firewall_allowed:
   - { port: "{{ ssh_port }}", proto: tcp, comment: "SSH" }
   - { port: "5353", proto: udp, comment: "mDNS/Avahi (NAS discovery)" }
+
+# port/proto allowed on one interface from any source, for overlay networks whose
+# addresses are not RFC1918 (an interface that does not exist yet is fine).
+firewall_interface_allowed: []
