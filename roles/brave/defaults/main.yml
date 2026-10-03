@@ -117,12 +117,17 @@ brave_local_state_prefs:
   brave.shields.twitter_embed_default: false  # X / Twitter
   brave.shields.linkedin_embed_default: false # LinkedIn
 
-# Extra command-line flags, appended to every Exec= line of a user-local copy
-# of the desktop entry (the official package reads no flags file). The local
-# entry shadows the system one, so menu / default-browser launches pick the
-# flags up. Empty list = no override (the local copy is removed). Per-host —
-# see host_vars.
+# Extra command-line flags, appended to every Exec= line of user-local copies
+# of the desktop entries (the official package reads no flags file). The local
+# entries shadow the system ones, so menu / default-browser / open-with
+# launches pick the flags up. Empty list = no override (the local copies are
+# removed). Per-host — see host_vars.
 brave_flags: []
+
+# The desktop entries the official package installs in /usr/share/applications.
+brave_desktop_entries:
+  - brave-browser.desktop
+  - com.brave.Browser.desktop
 
 # Wait for the Brave sync chain to be set up (the gate at the end of the role).
 # Off for a host whose profile stays on its own.

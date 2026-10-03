@@ -114,12 +114,12 @@
     - x-scheme-handler/unknown
     - application/pdf
 
-# --- Extra launch flags (user-local desktop-entry override) ----------------
+# --- Extra launch flags (user-local desktop-entry overrides) ---------------
 # The official package's launcher reads no flags file (brave-flags.conf is a
 # distro-packaging convention Brave's own deb lacks), so the flags are baked
-# into a user-local copy of the desktop entry, which shadows the system one
-# for menu / panel / default-browser launches. Removed when brave_flags is
-# empty, falling back to the stock entry.
+# into user-local copies of the package's desktop entries (it ships two, and
+# MIME associations may pick either), which shadow the system ones. Removed
+# when brave_flags is empty, falling back to the stock entries.
 - name: Ensure the user applications directory exists
   ansible.builtin.file:
     path: "/home/{{ primary_user }}/.local/share/applications"
@@ -128,27 +128,41 @@
   become: false
   when: brave_flags | length > 0
 
-- name: Read the system Brave desktop entry
+- name: Find the system Brave desktop entries
+  ansible.builtin.find:
+    paths: /usr/share/applications
+    patterns: "{{ brave_desktop_entries }}"
+  register: brave_desktop_files
+  when: brave_flags | length > 0
+
+- name: Read the system Brave desktop entries
   ansible.builtin.slurp:
-    src: /usr/share/applications/brave-browser.desktop
+    src: "{{ item.path }}"
+  loop: "{{ brave_desktop_files.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
   register: brave_desktop_entry
   when: brave_flags | length > 0
 
-- name: Deploy the flagged Brave desktop entry (shadows the system one)
+- name: Deploy the flagged Brave desktop entries (shadow the system ones)
   ansible.builtin.copy:
-    dest: "/home/{{ primary_user }}/.local/share/applications/brave-browser.desktop"
+    dest: "/home/{{ primary_user }}/.local/share/applications/{{ item.source | basename }}"
     content: >-
-      {{ brave_desktop_entry.content | b64decode
+      {{ item.content | b64decode
          | regex_replace('(?m)^Exec=(\S+)', 'Exec=\1 ' ~ (brave_flags | join(' '))) }}
     mode: "0644"
   become: false
+  loop: "{{ brave_desktop_entry.results | default([]) }}"
+  loop_control:
+    label: "{{ item.source | basename }}"
   when: brave_flags | length > 0
 
-- name: Remove the desktop-entry override when no flags are set
+- name: Remove the desktop-entry overrides when no flags are set
   ansible.builtin.file:
-    path: "/home/{{ primary_user }}/.local/share/applications/brave-browser.desktop"
+    path: "/home/{{ primary_user }}/.local/share/applications/{{ item }}"
     state: absent
   become: false
+  loop: "{{ brave_desktop_entries }}"
   when: brave_flags | length == 0
 
 # --- Local (non-syncing) preferences --------------------------------------
