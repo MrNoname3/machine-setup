@@ -32,6 +32,7 @@ packages_present:
   - loupe                        # image viewer
   - gnome-calculator
   - gnome-text-editor
+  - file-roller                  # archives; Portfolio does not unpack them
 
 # Brave is the only browser; the image ships Firefox ESR.
 packages_absent:
