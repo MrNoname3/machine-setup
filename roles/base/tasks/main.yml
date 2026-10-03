@@ -67,6 +67,8 @@
     value: "{{ item.value }}"
     mode: "0644"
     no_extra_spaces: true
+    # The file lists the defaults as commented-out options, which stay comments.
+    modify_inactive_option: false
   loop: "{{ base_upower_settings | dict2items }}"
   loop_control:
     label: "{{ item.key }}"
