@@ -69,3 +69,16 @@
       Hidden=true
     mode: "0644"
   loop: "{{ phosh_autostart_hidden }}"
+
+# phosh authenticates its lock screen as the PAM service "phosh"; without a
+# file of its own that falls back to "other", which has no keyring step.
+- name: PAM service for the lock screen, unlocking the GNOME Keyring too
+  ansible.builtin.copy:
+    dest: /etc/pam.d/phosh
+    content: |
+      # Managed by Ansible (phosh role)
+      @include common-auth
+      auth optional pam_gnome_keyring.so
+      @include common-account
+    mode: "0644"
+  when: phosh_lockscreen_unlocks_keyring
