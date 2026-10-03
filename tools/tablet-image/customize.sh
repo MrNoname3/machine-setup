@@ -76,7 +76,8 @@ EOF
 fi
 
 systemctl enable phosh.service NetworkManager.service iwd.service bluetooth.service \
-  ssh.service tablet-wifi-import.service systemd-timesyncd.service dkms-check.service >/dev/null
+  ssh.service tablet-wifi-import.service systemd-timesyncd.service dkms-check.service \
+  grub-boot-ok.service >/dev/null
 systemctl set-default graphical.target >/dev/null
 
 # DKMS sources build.sh placed under /usr/src, built for every
@@ -97,6 +98,9 @@ done
 
 # Modules an overlay dropped under /usr/lib/modules/*/updates.
 for k in /usr/lib/modules/*; do depmod -a "${k##*/}"; done
+
+# grub.cfg only reads and writes an environment block that exists.
+/usr/local/sbin/boot-menu --booted
 
 # The overlay's initramfs hooks pick up a VBT and ACPI tables supplied at
 # build time.

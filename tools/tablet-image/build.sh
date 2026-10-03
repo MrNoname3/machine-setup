@@ -182,7 +182,7 @@ sed -e "s/@ROOT_UUID@/$ROOT_UUID/g" -e "s/@ESP_UUID@/$ESP_UUID/g" \
 # /vmlinuz symlinks, so kernel updates never have to touch the ESP.
 sed -e "s/@ROOT_UUID@/$ROOT_UUID/g" -e "s|@CMDLINE@|${TI_CMDLINE# }|" \
   "$SRC/grub.cfg.in" >"$WORK/grub.cfg"
-mods="part_gpt ext2 search search_fs_uuid linux normal configfile echo test all_video efi_gop gfxterm"
+mods="part_gpt ext2 search search_fs_uuid linux normal configfile echo test all_video efi_gop gfxterm loadenv keystatus"
 grub-mkstandalone -O i386-efi -o "$WORK/BOOTIA32.EFI" --modules="$mods" \
   --locales= --fonts= --themes= "boot/grub/grub.cfg=$WORK/grub.cfg"
 grub-mkstandalone -O x86_64-efi -o "$WORK/BOOTX64.EFI" --modules="$mods" \

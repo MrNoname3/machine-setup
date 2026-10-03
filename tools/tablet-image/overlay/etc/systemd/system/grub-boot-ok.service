@@ -1,0 +1,10 @@
+[Unit]
+Description=Tell GRUB this boot reached the graphical session
+After=graphical.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/boot-menu --booted
+
+[Install]
+WantedBy=graphical.target
