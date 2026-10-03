@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+# Some I2C devices do not answer when their driver first probes them at boot:
+# the rear camera's sensor often, which leaves atomisp waiting with neither
+# camera, and the sensor hub after a restart that did not power it down, which
+# leaves no accelerometer. Probing again a moment later works; retry until each
+# driver binds.
+#
+failed=0
+probe() { # probe <i2c device> <driver>
+  dev=/sys/bus/i2c/devices/$1 drv=/sys/bus/i2c/drivers/$2
+  [ -e "$dev" ] || return 0
+  for _ in $(seq 30); do
+    [ -d "$drv" ] && break
+    sleep 1
+  done
+  for _ in 1 2 3 4 5; do
+    [ -e "$dev/driver" ] && return 0
+    echo "$1" >"$drv/bind" 2>/dev/null
+    sleep 2
+  done
+  [ -e "$dev/driver" ] && return 0
+  echo "$1 did not bind to $2" >&2
+  failed=1
+}
+
+sleep 2   # the drivers' own first attempt
+probe i2c-INT33BE:00 ov5693         # rear camera sensor
+probe i2c-INV6050:00 i2c_hid_acpi   # sensor hub (accelerometer)
+exit $failed

@@ -13,5 +13,6 @@ Two kinds of file stay out of it:
 
 - **Secrets** — passwords, private keys, Wi-Fi credentials. `work/` is plain,
   unencrypted and inside a repository that is published.
-- **State that has to outlive the task** — a tool keeps that where its own
-  README says, such as `~/.local/state/<tool>`, not in `work/`.
+- **Files the work keeps needing** — they go into the repository, unless they
+  are secrets or may not be redistributed (vendor firmware, for example);
+  those stay where the tool's README says.

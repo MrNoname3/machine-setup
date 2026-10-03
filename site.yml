@@ -318,6 +318,8 @@
       tags: graphics
     - role: kde
       when: "'kde' in (roles_enabled | default([]))"
+    - role: phosh
+      when: "'phosh' in (roles_enabled | default([]))"
     - role: firewall
       when: "'firewall' in (roles_enabled | default([]))"
     - role: storage

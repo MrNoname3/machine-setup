@@ -1,0 +1,23 @@
+#!/bin/sh
+# Hands the kernel the ACPI tables under /usr/lib/firmware/acpi, which a
+# machine profile installs to patch its firmware's tables. The kernel only
+# reads them from an uncompressed cpio at the start of the initramfs.
+set -e
+
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+case "$1" in
+prereqs) prereqs; exit 0 ;;
+esac
+
+. /usr/share/initramfs-tools/hook-functions
+
+set -- /usr/lib/firmware/acpi/*.aml
+[ -e "$1" ] || exit 0
+
+dir=$(mktemp -d)
+trap 'rm -rf "$dir"' EXIT
+mkdir -p "$dir/root/kernel/firmware/acpi"
+cp "$@" "$dir/root/kernel/firmware/acpi/"
+(cd "$dir/root" && find kernel | cpio -o -H newc --quiet) >"$dir/acpi.cpio"
+prepend_earlyinitramfs "$dir/acpi.cpio"

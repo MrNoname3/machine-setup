@@ -1,0 +1,2 @@
+// Warn when a package run leaves a kernel without its DKMS modules.
+DPkg::Post-Invoke { "if [ -x /usr/local/sbin/dkms-check ]; then /usr/local/sbin/dkms-check installed; fi"; };

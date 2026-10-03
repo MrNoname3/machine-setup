@@ -1,0 +1,2 @@
+# gsd-power's ambient mode and autobrightness would both drive the backlight.
+/org/gnome/settings-daemon/plugins/power/ambient-enabled

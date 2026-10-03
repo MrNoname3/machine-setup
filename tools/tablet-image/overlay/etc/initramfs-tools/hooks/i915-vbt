@@ -1,0 +1,9 @@
+#!/bin/sh
+# i915 may load from the initramfs, so a VBT supplied as a firmware file has
+# to be there too.
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+case "$1" in prereqs) prereqs; exit 0 ;; esac
+. /usr/share/initramfs-tools/hook-functions
+[ -f /usr/lib/firmware/i915/vbt.bin ] && add_firmware i915/vbt.bin
+exit 0

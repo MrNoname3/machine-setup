@@ -1,0 +1,33 @@
+#!/bin/sh
+# boot-menu [--booted]
+#
+# Shows the GRUB menu once, at the next boot. With --booted, marks the running
+# boot as complete instead, which grub-boot-ok.service does at every boot.
+# Both edit the GRUB environment block the image's grub.cfg reads.
+set -eu
+
+env=/boot/grub/grubenv
+
+case "${1:-}" in
+  "") set -- boot_menu=1 ;;
+  --booted) set -- boot_pending=0 ;;
+  *) echo "usage: boot-menu [--booted]" >&2; exit 2 ;;
+esac
+[ "$(id -u)" = 0 ] || { echo "boot-menu: must run as root" >&2; exit 1; }
+
+# GRUB reads the block as 1024 bytes: a header line, name=value lines, and
+# '#' padding.
+mkdir -p "${env%/*}"
+{
+  echo '# GRUB Environment Block'
+  { if [ -f "$env" ]; then grep -v '^#' "$env" || true; fi; printf '%s\n' "$@"; } |
+    awk -F= '!($1 in v) { k[++n] = $1 } { v[$1] = $0 }
+             END { for (i = 1; i <= n; i++) print v[k[i]] }'
+} >"$env.new"
+size=$(wc -c <"$env.new")
+[ "$size" -le 1024 ] || { rm -f "$env.new"; echo "boot-menu: $env is full" >&2; exit 1; }
+printf '%*s' $((1024 - size)) '' | tr ' ' '#' >>"$env.new"
+# GRUB reads the file's blocks directly, so they have to be on disk.
+sync "$env.new"
+mv "$env.new" "$env"
+sync "${env%/*}"

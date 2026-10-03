@@ -1,0 +1,225 @@
+---
+# Desktop defaults for Linux Mint with Cinnamon: greeter, default apps, Nemo,
+# and the Cinnamon session's dconf settings.
+
+# NumLock on at the login screen (and it carries into the Cinnamon session,
+# since csd-keyboard's numlock-state is 'unknown' so it doesn't undo it). We use
+# slick-greeter's native activate-numlock option (the toggle in Mint's "Login
+# Window" settings). NOTE: it works by calling /usr/bin/numlockx on internally,
+# so the numlockx package is still required (kept in packages_present).
+- name: Enable NumLock at the login screen (slick-greeter native option)
+  community.general.ini_file:
+    path: /etc/lightdm/slick-greeter.conf
+    section: Greeter
+    option: activate-numlock
+    value: "true"
+    mode: "0644"
+    no_extra_spaces: true
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Drop the old numlockx greeter-setup-script override (superseded by activate-numlock)
+  community.general.ini_file:
+    path: /etc/lightdm/lightdm.conf
+    section: "Seat:*"
+    option: greeter-setup-script
+    state: absent
+    mode: "0644"
+    no_extra_spaces: true
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Set VLC as the default video player (user MIME associations)
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.config/mimeapps.list"
+    section: Default Applications
+    option: "{{ item }}"
+    value: "{{ default_video_player }}"
+    mode: "0644"
+    no_extra_spaces: true
+  become: false
+  loop: "{{ video_mimetypes }}"
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Set Kate as the default text editor (user MIME associations)
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.config/mimeapps.list"
+    section: Default Applications
+    option: "{{ item }}"
+    value: "{{ default_text_editor }}"
+    mode: "0644"
+    no_extra_spaces: true
+  become: false
+  loop: "{{ text_mimetypes }}"
+  when: ansible_facts['os_family'] == "Debian"
+
+# Keep the Cinnamon desktop clear: hide the standard icons (Computer, Home,
+# Network, Trash) and mounted-volume icons -- an internal fixed disk like
+# /mnt/hdd showing up there is unwanted. Everything still appears in the Nemo
+# sidebar and in Disk Usage Analyzer (the data disk uses x-gvfs-show).
+- name: Hide the standard + mounted-volume icons from the Cinnamon desktop
+  community.general.dconf:
+    key: "{{ item }}"
+    value: "false"
+    state: present
+  become: false
+  loop:
+    - /org/nemo/desktop/computer-icon-visible
+    - /org/nemo/desktop/home-icon-visible
+    - /org/nemo/desktop/network-icon-visible
+    - /org/nemo/desktop/trash-icon-visible
+    - /org/nemo/desktop/volumes-visible
+  when: ansible_facts['os_family'] == "Debian"
+
+# Default Nemo view: list, sorted by name ascending -- everywhere EXCEPT folders
+# where a view was set by hand. ignore-view-metadata=false makes Nemo honour each
+# folder's saved per-folder view, so manual overrides stick; inherit-folder-viewer
+# =false means new folders use this global default rather than the parent's view.
+- name: Default Nemo to list view sorted by name ascending (manual per-folder overrides respected)
+  community.general.dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  become: false
+  loop:
+    - { key: /org/nemo/preferences/default-folder-viewer, value: "'list-view'" }
+    - { key: /org/nemo/preferences/default-sort-order, value: "'name'" }
+    - { key: /org/nemo/preferences/default-sort-in-reverse-order, value: "false" }
+    - { key: /org/nemo/preferences/ignore-view-metadata, value: "false" }
+    - { key: /org/nemo/preferences/inherit-folder-viewer, value: "false" }
+  when: ansible_facts['os_family'] == "Debian"
+
+# Start the week on Monday in the Cinnamon calendar/date displays (0=Sunday,
+# 1=Monday).
+- name: Set first day of week to Monday (Cinnamon)
+  community.general.dconf:
+    key: /org/cinnamon/desktop/interface/first-day-of-week
+    value: "1"
+    state: present
+  become: false
+  when: ansible_facts['os_family'] == "Debian"
+
+# Traditional (non-"natural") scroll direction on both the mouse and the
+# touchpad: scrolling down moves the content down, like a scrollbar.
+- name: Traditional scroll direction for mouse and touchpad (Cinnamon)
+  community.general.dconf:
+    key: "{{ item }}"
+    value: "false"
+    state: present
+  become: false
+  loop:
+    - /org/cinnamon/desktop/peripherals/mouse/natural-scroll
+    - /org/cinnamon/desktop/peripherals/touchpad/natural-scroll
+  when: ansible_facts['os_family'] == "Debian"
+
+# Appearance: the dark Mint-Y-Dark-Aqua GTK/Cinnamon theme, Mint-Y-Sand icons,
+# the Yaru cursor (shipped by yaru-theme-icon), and prefer-dark so plain
+# GTK/portal apps follow suit. Both the Cinnamon and the GNOME interface keys are
+# set so the Cinnamon session and legacy GTK apps agree.
+- name: Apply the dark desktop theme + icon/cursor themes (Cinnamon)
+  community.general.dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  become: false
+  loop:
+    - { key: /org/cinnamon/desktop/interface/gtk-theme, value: "'Mint-Y-Dark-Aqua'" }
+    - { key: /org/cinnamon/theme/name, value: "'Mint-Y-Dark-Aqua'" }
+    - { key: /org/cinnamon/desktop/interface/icon-theme, value: "'Mint-Y-Sand'" }
+    - { key: /org/cinnamon/desktop/interface/cursor-theme, value: "'Yaru'" }
+    - { key: /org/gnome/desktop/interface/gtk-theme, value: "'Mint-Y-Dark-Aqua'" }
+    - { key: /org/gnome/desktop/interface/icon-theme, value: "'Mint-Y-Sand'" }
+    - { key: /org/gnome/desktop/interface/cursor-theme, value: "'Yaru'" }
+    - { key: /org/gnome/desktop/wm/preferences/theme, value: "'Mint-Y'" }
+    - { key: /org/x/apps/portal/color-scheme, value: "'prefer-dark'" }
+  when: ansible_facts['os_family'] == "Debian"
+
+# Hungarian keyboard layout. Set ONLY the Cinnamon key: csd-input-sources is the
+# authority in a Cinnamon session and mirrors it to the GNOME schema and IBus on
+# its own. Writing those mirror keys as well makes the daemon re-sync (and rewrite
+# the Cinnamon key), so the module would report "changed" on every run — setting
+# just the authoritative key stays idempotent.
+- name: Set the Hungarian keyboard layout (Cinnamon)
+  community.general.dconf:
+    key: /org/cinnamon/desktop/input-sources/sources
+    value: "[('xkb', 'hu')]"
+    state: present
+  become: false
+  when: ansible_facts['os_family'] == "Debian"
+
+# Power (laptop): suspend on lid close (AC + battery); blank the display after
+# 15 min on AC / 30 min on battery; auto-suspend on inactivity after 30 min on
+# AC, never on battery.
+- name: Configure power management — lid, display blank, auto-suspend (Cinnamon)
+  community.general.dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  become: false
+  loop:
+    - { key: /org/cinnamon/settings-daemon/plugins/power/lid-close-ac-action, value: "'suspend'" }
+    - { key: /org/cinnamon/settings-daemon/plugins/power/lid-close-battery-action, value: "'suspend'" }
+    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-display-ac, value: "900" }
+    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-display-battery, value: "1800" }
+    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-ac-timeout, value: "1800" }
+    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-battery-timeout, value: "0" }
+  when: ansible_facts['os_family'] == "Debian"
+
+# Turn off Cinnamon touchpad multi-finger gestures.
+- name: Disable touchpad gestures (Cinnamon)
+  community.general.dconf:
+    key: /org/cinnamon/gestures/enabled
+    value: "false"
+    state: present
+  become: false
+  when: ansible_facts['os_family'] == "Debian"
+
+# Lock the screen 10 s after the screensaver / display blank kicks in.
+- name: Set the screen-lock delay to 10 s after blank (Cinnamon)
+  community.general.dconf:
+    key: /org/cinnamon/desktop/screensaver/lock-delay
+    value: "uint32 10"
+    state: present
+  become: false
+  when: ansible_facts['os_family'] == "Debian"
+
+# Performance: trim Cinnamon animations on the weak GT 520M. The menu, dialog,
+# login (startup) and scroll-vfade animations are the high-frequency / invisible
+# ones -- off makes the UI feel snappier at little aesthetic cost. Window
+# open/close/minimize animations stay on, just faster (window-effect-speed=2,
+# range 0-2). To go fully flat, also set /org/cinnamon/desktop-effects=false.
+- name: Trim desktop effects for performance (Cinnamon)
+  community.general.dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  become: false
+  loop:
+    - { key: /org/cinnamon/desktop-effects-on-menus, value: "false" }
+    - { key: /org/cinnamon/desktop-effects-on-dialogs, value: "false" }
+    - { key: /org/cinnamon/startup-animation, value: "false" }
+    - { key: /org/cinnamon/enable-vfade, value: "false" }
+    - { key: /org/cinnamon/window-effect-speed, value: "2" }
+  when: ansible_facts['os_family'] == "Debian"
+
+# Night Light: always-on warm tint. In 'always' mode there is no sunrise/sunset
+# schedule, so no geolocation is used -- only the enabled flag, the mode and the
+# colour temperature are needed, none of them personal.
+- name: Enable always-on Night Light (Cinnamon)
+  community.general.dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  become: false
+  loop:
+    - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-enabled, value: "true" }
+    - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-schedule-mode, value: "'always'" }
+    - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-temperature, value: "uint32 5200" }
+  when: ansible_facts['os_family'] == "Debian"
+
+# Clear any geolocation left over from a previous automatic schedule -- unused in
+# 'always' mode, and we don't want the home coordinates lingering in dconf.
+- name: Clear the stored Night Light coordinates (Cinnamon)
+  community.general.dconf:
+    key: /org/cinnamon/settings-daemon/plugins/color/night-light-last-coordinates
+    state: absent
+  become: false
+  when: ansible_facts['os_family'] == "Debian"

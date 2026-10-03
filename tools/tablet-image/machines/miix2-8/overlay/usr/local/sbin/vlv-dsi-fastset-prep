@@ -1,0 +1,30 @@
+#!/usr/bin/python3
+# Runs before i915 loads (see /etc/modprobe.d/i915-miix2-8.conf). The GOP
+# leaves 3 in DPLL_MD for the DSI pipe while i915 computes 0, so i915 refuses
+# to take over the firmware's mode and does a full modeset, after which the
+# DSI pipe never starts and the machine hangs. With the value i915 expects the
+# takeover goes through; the DSI pipe does not use this DPLL, so the running
+# picture is unaffected.
+import mmap
+import os
+import struct
+
+GPU = "/sys/bus/pci/devices/0000:00:02.0"
+VALLEYVIEW = {0x0F30, 0x0F31, 0x0F32, 0x0F33}
+DPLL_A_MD = 0x18601C
+
+
+def read(path):
+    with open(path) as f:
+        return f.read().strip()
+
+
+if int(read(GPU + "/device"), 16) in VALLEYVIEW:
+    fd = os.open(GPU + "/resource0", os.O_RDWR | os.O_SYNC)
+    try:
+        bar = mmap.mmap(fd, DPLL_A_MD + 4)
+        if struct.unpack_from("<I", bar, DPLL_A_MD)[0] != 0:
+            struct.pack_into("<I", bar, DPLL_A_MD, 0)
+        bar.close()
+    finally:
+        os.close(fd)

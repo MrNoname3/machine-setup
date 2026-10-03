@@ -1,0 +1,84 @@
+---
+# phosh role: the user's settings in a Phosh session, written to dconf.
+# A run over SSH reaches the logged-in session's bus, so running apps pick the
+# change up at once.
+
+- name: Find the session bus of the primary user
+  ansible.builtin.stat:
+    path: "/run/user/{{ ansible_facts['user_uid'] }}/bus"
+  register: phosh_session_bus
+
+- name: Apply the Phosh session's dconf settings
+  become: false
+  environment: "{{ {'DBUS_SESSION_BUS_ADDRESS': 'unix:path=' ~ phosh_session_bus.stat.path} if phosh_session_bus.stat.exists else {} }}"
+  community.general.dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+  loop: "{{ phosh_dconf_settings }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Ensure the system dconf database's lock directory exists
+  ansible.builtin.file:
+    path: /etc/dconf/db/local.d/locks
+    state: directory
+    mode: "0755"
+  when: phosh_dconf_locked | length > 0
+
+- name: Fix and lock settings in the system dconf database
+  ansible.builtin.copy:
+    dest: "{{ item.dest }}"
+    content: "{{ item.content }}"
+    mode: "0644"
+  loop:
+    - dest: /etc/dconf/db/local.d/50-phosh-role
+      content: |
+        {% for dir in phosh_dconf_locked | map(attribute='key') | map('dirname') | unique %}
+        [{{ dir[1:] }}]
+        {% for item in phosh_dconf_locked if (item.key | dirname) == dir %}
+        {{ item.key | basename }}={{ item.value }}
+        {% endfor %}
+        {% endfor %}
+    - dest: /etc/dconf/db/local.d/locks/50-phosh-role
+      content: |
+        {% for item in phosh_dconf_locked %}
+        {{ item.key }}
+        {% endfor %}
+  loop_control:
+    label: "{{ item.dest }}"
+  notify: Update the dconf database
+  when: phosh_dconf_locked | length > 0
+
+- name: Ensure the user's autostart directory exists
+  become: false
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.config/autostart"
+    state: directory
+    mode: "0755"
+  when: phosh_autostart_hidden | length > 0
+
+- name: Skip autostart entries in the user's session
+  become: false
+  ansible.builtin.copy:
+    dest: "/home/{{ primary_user }}/.config/autostart/{{ item }}.desktop"
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name={{ item }}
+      Hidden=true
+    mode: "0644"
+  loop: "{{ phosh_autostart_hidden }}"
+
+# phosh authenticates its lock screen as the PAM service "phosh"; without a
+# file of its own that falls back to "other", which has no keyring step.
+- name: PAM service for the lock screen, unlocking the GNOME Keyring too
+  ansible.builtin.copy:
+    dest: /etc/pam.d/phosh
+    content: |
+      # Managed by Ansible (phosh role)
+      @include common-auth
+      auth optional pam_gnome_keyring.so
+      @include common-account
+    mode: "0644"
+  when: phosh_lockscreen_unlocks_keyring

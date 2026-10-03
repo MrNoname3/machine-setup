@@ -18,6 +18,9 @@ brave_policies:
   BraveVPNDisabled: true
   BraveAIChatEnabled: false
 
+# Further MANDATORY policies for one host, merged over brave_policies.
+brave_policies_extra: {}
+
 # RECOMMENDED policies go to /etc/brave/policies/recommended/brave.json: they
 # pre-set a default but leave the UI editable. The default search engine lives
 # here (not mandatory) so the Search settings page — including the private-window
@@ -27,6 +30,10 @@ brave_policies_recommended:
   DefaultSearchProviderName: DuckDuckGo
   DefaultSearchProviderSearchURL: "https://duckduckgo.com/?q={searchTerms}"
   DefaultSearchProviderSuggestURL: "https://ac.duckduckgo.com/ac/?q={searchTerms}&type=list"
+  # Protected preferences: Brave resets them when written into the profile.
+  ShowHomeButton: true
+  HomepageIsNewTabPage: false
+  HomepageLocation: "https://www.duckduckgo.com/"
 
 # Local (non-syncing) profile preferences that have no policy equivalent.
 # Applied idempotently by editing only these dotted keys in the profile's
@@ -43,10 +50,21 @@ brave_local_prefs:
   brave.new_tab_page.show_brave_news: false   # hide the News card
   brave.new_tab_page.show_together: false     # hide the Talk card (internal name: "together")
 
-  # Social media blocking (Shields) — block all
-  brave.fb_embed_default: false               # Facebook
-  brave.twitter_embed_default: false          # X / Twitter
-  brave.linkedin_embed_default: false         # LinkedIn
+  # Shields defaults: ads and trackers blocked, cosmetic filtering aggressive
+  # ("*,*" is the pattern of the default for every site).
+  profile.content_settings.exceptions.shieldsAds.*,*.setting: 2
+  profile.content_settings.exceptions.trackers.*,*.setting: 2
+  profile.content_settings.exceptions.cosmeticFilteringV2.*,*.setting.cosmeticFilteringV2: 1
+
+  # No Safe Browsing protection
+  safebrowsing.enabled: false
+
+  # DuckDuckGo in private windows too (the built-in engine's ID)
+  brave.default_private_search_provider_guid: "485bf7d3-0215-45af-87dc-538868000501"
+
+  # No spell checking, and downloads go to the download folder without asking
+  browser.enable_spellchecking: false
+  download.prompt_for_download: false
 
   # Telemetry off
   brave.p3a.enabled: false                    # privacy-preserving product analytics (P3A)
@@ -79,6 +97,9 @@ brave_local_prefs:
   # Don't warn before closing a window with multiple tabs
   brave.enable_window_closing_confirm: false
 
+# Further profile preferences for one host, merged over brave_local_prefs.
+brave_local_prefs_extra: {}
+
 # Browser-wide preferences that live in "Local State" (NOT the per-profile
 # Preferences). Applied by the same idempotent task as brave_local_prefs.
 brave_local_state_path: "/home/{{ primary_user }}/.config/BraveSoftware/Brave-Browser/Local State"
@@ -86,9 +107,32 @@ brave_local_state_prefs:
   # Enable Widevine (streaming DRM). Brave downloads the CDM on first launch.
   brave.widevine_opted_in: true
 
-# Extra command-line flags, appended to every Exec= line of a user-local copy
-# of the desktop entry (the official package reads no flags file). The local
-# entry shadows the system one, so menu / default-browser launches pick the
-# flags up. Empty list = no override (the local copy is removed). Per-host —
-# see host_vars.
+  # Filter list "Cookie notice blocker" (EasyList Cookie) off: hiding cookie
+  # consent pop-ups breaks some sites. Lists are keyed by their ID in Brave's
+  # list catalog.
+  brave.ad_block.regional_filters.AC023D22-AE88-4060-A978-4FEEEC4221693.enabled: false
+
+  # Social media blocking (Shields) — block all
+  brave.shields.fb_embed_default: false       # Facebook
+  brave.shields.twitter_embed_default: false  # X / Twitter
+  brave.shields.linkedin_embed_default: false # LinkedIn
+
+# Extra command-line flags, appended to every Exec= line of user-local copies
+# of the desktop entries (the official package reads no flags file). The local
+# entries shadow the system ones, so menu / default-browser / open-with
+# launches pick the flags up. Empty list = no override (the local copies are
+# removed). Per-host — see host_vars.
 brave_flags: []
+
+# The desktop entries the official package installs in /usr/share/applications.
+brave_desktop_entries:
+  - brave-browser.desktop
+  - com.brave.Browser.desktop
+
+# Wait for the Brave sync chain to be set up (the gate at the end of the role).
+# Off for a host whose profile stays on its own.
+brave_sync_gate: true
+
+# Let unattended-upgrades install Brave's updates too, for a host with no
+# update manager of its own (Debian hosts only).
+brave_unattended_upgrades: false

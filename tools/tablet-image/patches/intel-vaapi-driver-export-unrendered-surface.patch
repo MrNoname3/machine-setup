@@ -1,0 +1,31 @@
+Description: Allocate an unrendered 4:2:0 surface when it is exported
+ The driver allocates a surface's storage on first use, and exporting a
+ surface nothing has rendered to yet failed with an invalid surface error.
+ Chromium exports its decode surfaces before the first frame, so its VA-API
+ decoder gave up and fell back to software. Give such a surface the NV12
+ storage the decoder would allocate for it.
+--- a/src/i965_drv_video.c
++++ b/src/i965_drv_video.c
+@@ -6802,7 +6802,21 @@
+     int composite_object =
+         flags & VA_EXPORT_SURFACE_COMPOSED_LAYERS;
+ 
+-    if (!obj_surface || !obj_surface->bo)
++    if (!obj_surface)
++        return VA_STATUS_ERROR_INVALID_SURFACE;
++
++    /* Storage is allocated on first use; a 4:2:0 surface exported before
++     * anything rendered to it gets the storage the decoder would give it. */
++    if (!obj_surface->bo && obj_surface->expected_format == VA_RT_FORMAT_YUV420) {
++        VAStatus va_status = i965_check_alloc_surface_bo(ctx, obj_surface,
++                                                         HAS_TILED_SURFACE(i965),
++                                                         VA_FOURCC_NV12,
++                                                         SUBSAMPLE_YUV420);
++        if (va_status != VA_STATUS_SUCCESS)
++            return va_status;
++    }
++
++    if (!obj_surface->bo)
+         return VA_STATUS_ERROR_INVALID_SURFACE;
+ 
+     if (mem_type != VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2) {

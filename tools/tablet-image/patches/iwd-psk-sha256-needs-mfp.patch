@@ -1,0 +1,18 @@
+Description: Only select PSK-SHA256 when the hardware is MFP capable
+ PSK-SHA256 is the AKM of WPA2 networks that use management frame
+ protection. On hardware without BIP support (for example BCM43241 with
+ its 2013 firmware) the association is rejected, so a WPA2/WPA3
+ transition network that also advertises plain PSK stays unreachable.
+ Fall through to PSK in that case, as the SAE path already does.
+--- a/src/wiphy.c
++++ b/src/wiphy.c
+@@ -345,7 +345,8 @@
+ 				return IE_RSN_AKM_SUITE_FT_USING_PSK;
+ 		}
+ 
+-		if (info->akm_suites & IE_RSN_AKM_SUITE_PSK_SHA256)
++		if ((info->akm_suites & IE_RSN_AKM_SUITE_PSK_SHA256) &&
++				(wiphy->supported_ciphers & IE_RSN_CIPHER_SUITE_BIP_CMAC))
+ 			return IE_RSN_AKM_SUITE_PSK_SHA256;
+ 
+ 		if (info->akm_suites & IE_RSN_AKM_SUITE_PSK)

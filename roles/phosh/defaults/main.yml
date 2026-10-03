@@ -1,0 +1,17 @@
+---
+# dconf settings of the Phosh session; set per host. Each item has a key and
+# a GVariant value, or state: absent to return the key to its default.
+phosh_dconf_settings: []
+
+# Settings fixed in the system dconf database and locked there, for keys the
+# session itself rewrites (phosh sets the window buttons at every start).
+# Each item has a key and a GVariant value.
+phosh_dconf_locked: []
+
+# Session autostart entries (names under /etc/xdg/autostart, without
+# .desktop) the user's session skips.
+phosh_autostart_hidden: []
+
+# Unlocking the lock screen also unlocks the GNOME Keyring with the same
+# password (needs gnome-keyring and libpam-gnome-keyring on the host).
+phosh_lockscreen_unlocks_keyring: false

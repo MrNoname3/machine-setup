@@ -1,0 +1,10 @@
+[Unit]
+Description=Check that the DKMS modules are built for the running kernel
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/dkms-check running
+
+[Install]
+WantedBy=graphical.target

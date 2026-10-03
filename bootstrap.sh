@@ -79,7 +79,13 @@ mapfile -t HOSTS < <(awk '!/^[[:space:]]*($|#|\[)/ {print $1}' "$REPO_DIR/invent
 DEFAULT=""
 case "$OS_FAMILY" in
   bazzite) DEFAULT=desktop-bazzite ;;
-  debian)  DEFAULT=laptop-old ;;
+  debian)
+    # Mint is the laptop; plain Debian is the tablet image's system.
+    case "${ID:-}" in
+      debian) DEFAULT=tablet-miix ;;
+      *)      DEFAULT=laptop-old ;;
+    esac
+    ;;
 esac
 
 RUN=no
@@ -119,7 +125,7 @@ case "$OS_FAMILY" in
     echo "    # use -K instead of '-e ansible_become=false' when a task needs root (e.g. flatpak install)"
     ;;
   *)
-    echo "    ./scripts/apply.sh ${HOST:-laptop-old}"
+    echo "    ./scripts/apply.sh ${HOST:-$DEFAULT}"
     echo "    # (passwordless sudo is set up by the playbook; use -K only on the first run)"
     ;;
 esac

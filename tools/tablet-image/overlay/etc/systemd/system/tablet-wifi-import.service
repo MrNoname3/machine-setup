@@ -1,0 +1,20 @@
+# A NetworkManager profile dropped onto the ESP after the image is written
+# brings the tablet onto Wi-Fi without the touch screen. The file is moved
+# into NetworkManager's root-only directory and removed from the ESP.
+[Unit]
+Description=Import a Wi-Fi profile left on the ESP
+# systemd's own condition check does not trigger the automount, so the ESP is
+# mounted explicitly first.
+RequiresMountsFor=/boot/efi
+ConditionPathExists=/boot/efi/wifi.nmconnection
+Wants=NetworkManager.service
+After=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/install -m 600 /boot/efi/wifi.nmconnection /etc/NetworkManager/system-connections/wifi.nmconnection
+ExecStart=/usr/bin/rm /boot/efi/wifi.nmconnection
+ExecStart=/usr/bin/nmcli connection reload
+
+[Install]
+WantedBy=multi-user.target

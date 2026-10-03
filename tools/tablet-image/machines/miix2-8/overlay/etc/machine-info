@@ -1,0 +1,3 @@
+# The firmware reports a hand-held chassis, which systemd calls a handset;
+# phosh then treats the tablet as a phone and forces its lock screen upright.
+CHASSIS=tablet

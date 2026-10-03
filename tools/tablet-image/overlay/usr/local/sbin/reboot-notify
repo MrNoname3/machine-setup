@@ -1,0 +1,22 @@
+#!/bin/bash
+#
+# reboot-notify
+#
+# Puts up a notification that a restart is due, naming the packages that asked
+# for it in /run/reboot-required.pkgs (unattended-upgrades' kernel hook writes
+# both files). Waits for the package run to finish first, so the list is
+# complete and DKMS has built its modules.
+#
+set -u
+
+for _ in $(seq 360); do
+  pgrep -x 'dpkg|apt|apt-get' >/dev/null ||
+    pgrep -f '^/usr/bin/python3 /usr/bin/unattended-upgrade( |$)' >/dev/null || break
+  sleep 10
+done
+
+pkgs=$(sort -u /run/reboot-required.pkgs 2>/dev/null | paste -sd ' ' -)
+title="Restart required"
+body="Restart the tablet to finish installing updates${pkgs:+: $pkgs}."
+logger -t reboot-notify "$title. $body"
+exec /usr/local/sbin/notify-desktops reboot-notify system-reboot "$title" "$body"

@@ -1,0 +1,2 @@
+// Keeps later installs as lean as the image itself.
+APT::Install-Recommends "false";

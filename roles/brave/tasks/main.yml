@@ -34,6 +34,17 @@
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
+- name: Let unattended-upgrades update Brave
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52unattended-upgrades-brave
+    content: |
+      // Managed by Ansible (brave role)
+      Unattended-Upgrade::Origins-Pattern:: "origin=Brave Software,label=Brave Browser";
+    mode: "0644"
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - brave_unattended_upgrades
+
 # --- Bazzite: vendor rpm repo + rpm-ostree layering ------------------------
 # Layering changes the next deployment: after a fresh install a REBOOT is
 # needed before the browser exists. --idempotent makes re-runs safe, and the
@@ -81,7 +92,7 @@
     mode: "0644"
     validate: "python3 -m json.tool %s"
   loop:
-    - { level: managed, policies: "{{ brave_policies }}" }
+    - { level: managed, policies: "{{ brave_policies | combine(brave_policies_extra) }}" }
     - { level: recommended, policies: "{{ brave_policies_recommended }}" }
   loop_control:
     label: "{{ item.level }}"
@@ -99,16 +110,17 @@
     - x-scheme-handler/http
     - x-scheme-handler/https
     - text/html
+    - application/xhtml+xml
     - x-scheme-handler/about
     - x-scheme-handler/unknown
     - application/pdf
 
-# --- Extra launch flags (user-local desktop-entry override) ----------------
+# --- Extra launch flags (user-local desktop-entry overrides) ---------------
 # The official package's launcher reads no flags file (brave-flags.conf is a
 # distro-packaging convention Brave's own deb lacks), so the flags are baked
-# into a user-local copy of the desktop entry, which shadows the system one
-# for menu / panel / default-browser launches. Removed when brave_flags is
-# empty, falling back to the stock entry.
+# into user-local copies of the package's desktop entries (it ships two, and
+# MIME associations may pick either), which shadow the system ones. Removed
+# when brave_flags is empty, falling back to the stock entries.
 - name: Ensure the user applications directory exists
   ansible.builtin.file:
     path: "/home/{{ primary_user }}/.local/share/applications"
@@ -117,27 +129,41 @@
   become: false
   when: brave_flags | length > 0
 
-- name: Read the system Brave desktop entry
+- name: Find the system Brave desktop entries
+  ansible.builtin.find:
+    paths: /usr/share/applications
+    patterns: "{{ brave_desktop_entries }}"
+  register: brave_desktop_files
+  when: brave_flags | length > 0
+
+- name: Read the system Brave desktop entries
   ansible.builtin.slurp:
-    src: /usr/share/applications/brave-browser.desktop
+    src: "{{ item.path }}"
+  loop: "{{ brave_desktop_files.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
   register: brave_desktop_entry
   when: brave_flags | length > 0
 
-- name: Deploy the flagged Brave desktop entry (shadows the system one)
+- name: Deploy the flagged Brave desktop entries (shadow the system ones)
   ansible.builtin.copy:
-    dest: "/home/{{ primary_user }}/.local/share/applications/brave-browser.desktop"
+    dest: "/home/{{ primary_user }}/.local/share/applications/{{ item.source | basename }}"
     content: >-
-      {{ brave_desktop_entry.content | b64decode
+      {{ item.content | b64decode
          | regex_replace('(?m)^Exec=(\S+)', 'Exec=\1 ' ~ (brave_flags | join(' '))) }}
     mode: "0644"
   become: false
+  loop: "{{ brave_desktop_entry.results | default([]) }}"
+  loop_control:
+    label: "{{ item.source | basename }}"
   when: brave_flags | length > 0
 
-- name: Remove the desktop-entry override when no flags are set
+- name: Remove the desktop-entry overrides when no flags are set
   ansible.builtin.file:
-    path: "/home/{{ primary_user }}/.local/share/applications/brave-browser.desktop"
+    path: "/home/{{ primary_user }}/.local/share/applications/{{ item }}"
     state: absent
   become: false
+  loop: "{{ brave_desktop_entries }}"
   when: brave_flags | length == 0
 
 # --- Local (non-syncing) preferences --------------------------------------
@@ -192,7 +218,7 @@
   become: false
   when: brave_running.rc != 0
   loop:
-    - { path: "{{ brave_prefs_path }}", prefs: "{{ brave_local_prefs }}" }
+    - { path: "{{ brave_prefs_path }}", prefs: "{{ brave_local_prefs | combine(brave_local_prefs_extra) }}" }
     - { path: "{{ brave_local_state_path }}", prefs: "{{ brave_local_state_prefs }}" }
   loop_control:
     label: "{{ item.path | basename }}"
@@ -221,6 +247,7 @@
   failed_when: false
   changed_when: false
   become: false
+  when: brave_sync_gate
 
 - name: Gate — set up the Brave sync chain
   ansible.builtin.pause:
@@ -228,4 +255,6 @@
       Brave is not joined to a sync chain yet.
       Open Brave, set up Sync (enter or create your sync code), then press
       Enter to continue once the profile has synced.
-  when: brave_sync.rc != 0
+  when:
+    - brave_sync_gate
+    - brave_sync.rc != 0

@@ -53,10 +53,14 @@ scan() { # scan <label> <pattern-ERE> [allowlist-ERE]
 
 scan "private key block" 'BEGIN [A-Z ]*PRIVATE KEY'
 scan "IPv4 address" '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' \
-  '0\.0\.0\.0|127\.0\.0\.1|192\.168\.0\.0/16|10\.0\.0\.0/8|172\.16\.0\.0/12'
+  '0\.0\.0\.0|127\.0\.[01]\.1|192\.168\.0\.0/16|10\.0\.0\.0/8|172\.16\.0\.0/12'
 scan "MAC address" '\b([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}\b' \
   'aa:bb:cc:dd:ee:ff'
-scan "UUID" '\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b'
+# Allowlisted: the GPT type of a Linux x86-64 root partition, the vendor GUID
+# of the Lenovo firmware's Setup variable, and the ID of Brave's built-in
+# DuckDuckGo engine — fixed values, not identifiers.
+scan "UUID" '\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b' \
+  '4f68bce3-e8cd-4db1-96e7-fbcaf984b709|a04a27f4-df00-4d42-b552-39511302113d|485bf7d3-0215-45af-87dc-538868000501'
 
 if [ -f .secret-patterns.local ]; then
   while IFS= read -r p; do
