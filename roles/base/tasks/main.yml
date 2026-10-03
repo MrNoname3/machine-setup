@@ -57,6 +57,21 @@
   loop_control:
     label: "{{ item.key }}"
 
+# UPower 1.90.9 (Debian 13) reads no drop-in directory, so the settings go
+# into its own configuration file.
+- name: Set the UPower battery policy
+  community.general.ini_file:
+    path: /etc/UPower/UPower.conf
+    section: UPower
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    no_extra_spaces: true
+  loop: "{{ base_upower_settings | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  notify: Restart upower
+
 # CUPS printers (see `printers` in defaults). The Samsung SCX-4x21 speaks Samsung
 # QPDL, so it needs splix's rastertoqpdl filter. Mint's add-printer dialog only
 # offers the nearest generic match ("SCX-4x24 Series PXL"), which emits PCL-XL —

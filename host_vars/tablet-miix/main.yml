@@ -48,6 +48,11 @@ base_mime_defaults:
   image/gif: org.gnome.Loupe.desktop
   image/webp: org.gnome.Loupe.desktop
 
+# The critical-battery warning at 8 %, the power-off at 5 %.
+base_upower_settings:
+  PercentageCritical: "8.0"
+  PercentageAction: "5.0"
+
 # Inbound: only SSH; the tablet runs no other network service.
 firewall_allowed:
   - { port: "{{ ssh_port }}", proto: tcp, comment: "SSH" }
@@ -65,6 +70,8 @@ phosh_dconf_settings:
   - { key: /org/gnome/desktop/screensaver/lock-enabled, value: "true" }
   - { key: /org/gnome/desktop/screensaver/lock-delay, value: "uint32 30" }
   - { key: /sm/puri/phosh/lockscreen/require-unlock, value: "true" }
+  # Suspend works here, so the power menu offers it.
+  - { key: /sm/puri/phosh/enable-suspend, value: "true" }
   # The default favorites are phone apps the tablet does not have.
   - { key: /sm/puri/phosh/favorites, value: "@as []" }
 

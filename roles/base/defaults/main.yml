@@ -10,6 +10,11 @@ base_cinnamon: false
 # user's mimeapps.list; set per host.
 base_mime_defaults: {}
 
+# UPower settings ({option: value}) written to /etc/UPower/UPower.conf, such
+# as the battery levels of the warnings and of the critical action; set per
+# host.
+base_upower_settings: {}
+
 # Default video player (XDG MIME associations in the user's mimeapps.list).
 default_video_player: vlc.desktop
 video_mimetypes:
