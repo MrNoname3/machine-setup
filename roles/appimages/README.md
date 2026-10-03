@@ -181,6 +181,7 @@ survive:
 | MQTT Explorer | `GithubUpdater` | `thomasnordquist/MQTT-Explorer`, `MQTT-Explorer-*.AppImage`, **pre-releases on** |
 | Logic (Saleae) | `StaticFileUpdater` | `https://logic2api.saleae.com/download?os=linux&arch=x64` |
 | LM Studio | `StaticFileUpdater` | `https://lmstudio.ai/download/latest/linux/x64?format=AppImage` |
+| Radmin VPN | `GithubUpdater` | `baptisterajaut/radmin-vpn-linux`, `RadminVPN-Linux-x86_64.AppImage` |
 
 **`StaticFileUpdater`** does a `HEAD` (following redirects) and compares
 `content-length` against the local file's size. Both vendor URLs above are
@@ -291,6 +292,13 @@ flatpak run it.mijorus.gearlever --update --all -y       # update everything
 
 Updates are never applied by this role — it configures *where* to look, and
 leaves the "when" to you.
+
+**Radmin VPN** updates in two layers. The AppImage carries Wine and the launcher,
+and pins the Radmin build it was validated with; the Radmin installed in its Wine
+prefix (`~/.local/share/radmin-vpn-linux/`) only moves to that build when the
+AppImage is run once with `--update`, which keeps the Radmin ID. Radmin's own
+"Automatic updates" stays off in its settings: it installs into the live prefix
+and takes the running service down with it.
 
 ## Troubleshooting
 
