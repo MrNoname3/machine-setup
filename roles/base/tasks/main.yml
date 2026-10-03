@@ -44,6 +44,19 @@
     - ansible_facts['os_family'] == "Debian"
     - packages_absent | length > 0
 
+- name: Set the default applications (user MIME associations)
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.config/mimeapps.list"
+    section: Default Applications
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    no_extra_spaces: true
+  become: false
+  loop: "{{ base_mime_defaults | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
 # CUPS printers (see `printers` in defaults). The Samsung SCX-4x21 speaks Samsung
 # QPDL, so it needs splix's rastertoqpdl filter. Mint's add-printer dialog only
 # offers the nearest generic match ("SCX-4x24 Series PXL"), which emits PCL-XL —

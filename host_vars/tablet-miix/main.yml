@@ -39,6 +39,14 @@ packages_absent:
   - firefox-esr-l10n-hu
   - firefox-esr-mobile-config
 
+# Brave's desktop entries claim these image types too, and win without a
+# default.
+base_mime_defaults:
+  image/jpeg: org.gnome.Loupe.desktop
+  image/png: org.gnome.Loupe.desktop
+  image/gif: org.gnome.Loupe.desktop
+  image/webp: org.gnome.Loupe.desktop
+
 # Inbound: only SSH; the tablet runs no other network service.
 firewall_allowed:
   - { port: "{{ ssh_port }}", proto: tcp, comment: "SSH" }
