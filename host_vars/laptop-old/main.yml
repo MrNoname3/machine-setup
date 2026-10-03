@@ -130,12 +130,9 @@ printers:
 # desktop), where it would hijack the `docker` CLI.
 container_docker_host_export: true
 
-# Hardware video decode (VA-API): the Sandy Bridge iGPU decodes H.264 in
-# hardware (verified with vainfo), but Brave ships it off by default on
-# Linux, and the old i965 driver also needs the driver-check override.
-# Verify in the browser at brave://gpu -> "Video Decode: Hardware accelerated".
-brave_flags:
-  - "--enable-features=VaapiVideoDecodeLinuxGL,VaapiIgnoreDriverChecks"
+# No brave_flags: Brave cannot decode video in hardware on this X11 Optimus
+# machine (VA-API lands on the nouveau render node, and decoded frames cannot
+# be handed to GLX), so it decodes in software, which the CPU keeps up with.
 
 # Remote LUKS unlock (dropbear) uses ip=dhcp; the address is pinned by a DHCP
 # reservation on the router (external dependency, not captured in this repo —
