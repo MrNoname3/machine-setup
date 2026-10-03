@@ -25,6 +25,8 @@ packages_present:
   - git
   - python3-venv                 # repo-local toolchain (scripts/ensure-venv.sh)
   - python3-psutil               # community.general.dconf (phosh role)
+  - gnome-keyring                # Brave keeps its encryption key here
+  - libpam-gnome-keyring         # the lock screen PIN unlocks the keyring
   - htop
   - portfolio-filemanager        # file manager made for phones and tablets
   - loupe                        # image viewer
