@@ -55,12 +55,13 @@ identifying the target by size and model.
 ## Hardware video decoding
 
 Bay Trail decodes H.264, MPEG-2 and VC-1 through VA-API (the i965 driver), not
-VP9, AV1 or HEVC. Firefox and Celluloid use it as the image sets them up.
-Chromium-based browsers need the patched driver from `build-deb.sh` and their
-VA-API features switched on, for example:
+VP9, AV1 or HEVC, and encodes H.264. Firefox and Celluloid use it as the image
+sets them up. Chromium-based browsers need the patched driver from
+`build-deb.sh` and their VA-API features switched on, for example (the last
+one is encoding, which video calls use):
 
 ```
---enable-features=AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL,VaapiIgnoreDriverChecks
+--enable-features=AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL,VaapiIgnoreDriverChecks,AcceleratedVideoEncoder
 ```
 
 Chromium renames these features from time to time, and then decodes in
