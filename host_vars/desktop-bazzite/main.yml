@@ -117,6 +117,14 @@ appimages:
     manager: StaticFileUpdater
     config:
       url: "https://lmstudio.ai/download/latest/linux/x64?format=AppImage"
+  - name: Radmin VPN                 # Windows Radmin VPN client under bundled Wine
+    file: radmin_vpn.appimage
+    manager: GithubUpdater
+    config:
+      repo: baptisterajaut/radmin-vpn-linux
+      repo_filename: "RadminVPN-Linux-x86_64.AppImage"
+      # Release candidates are published as pre-releases.
+      allow_prereleases: false
 
 # Radeon RX 9070 XT (Navi 48 / RDNA4) tuning. Every number here was measured on
 # THIS card -- see roles/graphics/README.md for the method and the raw results.

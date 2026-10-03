@@ -198,7 +198,7 @@
     msg: >-
       Not integrated yet: {{ missing | map(attribute='name') | join(', ') }}.
       Download each AppImage, then integrate it with:
-      flatpak run it.mijorus.gearlever --integrate <downloaded-file> -y
+      flatpak run it.mijorus.gearlever --integrate <downloaded-file> --replace -y
       Gear Lever names the installed file after the app itself; if the result
       differs from the `file:` value in host_vars, correct host_vars to match.
   vars:

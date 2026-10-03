@@ -20,9 +20,9 @@ gearlever_config: "/home/{{ primary_user }}/.var/app/it.mijorus.gearlever/config
 appimages_install_missing: false
 
 # Where the bootstrap stages downloads before handing them to Gear Lever, which
-# then moves them into appimages_dir. /var/tmp on purpose — /tmp is a tmpfs here,
-# and staging a 1 GB AppImage in RAM mid-provision is a bad surprise.
-appimages_download_dir: /var/tmp/appimages-bootstrap
+# then moves them into appimages_dir. It must be on disk (/tmp is a tmpfs here)
+# and visible inside Gear Lever's flatpak, whose /var/tmp is private to the app.
+appimages_download_dir: "/home/{{ primary_user }}/.cache/appimages-bootstrap"
 
 # Check for AppImage updates on session start and notify about them. Kept at
 # Gear Lever's own default (off). The value here only mirrors the setting into
