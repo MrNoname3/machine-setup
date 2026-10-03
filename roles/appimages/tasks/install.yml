@@ -97,10 +97,12 @@
 
 # Gear Lever moves the file into appimages_dir, extracts the icon and writes the
 # desktop entry. The update source was already configured by the caller, so an
-# integrated app is immediately update-aware.
+# integrated app is immediately update-aware. --replace keeps the app's own name:
+# the CLI's default (keep both) appends the version to it, or the first six hex
+# digits of the file's md5 when the AppImage declares no version.
 - name: Integrate the downloaded AppImages with Gear Lever
   ansible.builtin.command: >-
-    flatpak run it.mijorus.gearlever --integrate {{ item.dest | quote }} -y
+    flatpak run it.mijorus.gearlever --integrate {{ item.dest | quote }} --replace -y
   become: false
   changed_when: true
   loop: "{{ appimages_downloaded.results | default([]) }}"

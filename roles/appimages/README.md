@@ -226,12 +226,19 @@ That resolves each app's download URL — the vendor URL for `StaticFileUpdater`
 apps, the newest matching release asset from the API for `GithubUpdater` ones,
 using the same glob and architecture filtering Gear Lever itself applies — stages
 it in `/var/tmp` (**not** `/tmp`, which is a tmpfs), and hands it to
-`--integrate … -y`.
+`--integrate … --replace -y`.
 
 It decides what is missing from the **app name** Gear Lever reports
 (`--list-installed --json`), never from the file name: Gear Lever derives the file
 name from the AppImage's own desktop entry, so a filename check would re-download
 on every run after an upstream rename.
+
+That is why `--replace` matters. The CLI's default conflict mode, *keep both*,
+appends the version to the app's name, or the first six hex digits of the file's
+md5 when the AppImage declares no version (`Radmin VPN (909f22)`). Such a name
+matches no `name:` in host_vars, so the role's verification silently skips the
+app and the next bootstrap downloads it again. `--replace` writes the name the
+AppImage itself declares, which is also what every later update writes.
 
 Note that this installs whatever is *current* upstream, not the version recorded
 here — the role reproduces a working machine, not an exact set of versions.
@@ -239,11 +246,11 @@ here — the role reproduces a working machine, not an exact set of versions.
 Adding a new app by hand instead:
 
 ```sh
-flatpak run it.mijorus.gearlever --integrate ~/Downloads/Whatever.AppImage -y
-flatpak run it.mijorus.gearlever --list-installed     # confirm the file name
+flatpak run it.mijorus.gearlever --integrate ~/Downloads/Whatever.AppImage --replace -y
+flatpak run it.mijorus.gearlever --list-installed     # confirm the name and file name
 ```
 
-Then add it to `appimages:` in host_vars with that exact `file:` value.
+Then add it to `appimages:` in host_vars with that exact `name:` and `file:`.
 
 **Background update checks** (`gearlever_fetch_updates_in_background`) are off,
 Gear Lever's own default. The role only mirrors the value into the config file;
