@@ -18,7 +18,7 @@ touch, rotation, sound, Wi-Fi, Bluetooth and both cameras work.
 | **Shell** | Phosh with Firefox ESR, Foliate (e-books), Celluloid (video); the user logs in automatically and the screen lock starts out off; the on-screen keyboard gets a Hungarian layout for web addresses too, where squeekboard has only a US one |
 | **Network** | NetworkManager with iwd; Wi-Fi is joined on the touch screen |
 | **SSH** | the user logs in with the public keys given to `build.sh` and has sudo without a password; no root login, no passwords; each machine creates its own host keys on first boot |
-| **Updates** | unattended security updates; DKMS rebuilds the profile's modules for new kernels, and `dkms-check` puts up a notification when one did not build (after a package run and at boot) |
+| **Updates** | unattended security updates; DKMS rebuilds the profile's modules for new kernels, and `dkms-check` puts up a notification when one did not build (after a package run and at boot); `reboot-notify` puts one up when an update needs a restart, as kernel updates do; nothing restarts by itself |
 
 ## Building
 

@@ -43,15 +43,4 @@ if [ "$1" = running ]; then
     sleep 5
   done
 fi
-for bus in /run/user/*/bus; do
-  [ -S "$bus" ] || continue
-  uid=$(basename "$(dirname "$bus")")
-  user=$(id -nu "$uid" 2>/dev/null) || continue
-  runuser -u "$user" -- env DBUS_SESSION_BUS_ADDRESS="unix:path=$bus" \
-    gdbus call --session --dest org.freedesktop.Notifications \
-      --object-path /org/freedesktop/Notifications \
-      --method org.freedesktop.Notifications.Notify \
-      dkms-check 0 dialog-warning "\"$title\"" "\"$body\"" '[]' "{'urgency': <byte 2>}" 0 \
-      >/dev/null 2>&1 || true
-done
-exit 0
+/usr/local/sbin/notify-desktops dkms-check dialog-warning "$title" "$body" 2

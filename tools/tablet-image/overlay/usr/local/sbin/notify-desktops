@@ -1,0 +1,24 @@
+#!/bin/bash
+#
+# notify-desktops <app> <icon> <title> <body> [urgency]
+#
+# Shows a notification from <app> in every session that has a desktop bus.
+# urgency is 0 (low), 1 (normal, the default) or 2 (critical). Runs as root.
+#
+set -u
+
+[ $# -ge 4 ] || { echo "usage: notify-desktops <app> <icon> <title> <body> [urgency]" >&2; exit 2; }
+app=$1 icon=$2 title=$3 body=$4 urgency=${5:-1}
+
+for bus in /run/user/*/bus; do
+  [ -S "$bus" ] || continue
+  uid=$(basename "$(dirname "$bus")")
+  user=$(id -nu "$uid" 2>/dev/null) || continue
+  runuser -u "$user" -- env DBUS_SESSION_BUS_ADDRESS="unix:path=$bus" \
+    gdbus call --session --dest org.freedesktop.Notifications \
+      --object-path /org/freedesktop/Notifications \
+      --method org.freedesktop.Notifications.Notify \
+      "$app" 0 "$icon" "\"$title\"" "\"$body\"" '[]' "{'urgency': <byte $urgency>}" 0 \
+      >/dev/null 2>&1 || true
+done
+exit 0

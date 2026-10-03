@@ -1,0 +1,9 @@
+[Unit]
+Description=Notify that a restart is required
+
+# Stays active once run, so the path unit does not start it again while
+# /run/reboot-required exists; /run is empty again after the restart.
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/reboot-notify
