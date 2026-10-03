@@ -109,7 +109,8 @@ are not redistributable, so they stay out of the repository.
   front sensor runs its own exposure control, the rear one starts at a fixed
   gain (`70-ov5693-gain.rules`). The rear sensor often does not answer its
   first probe at boot, and atomisp then registers neither camera;
-  `miix-rear-camera-probe` probes it again.
+  `miix-probe-retry` probes it again, and the sensor hub too, which can come
+  up without its accelerometer after a restart that did not power it down.
 - **Touchscreen**: it also runs from the cameras' power rails, which
   [tcs0-power.asl](machines/miix2-8/acpi/tcs0-power.asl) keeps up; the PMIC
   GPIO driver loads from the initramfs, because the touchscreen's ACPI

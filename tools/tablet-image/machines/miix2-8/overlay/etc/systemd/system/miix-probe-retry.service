@@ -1,0 +1,10 @@
+[Unit]
+Description=Probe I2C devices again that did not answer at boot
+After=systemd-udevd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/miix-probe-retry
+
+[Install]
+WantedBy=multi-user.target
