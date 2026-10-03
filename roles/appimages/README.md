@@ -226,8 +226,10 @@ is opt-in, because the current set is about 1.5 GB (LM Studio alone is over 1 GB
 That resolves each app's download URL — the vendor URL for `StaticFileUpdater`
 apps, the newest matching release asset from the API for `GithubUpdater` ones,
 using the same glob and architecture filtering Gear Lever itself applies — stages
-it in `/var/tmp` (**not** `/tmp`, which is a tmpfs), and hands it to
-`--integrate … --replace -y`.
+it in `~/.cache/appimages-bootstrap`, and hands it to
+`--integrate … --replace -y`. The staging directory has to be on disk (`/tmp` is
+a tmpfs) and outside `/var/tmp`, which Gear Lever's flatpak replaces with a
+private directory of its own.
 
 It decides what is missing from the **app name** Gear Lever reports
 (`--list-installed --json`), never from the file name: Gear Lever derives the file
