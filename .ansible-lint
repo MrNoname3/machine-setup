@@ -13,6 +13,8 @@ exclude_paths:
   - .venv/            # local toolchain (gitignored)
   - .ansible/         # locally installed collections (gitignored)
   - work/             # scratch files, not repo content (gitignored)
+  # squeekboard layout data, formatted as upstream formats it
+  - tools/tablet-image/overlay/etc/skel/.local/share/squeekboard/
 
 skip_list:
   # Role directories are deliberately hyphenated (luks-unlock, ssh-access,
