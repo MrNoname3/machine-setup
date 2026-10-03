@@ -146,7 +146,7 @@ PACKAGES=(
   intel-microcode firmware-brcm80211 firmware-intel-sound wireless-regdb
   e2fsprogs dosfstools iproute2 python3-minimal efibootmgr
   network-manager iwd openssh-server bluez
-  unattended-upgrades ca-certificates
+  unattended-upgrades ca-certificates logrotate
   # out-of-tree modules a machine profile needs, rebuilt on kernel updates
   dkms linux-headers-amd64
   # touch shell, picked by hand: phosh-core would add calendar and online

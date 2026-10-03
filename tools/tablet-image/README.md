@@ -19,6 +19,7 @@ touch, rotation, sound, Wi-Fi, Bluetooth and both cameras work.
 | **Network** | NetworkManager with iwd; Wi-Fi is joined on the touch screen |
 | **SSH** | the user logs in with the public keys given to `build.sh` and has sudo without a password; no root login, no passwords; each machine creates its own host keys on first boot |
 | **Updates** | unattended security updates; DKMS rebuilds the profile's modules for new kernels, and `dkms-check` puts up a notification when one did not build (after a package run and at boot); `reboot-notify` puts one up when an update needs a restart, as kernel updates do; nothing restarts by itself |
+| **Logs** | the systemd journal, kept across boots and capped at 500 MB; logrotate for the text logs packages write (apt, dpkg) |
 
 ## Building
 
