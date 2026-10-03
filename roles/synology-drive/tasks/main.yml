@@ -28,16 +28,85 @@
     - ansible_facts['os_family'] == "Debian"
     - _vers | length > 0
 
+- name: Read the installed Synology Drive Client version
+  ansible.builtin.command: dpkg-query -W -f=${Version} synology-drive
+  register: synology_installed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: ansible_facts['os_family'] == "Debian"
+
+# Shows the pending update in a --check run too, where nothing is downloaded.
+- name: Report the Synology Drive Client update
+  ansible.builtin.debug:
+    msg: "Synology Drive Client {{ synology_installed.stdout or 'not installed' }} -> {{ synology_drive_version }}"
+  changed_when: true
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - synology_installed.stdout != synology_drive_version
+
+# The package's maintainer scripts stop a running client and leave it stopped,
+# so the environment of its desktop session is kept to start it again.
+- name: Read the session environment of a running Synology Drive Client
+  ansible.builtin.shell: |
+    set -o pipefail
+    pid=$(pgrep -u "{{ primary_user }}" -o -f '/bin/cloud-drive-ui$') || exit 0
+    tr '\0' '\n' < "/proc/$pid/environ" |
+      grep -E '^(DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|DBUS_SESSION_BUS_ADDRESS|XDG_RUNTIME_DIR)='
+  args:
+    executable: /bin/bash
+  register: synology_client_env
+  changed_when: false
+  check_mode: false
+  become: false
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - synology_installed.stdout != synology_drive_version
+
 - name: Download the Synology Drive Client .deb
   ansible.builtin.get_url:
     url: "{{ synology_drive_url }}"
     dest: "/var/cache/synology-drive-client-{{ synology_drive_build }}.deb"
     mode: "0644"
-  when: ansible_facts['os_family'] == "Debian"
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - synology_installed.stdout != synology_drive_version
+    - not ansible_check_mode
 
 - name: Install the Synology Drive Client
   ansible.builtin.apt:
     deb: "/var/cache/synology-drive-client-{{ synology_drive_build }}.deb"
+  register: synology_install
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - synology_installed.stdout != synology_drive_version
+    - not ansible_check_mode
+
+- name: Start the Synology Drive Client again in the session it ran in
+  ansible.builtin.shell: >-
+    pgrep -u "{{ primary_user }}" -f '/bin/cloud-drive-ui$' >/dev/null ||
+    env {{ synology_client_env.stdout_lines | map('quote') | join(' ') }}
+    setsid -f synology-drive autostart </dev/null >/dev/null 2>&1
+  changed_when: true
+  become: false
+  when:
+    - synology_install is changed
+    - synology_client_env.stdout | default('') | length > 0
+
+- name: Find the downloaded Synology Drive Client packages
+  ansible.builtin.find:
+    paths: /var/cache
+    patterns: "synology-drive-client-*.deb"
+  register: synology_debs
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Remove the downloaded packages once installed
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ synology_debs.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path }}"
   when: ansible_facts['os_family'] == "Debian"
 
 # Autostart is handled by the client itself: with "launch on startup" enabled
