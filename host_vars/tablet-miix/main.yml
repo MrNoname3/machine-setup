@@ -80,10 +80,11 @@ brave_flags:
   # The GNOME Keyring holds the encryption key; without this Brave falls back
   # to a key built into every Chromium when the keyring cannot be reached.
   - "--password-store=gnome-libsecret"
-  # VA-API video decoding; it needs the i965 driver patched by tablet-image,
-  # and the driver check passed for i965. How to check that a video gets it:
-  # tools/tablet-image/README.md, "Hardware video decoding".
-  - "--enable-features=AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL,VaapiIgnoreDriverChecks"
+  # VA-API video decoding and encoding (H.264, for video calls); decoding needs
+  # the i965 driver patched by tablet-image, and the driver check passed for
+  # i965. How to check that a video gets it: tools/tablet-image/README.md,
+  # "Hardware video decoding".
+  - "--enable-features=AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL,VaapiIgnoreDriverChecks,AcceleratedVideoEncoder"
 brave_policies_extra:
   # enhanced-h264ify: YouTube sends H.264, which Bay Trail decodes in
   # hardware, instead of VP9 or AV1, which it cannot.
