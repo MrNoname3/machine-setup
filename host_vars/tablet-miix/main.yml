@@ -33,6 +33,12 @@ packages_present:
   - gnome-calculator
   - gnome-text-editor
 
+# Brave is the only browser; the image ships Firefox ESR.
+packages_absent:
+  - firefox-esr
+  - firefox-esr-l10n-hu
+  - firefox-esr-mobile-config
+
 # Inbound: only SSH; the tablet runs no other network service.
 firewall_allowed:
   - { port: "{{ ssh_port }}", proto: tcp, comment: "SSH" }
@@ -64,6 +70,9 @@ phosh_dconf_settings:
 # defaults) and a profile of its own.
 brave_sync_gate: false
 brave_unattended_upgrades: true
+brave_local_prefs_extra:
+  # A plain new tab page: no photo to decode and draw on every new tab.
+  brave.new_tab_page.show_background_image: false
 brave_flags:
   - "--ozone-platform=wayland"            # it looks for X11 otherwise and does not start
   - "--enable-wayland-ime"                # the on-screen keyboard
