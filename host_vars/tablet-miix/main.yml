@@ -44,6 +44,11 @@ phosh_dconf_settings:
   - { key: /org/gnome/desktop/wm/preferences/num-workspaces, value: "1" }
   # Every installed app in the app grid, not only the adaptive ones.
   - { key: /sm/puri/phosh/app-filter-mode, value: "@as []" }
+  # The lock screen asks for the PIN (the user's password) at every lock,
+  # straight away when the screen goes off.
+  - { key: /org/gnome/desktop/screensaver/lock-enabled, value: "true" }
+  - { key: /org/gnome/desktop/screensaver/lock-delay, value: "uint32 0" }
+  - { key: /sm/puri/phosh/lockscreen/require-unlock, value: "true" }
   # The default favorites are phone apps the tablet does not have.
   - { key: /sm/puri/phosh/favorites, value: "@as []" }
   # Debian's wallpaper as image files: phosh cannot load the slideshow XML the
