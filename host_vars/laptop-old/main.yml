@@ -156,6 +156,22 @@ appimages:
       Comment: Debug hardware like a pro
       Categories: Utility;
       StartupWMClass: Logic
+  - name: Radmin VPN                 # Windows Radmin VPN client under bundled Wine
+    file: radmin_vpn.appimage
+    manager: GithubUpdater
+    config:
+      repo: baptisterajaut/radmin-vpn-linux
+      repo_filename: "RadminVPN-Linux-x86_64.AppImage"
+      # Release candidates are published as pre-releases.
+      allow_prereleases: false
+
+# LAN games over Radmin VPN, whose radminvpn0 addresses are not RFC1918: hosting,
+# and the replies a server browser receives on the game port after a broadcast.
+firewall_interface_allowed:
+  - { interface: radminvpn0, port: "7777:7778", proto: udp, comment: "UT2004 game + query" }
+  - { interface: radminvpn0, port: "7787", proto: udp, comment: "UT2004 GameSpy query" }
+  - { interface: radminvpn0, port: "11777", proto: udp, comment: "UT2004 LAN beacon" }
+  - { interface: radminvpn0, port: "28960:28963", proto: udp, comment: "CoD United Offensive" }
 
 # Podman is the only container engine here (no rootful Docker), so it is safe to
 # export DOCKER_HOST to the rootless Podman socket for testcontainers / IDE
