@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Automatic brightness
+Comment=Follows the ambient light sensor with gradual brightness changes
+Exec=/usr/local/bin/autobrightness
+NoDisplay=true
+OnlyShowIn=Phosh;
+X-GNOME-AutoRestart=true

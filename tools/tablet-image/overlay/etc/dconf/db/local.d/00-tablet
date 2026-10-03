@@ -15,3 +15,7 @@ screen-keyboard-enabled=true
 # Celluloid decodes through VA-API where the GPU can, in software elsewhere.
 [io/github/celluloid-player/celluloid]
 mpv-options='--hwdec=auto-safe'
+
+# autobrightness drives the backlight from the light sensor instead.
+[org/gnome/settings-daemon/plugins/power]
+ambient-enabled=false

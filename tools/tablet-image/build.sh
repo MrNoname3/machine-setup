@@ -57,7 +57,7 @@ die() { printf 'build.sh: %s\n' "$*" >&2; exit 1; }
 [ $# -ge 1 ] || die "usage: build.sh <public-key-file>..."
 [ "$(id -u)" = 0 ] || die "must run as root (inside the build container)"
 missing=
-for t in mmdebstrap mkfs.ext4 mkfs.vfat mcopy sfdisk grub-mkstandalone; do
+for t in mmdebstrap mkfs.ext4 mkfs.vfat mcopy sfdisk grub-mkstandalone gcc pkg-config; do
   command -v "$t" >/dev/null || missing="$missing $t"
 done
 for p in i386-efi x86_64-efi; do
@@ -72,6 +72,13 @@ trap 'rm -rf "$WORK"' EXIT
 
 cat "$@" | grep -E '^(ssh|ecdsa)-' >"$WORK/authorized_keys" ||
   die "no public keys found in: $*"
+
+# Programs of the image's own, from src/.
+mkdir "$WORK/bin"
+# shellcheck disable=SC2046 # pkg-config prints several words on purpose
+gcc -O2 -Wall -o "$WORK/bin/autobrightness" "$SRC/src/autobrightness.c" \
+  $(pkg-config --cflags --libs gio-2.0) -lm || die "autobrightness did not build"
+strip "$WORK/bin/autobrightness"
 
 HOOKS=()
 dkms_hooks() {
@@ -164,6 +171,7 @@ mmdebstrap --mode=root --variant=apt \
   --aptopt='APT::Install-Recommends "false"' \
   --customize-hook="sync-in '$SRC/overlay' /" \
   --customize-hook="upload '$WORK/authorized_keys' /tmp/authorized_keys" \
+  --customize-hook="copy-in '$WORK/bin/autobrightness' /usr/local/bin" \
   "${VBT_HOOKS[@]}" "${HOOKS[@]}" \
   --customize-hook="upload '$SRC/customize.sh' /tmp/customize.sh" \
   --customize-hook="chroot \"\$1\" env TI_USER='$TI_USER' TI_HOSTNAME='$TI_HOSTNAME' sh /tmp/customize.sh" \
