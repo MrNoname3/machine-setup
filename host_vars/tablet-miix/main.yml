@@ -59,10 +59,11 @@ phosh_dconf_settings:
   - { key: /org/gnome/desktop/wm/preferences/num-workspaces, value: "1" }
   # Every installed app in the app grid, not only the adaptive ones.
   - { key: /sm/puri/phosh/app-filter-mode, value: "@as []" }
-  # The lock screen asks for the PIN (the user's password) at every lock,
-  # straight away when the screen goes off.
+  # The lock screen asks for the PIN (the user's password) once the screen has
+  # been off for 30 seconds, after a power-button press too; the power menu's
+  # Lock locks at once.
   - { key: /org/gnome/desktop/screensaver/lock-enabled, value: "true" }
-  - { key: /org/gnome/desktop/screensaver/lock-delay, value: "uint32 0" }
+  - { key: /org/gnome/desktop/screensaver/lock-delay, value: "uint32 30" }
   - { key: /sm/puri/phosh/lockscreen/require-unlock, value: "true" }
   # The default favorites are phone apps the tablet does not have.
   - { key: /sm/puri/phosh/favorites, value: "@as []" }
