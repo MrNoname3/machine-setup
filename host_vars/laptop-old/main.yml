@@ -14,6 +14,8 @@ roles_enabled:
   - synology-drive
   - steam
   - vscode
+  - flatpaks       # Gear Lever (flatpak_apps below)
+  - appimages      # Gear Lever's AppImage set + their update sources
   - luks-unlock
   - graphics
   - firewall
@@ -42,6 +44,8 @@ packages_present:
   - yaru-theme-icon              # Yaru cursor set (base role selects it via dconf)
   - cups                         # print server (Mint ships it; listed for clarity)
   - printer-driver-splix         # QPDL/SPL2 raster driver for Samsung SCX/ML/CLP (see printers)
+  - flatpak                      # the flatpaks role (Mint ships it; listed for clarity)
+  - libfuse2t64                  # FUSE 2 runtime of older AppImages (MQTT Explorer)
 
 # Packages to ensure are removed. Keep entries here permanently so fresh
 # installs stay clean. Never list a package in both lists.
@@ -123,6 +127,35 @@ printers:
     usb_match: "usb://Samsung/SCX-4x21"
     model: "drv:///splix-samsung.drv/scx4521f.ppd"
     model_nickname: "Samsung SCX-4521F"
+
+# Flatpak application set (system scope, Flathub).
+flatpak_apps:
+  - it.mijorus.gearlever
+
+# AppImages integrated with Gear Lever. The schema, and why each update source
+# is set the way it is, are documented in host_vars/desktop-bazzite/main.yml and
+# roles/appimages/README.md. A fresh machine integrates them with
+#   ./scripts/apply.sh laptop-old --tags appimages -e appimages_install_missing=true
+appimages:
+  - name: MQTT Explorer
+    file: mqtt_explorer.appimage
+    manager: GithubUpdater
+    config:
+      repo: thomasnordquist/MQTT-Explorer
+      repo_filename: "MQTT-Explorer-*.AppImage"
+      # REQUIRED: the whole 0.4.x line is tagged pre-release.
+      allow_prereleases: true
+  - name: Logic                      # Saleae Logic 2 analyser software
+    file: logic.appimage
+    manager: StaticFileUpdater
+    config:
+      url: "https://logic2api.saleae.com/download?os=linux&arch=x64"
+    # The AppImage's own desktop entry ships no Icon/Comment/Categories.
+    desktop:
+      Icon: logic-appimage
+      Comment: Debug hardware like a pro
+      Categories: Utility;
+      StartupWMClass: Logic
 
 # Podman is the only container engine here (no rootful Docker), so it is safe to
 # export DOCKER_HOST to the rootless Podman socket for testcontainers / IDE
