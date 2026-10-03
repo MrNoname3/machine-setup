@@ -16,6 +16,7 @@
     return_content: true
   register: syno_archive
   failed_when: false
+  check_mode: false
   when: ansible_facts['os_family'] == "Debian"
 
 - name: Select the newest version and build (falls back to the pinned default)
@@ -36,6 +37,15 @@
   check_mode: false
   when: ansible_facts['os_family'] == "Debian"
 
+# Only ever forward: the pinned default is older than what may be installed,
+# and is what remains when the archive cannot be read.
+- name: Decide whether the Synology Drive Client needs installing or updating
+  ansible.builtin.set_fact:
+    synology_update: >-
+      {{ synology_installed.stdout == '' or
+         synology_installed.stdout is version(synology_drive_version, '<') }}
+  when: ansible_facts['os_family'] == "Debian"
+
 # Shows the pending update in a --check run too, where nothing is downloaded.
 - name: Report the Synology Drive Client update
   ansible.builtin.debug:
@@ -43,7 +53,7 @@
   changed_when: true
   when:
     - ansible_facts['os_family'] == "Debian"
-    - synology_installed.stdout != synology_drive_version
+    - synology_update | bool
 
 # The package's maintainer scripts stop a running client and leave it stopped,
 # so the environment of its desktop session is kept to start it again.
@@ -61,7 +71,7 @@
   become: false
   when:
     - ansible_facts['os_family'] == "Debian"
-    - synology_installed.stdout != synology_drive_version
+    - synology_update | bool
 
 - name: Download the Synology Drive Client .deb
   ansible.builtin.get_url:
@@ -70,7 +80,7 @@
     mode: "0644"
   when:
     - ansible_facts['os_family'] == "Debian"
-    - synology_installed.stdout != synology_drive_version
+    - synology_update | bool
     - not ansible_check_mode
 
 - name: Install the Synology Drive Client
@@ -79,7 +89,7 @@
   register: synology_install
   when:
     - ansible_facts['os_family'] == "Debian"
-    - synology_installed.stdout != synology_drive_version
+    - synology_update | bool
     - not ansible_check_mode
 
 - name: Start the Synology Drive Client again in the session it ran in
