@@ -84,6 +84,9 @@ brave_policies_extra:
   MemorySaverModeSavings: 1
   NetworkPredictionOptions: 2
 
+# The lock screen's PIN (the user's password) unlocks the GNOME Keyring too.
+phosh_lockscreen_unlocks_keyring: true
+
 # The tablet has no pen; the Wacom settings daemon only takes memory.
 phosh_autostart_hidden:
   - org.gnome.SettingsDaemon.Wacom
