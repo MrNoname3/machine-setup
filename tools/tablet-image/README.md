@@ -118,6 +118,10 @@ are not redistributable, so they stay out of the repository.
   probe them).
 - **Phantom ports**: i915's DisplayPort and HDMI ports are switched off on the
   kernel command line.
+- **Lock screen**: the firmware calls the machine hand-held, so systemd reports
+  a handset and phosh turns the lock screen upright as on a phone;
+  `/etc/machine-info` says tablet, and the lock screen keeps the orientation
+  it was locked in.
 
 ### One step in the firmware setup
 
