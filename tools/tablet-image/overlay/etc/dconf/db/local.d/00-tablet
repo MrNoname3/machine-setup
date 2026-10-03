@@ -2,6 +2,13 @@
 # locking nor the lock screen phosh starts with may ask for it until then.
 [org/gnome/desktop/screensaver]
 lock-enabled=false
+# Debian's wallpaper as image files: phosh cannot load the slideshow XML the
+# theme points to, and leaves the lock screen black.
+picture-uri='file:///usr/share/desktop-base/ceratopsian-theme/lockscreen/contents/images/1280x800.svg'
+
+[org/gnome/desktop/background]
+picture-uri='file:///usr/share/desktop-base/ceratopsian-theme/wallpaper/contents/images/1280x800.svg'
+picture-uri-dark='file:///usr/share/desktop-base/ceratopsian-theme/wallpaper/contents/images/1280x800.svg'
 
 [sm/puri/phosh/lockscreen]
 require-unlock=false
