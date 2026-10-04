@@ -173,6 +173,15 @@ survive:
   dropped. Testing for `applications-other` instead would misfire on the second
   run, once the role's own icon name is in place.
 
+## USB hardware
+
+An app that drives USB hardware lists the devices' `vendor:product` ids under
+`usb_devices:` in host_vars, and the role writes them to
+`/etc/udev/rules.d/70-appimages.rules` with the `uaccess` tag. That gives the
+user logged in at the machine access to the device, and no one else; the rule
+files the vendors ship use `MODE="0666"` instead, which opens the device to every
+local account. Taking the ids from the vendor's file keeps the two lists in step.
+
 ## The update managers, and why each app uses the one it does
 
 | App | Manager | Source |

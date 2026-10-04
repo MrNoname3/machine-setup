@@ -180,6 +180,18 @@
   loop_control:
     label: "{{ item.file }} -> {{ item.option }}"
 
+# --- Hardware access ------------------------------------------------------
+- name: Grant the local user access to the AppImages' USB hardware
+  ansible.builtin.template:
+    src: 70-appimages.rules.j2
+    dest: /etc/udev/rules.d/70-appimages.rules
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when: appimages | selectattr('usb_devices', 'defined') | list | length > 0
+  notify: Apply udev rules
+
 # --- Manual gate ----------------------------------------------------------
 # Without appimages_install_missing, integrating an AppImage stays a manual step
 # (multi-hundred-MB binaries), so the role reports what is missing rather than

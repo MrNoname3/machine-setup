@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+# USB hardware driven by AppImages (the `usb_devices:` of each app in host_vars).
+# uaccess gives the user at the local seat access; it takes effect only in a
+# file that sorts before systemd's 73-seat-late.rules.
+{% for app in appimages | selectattr('usb_devices', 'defined') %}
+
+# {{ app.name }}
+{% for id in app.usb_devices %}
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="{{ id.split(':')[0] }}", ATTR{idProduct}=="{{ id.split(':')[1] }}", TAG+="uaccess"
+{% endfor %}
+{% endfor %}
