@@ -64,6 +64,7 @@ machine-setup/
     ├── synology-drive/  # Synology Drive client
     ├── steam/           # Steam (+ flatpak on Bazzite)
     ├── lutris/          # Flatpak Lutris: game icons shared with the host
+    ├── heroic/          # Heroic's default Wine: a Proton build from ProtonPlus
     ├── vscode/          # VS Code + settings + extensions
     ├── luks-unlock/     # remote root unlock at boot (dropbear in the initramfs)
     ├── keyring/         # KeePassXC as the SSH agent (both OSes)

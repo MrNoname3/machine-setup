@@ -1,0 +1,52 @@
+---
+# Heroic keeps its default settings in two files, config.json and its store's
+# copy, so the Wine is set in both. Only that key is edited; a file Heroic has
+# not created yet is left alone.
+
+- name: Check whether Heroic is running
+  ansible.builtin.command: flatpak ps --columns=application
+  register: heroic_running
+  changed_when: false
+  become: false
+
+- name: Set Heroic's default Wine to the Proton build from ProtonPlus
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - |
+        import json, os, sys
+        path, section, desired = sys.argv[1], sys.argv[2], json.loads(sys.argv[3])
+        if not os.path.exists(path):
+            print('OK'); sys.exit(0)
+        with open(path) as f:
+            config = json.load(f)
+        settings = config.setdefault(section, {})
+        if settings.get('wineVersion') == desired:
+            print('OK'); sys.exit(0)
+        settings['wineVersion'] = desired
+        with open(path, 'w') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        print('CHANGED')
+      - "{{ heroic_config_dir }}/{{ item.file }}"
+      - "{{ item.section }}"
+      - "{{ heroic_wine_version | to_json }}"
+  vars:
+    heroic_wine_version:
+      bin: "{{ heroic_steam_compat_dir }}/{{ heroic_default_proton }}/proton"
+      name: "{{ heroic_default_proton }}"
+      type: proton
+  register: heroic_wine_result
+  changed_when: "'CHANGED' in heroic_wine_result.stdout"
+  become: false
+  when: "'com.heroicgameslauncher.hgl' not in heroic_running.stdout_lines"
+  loop:
+    - { file: config.json, section: defaultSettings }
+    - { file: store/config.json, section: settings }
+  loop_control:
+    label: "{{ item.file }}"
+
+- name: Warn that the default Wine was skipped because Heroic is running
+  ansible.builtin.debug:
+    msg: Heroic is running, so its default Wine was not set. Close it and re-run.
+  when: "'com.heroicgameslauncher.hgl' in heroic_running.stdout_lines"
