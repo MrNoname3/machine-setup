@@ -139,6 +139,7 @@ flatpak_overrides:
   - { app: net.lutris.Lutris, filesystems: [/mnt/hdd] }
 
 # The Flatpak Lutris and Debian's Steam keep their files elsewhere.
+lutris_flatpak: true
 lutris_wine_dir: "/home/{{ primary_user }}/.var/app/net.lutris.Lutris/data/lutris/runners/wine"
 lutris_steam_compat_dir: "/home/{{ primary_user }}/.steam/debian-installation/compatibilitytools.d"
 

@@ -8,3 +8,6 @@ lutris_steam_compat_dir: "/home/{{ primary_user }}/.local/share/Steam/compatibil
 # Proton builds in lutris_steam_compat_dir to offer as Lutris Wine versions.
 lutris_proton_links:
   - Proton-GE Latest
+
+# Whether Lutris is the Flathub build, whose icons need sharing with the host.
+lutris_flatpak: false
