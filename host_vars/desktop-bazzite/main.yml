@@ -48,6 +48,7 @@ flatpak_apps:
   - org.kde.filelight
   - org.videolan.VLC
   - org.gnome.meld
+  - org.gnome.SimpleScan          # the Samsung SCX-4x21's scanner
   # 3D printing / EDA / CAD
   - com.prusa3d.PrusaSlicer
   - org.freecad.FreeCAD
@@ -198,5 +199,6 @@ brew_packages:
   - htop
   - midnight-commander
   - node
+  - anomalyco/tap/opencode       # opencode coding agent, from its vendor's tap
   - pipx
   - podman-compose
