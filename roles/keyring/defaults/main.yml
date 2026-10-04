@@ -17,9 +17,9 @@ keepassxc_ini_settings:
   - { section: Browser, option: Enabled, value: "true" }
   - { section: PasswordGenerator, option: Length, value: "22" }
   - { section: PasswordGenerator, option: SpecialChars, value: "true" }
-  # Security: lock the database after 15 min of inactivity.
+  # Security: lock the database after 20 min of inactivity.
   - { section: Security, option: LockDatabaseIdle, value: "true" }
-  - { section: Security, option: LockDatabaseIdleSeconds, value: "900" }
+  - { section: Security, option: LockDatabaseIdleSeconds, value: "1200" }
 
 # KeePassXC browser integration is not stored in keepassxc.ini but as a
 # native-messaging host manifest dropped into the browser's config. This is the
