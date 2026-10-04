@@ -131,6 +131,11 @@ printers:
 # Flatpak application set (system scope, Flathub).
 flatpak_apps:
   - it.mijorus.gearlever
+  - net.lutris.Lutris            # Windows games outside Steam and Heroic
+
+# Lutris's manifest grants the home directory but not the game disk.
+flatpak_overrides:
+  - { app: net.lutris.Lutris, filesystems: [/mnt/hdd] }
 
 # AppImages integrated with Gear Lever. The schema, and why each update source
 # is set the way it is, are documented in host_vars/desktop-bazzite/main.yml and
