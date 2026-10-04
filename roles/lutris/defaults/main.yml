@@ -1,0 +1,10 @@
+---
+# Lutris's Wine runner directory and Steam's compatibilitytools.d. Both move
+# with the install: a Flatpak Lutris keeps its data under ~/.var/app, and
+# Debian's Steam lives in ~/.steam/debian-installation.
+lutris_wine_dir: "/home/{{ primary_user }}/.local/share/lutris/runners/wine"
+lutris_steam_compat_dir: "/home/{{ primary_user }}/.local/share/Steam/compatibilitytools.d"
+
+# Proton builds in lutris_steam_compat_dir to offer as Lutris Wine versions.
+lutris_proton_links:
+  - Proton-GE Latest

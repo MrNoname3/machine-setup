@@ -1,0 +1,22 @@
+---
+# Lutris lists Proton builds from its own runners/wine and from Steam's
+# steamapps, not from compatibilitytools.d, where ProtonPlus installs them.
+# A link per build keeps ProtonPlus the one place Proton is managed; a build it
+# updates in place, such as "Proton-GE Latest", stays current through the link.
+
+- name: Ensure Lutris's Wine runner directory exists
+  ansible.builtin.file:
+    path: "{{ lutris_wine_dir }}"
+    state: directory
+    mode: "0755"
+  become: false
+
+- name: Link Steam's Proton builds into Lutris
+  ansible.builtin.file:
+    src: "{{ lutris_steam_compat_dir }}/{{ item }}"
+    dest: "{{ lutris_wine_dir }}/{{ item }}"
+    state: link
+    force: true
+    follow: false
+  become: false
+  loop: "{{ lutris_proton_links }}"

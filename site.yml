@@ -306,6 +306,9 @@
       when: "'synology-drive' in (roles_enabled | default([]))"
     - role: steam
       when: "'steam' in (roles_enabled | default([]))"
+    - role: lutris
+      when: "'lutris' in (roles_enabled | default([]))"
+      tags: lutris
     - role: vscode
       when: "'vscode' in (roles_enabled | default([]))"
     - role: luks-unlock
