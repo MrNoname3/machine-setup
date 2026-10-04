@@ -63,7 +63,7 @@ machine-setup/
     ├── brew/            # Homebrew CLI packages (Bazzite)
     ├── synology-drive/  # Synology Drive client
     ├── steam/           # Steam (+ flatpak on Bazzite)
-    ├── lutris/          # Steam's Proton builds offered to Lutris
+    ├── lutris/          # Flatpak Lutris: game icons shared with the host
     ├── vscode/          # VS Code + settings + extensions
     ├── luks-unlock/     # remote root unlock at boot (dropbear in the initramfs)
     ├── keyring/         # KeePassXC as the SSH agent (both OSes)

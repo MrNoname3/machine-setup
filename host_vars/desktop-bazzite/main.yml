@@ -13,7 +13,6 @@ roles_enabled:
   - brew            # CLI tools below
   - synology-drive  # sync gate + home bind mounts (client via flatpaks)
   - steam           # autostart (Steam ships with the Bazzite image)
-  - lutris          # ProtonPlus's GE-Proton for Lutris (Lutris ships with the image)
   - keyring         # KeePassXC as the SSH agent
   - graphics        # Radeon RX 9070 XT undervolt + power profiles
   - kde             # Plasma tweaks (audited System Settings) + user services

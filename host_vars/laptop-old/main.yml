@@ -16,7 +16,7 @@ roles_enabled:
   - vscode
   - flatpaks       # Gear Lever (flatpak_apps below)
   - appimages      # Gear Lever's AppImage set + their update sources
-  - lutris         # ProtonPlus's GE-Proton for Lutris
+  - lutris         # the Flatpak Lutris's game icons
   - luks-unlock
   - graphics
   - firewall
@@ -137,11 +137,6 @@ flatpak_apps:
 # Lutris's manifest grants the home directory but not the game disk.
 flatpak_overrides:
   - { app: net.lutris.Lutris, filesystems: [/mnt/hdd] }
-
-# The Flatpak Lutris and Debian's Steam keep their files elsewhere.
-lutris_flatpak: true
-lutris_wine_dir: "/home/{{ primary_user }}/.var/app/net.lutris.Lutris/data/lutris/runners/wine"
-lutris_steam_compat_dir: "/home/{{ primary_user }}/.steam/debian-installation/compatibilitytools.d"
 
 # AppImages integrated with Gear Lever. The schema, and why each update source
 # is set the way it is, are documented in host_vars/desktop-bazzite/main.yml and
