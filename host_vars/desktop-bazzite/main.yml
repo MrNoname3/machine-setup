@@ -75,6 +75,10 @@ flatpak_apps:
 flatpak_overrides:
   - app: com.heroicgameslauncher.hgl
     filesystems: ["~/.local/share/Steam/compatibilitytools.d:ro"]
+  # The whole session bus for VS Code, and the whole host filesystem for
+  # virt-manager, so installation media and disk images can live anywhere.
+  - { app: com.visualstudio.code, sockets: [session-bus] }
+  - { app: org.virt_manager.virt-manager, filesystems: [host] }
 
 # Heroic lists Proton builds under the Steam library path in libraryfolders.vdf,
 # which is the canonical /var/home one here; a default given by any other

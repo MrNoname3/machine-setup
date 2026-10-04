@@ -5,6 +5,7 @@
 flatpak_apps: []
 flatpak_remote: flathub
 
-# Extra filesystem access per application, beyond what its manifest grants:
-#   - { app: org.example.App, filesystems: [/mnt/data, "~/Documents:ro"] }
+# Extra access per application, beyond what its manifest grants; each key is
+# optional:
+#   - { app: org.example.App, filesystems: [/mnt/data, "~/Documents:ro"], sockets: [session-bus] }
 flatpak_overrides: []
