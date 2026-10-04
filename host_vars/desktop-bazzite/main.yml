@@ -13,6 +13,7 @@ roles_enabled:
   - brew            # CLI tools below
   - synology-drive  # sync gate + home bind mounts (client via flatpaks)
   - steam           # autostart (Steam ships with the Bazzite image)
+  - lutris          # ProtonPlus's GE-Proton for Lutris (Lutris ships with the image)
   - keyring         # KeePassXC as the SSH agent
   - graphics        # Radeon RX 9070 XT undervolt + power profiles
   - kde             # Plasma tweaks (audited System Settings) + user services
@@ -67,6 +68,13 @@ flatpak_apps:
   - org.keepassxc.KeePassXC
   - org.mozilla.firefox
   - org.virt_manager.virt-manager
+
+# Heroic finds Proton builds in Steam's compatibilitytools.d, where ProtonPlus
+# installs them, but its manifest grants only ~/.steam, whose `steam` link points
+# into ~/.local/share/Steam here.
+flatpak_overrides:
+  - app: com.heroicgameslauncher.hgl
+    filesystems: ["~/.local/share/Steam/compatibilitytools.d:ro"]
 
 # AppImages integrated with Gear Lever, with the update source each one needs.
 # `file:` is the name Gear Lever gave the file in appimages_dir (it derives it
