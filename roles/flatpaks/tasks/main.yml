@@ -15,15 +15,16 @@
 
 # A per-user override, the file `flatpak override --user` writes: it needs no
 # root, and other keys in it (set with Flatseal, say) are left alone.
-- name: Grant the host's Flatpak applications extra filesystem access
+- name: Grant the host's Flatpak applications extra access
   community.general.ini_file:
-    path: "/home/{{ primary_user }}/.local/share/flatpak/overrides/{{ item.app }}"
+    path: "/home/{{ primary_user }}/.local/share/flatpak/overrides/{{ item.0.app }}"
     section: Context
-    option: filesystems
-    value: "{{ item.filesystems | join(';') }};"
+    option: "{{ item.1 }}"
+    value: "{{ item.0[item.1] | join(';') }};"
     no_extra_spaces: true
     mode: "0644"
   become: false
-  loop: "{{ flatpak_overrides }}"
+  loop: "{{ flatpak_overrides | product(['filesystems', 'sockets']) | list }}"
   loop_control:
-    label: "{{ item.app }}: {{ item.filesystems | join(', ') }}"
+    label: "{{ item.0.app }}: {{ item.1 }}={{ item.0[item.1] | default([]) | join(', ') }}"
+  when: item.1 in item.0

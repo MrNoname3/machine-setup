@@ -16,6 +16,8 @@
 #     Bazzite ships a full input-method stack and a stray click can enable the
 #     Virtual Keyboard, which injects an accent/emoji candidate popup while
 #     typing on a physical keyboard.
+#   - Default applications (VLC for video, ...) and power-management timeouts.
+#   - Masks the user services that should not start with the session (KDE Connect).
 #   - Enables mpris-proxy (BT headset media buttons).
 #
 # KConfig edits mostly take effect at the next Plasma login; KWin is told to
@@ -139,6 +141,27 @@
       changed_when: false
       failed_when: false # no running session (e.g. fresh install) is fine
       when: kde_im_result is changed or kde_cfg_result is changed
+
+    - name: Set the default applications (user MIME associations)
+      community.general.ini_file:
+        path: "{{ kde_conf_dir }}/mimeapps.list"
+        section: Default Applications
+        option: "{{ item.key }}"
+        value: "{{ item.value }}"
+        no_extra_spaces: true
+        mode: "0644"
+      loop: >-
+        {{ kde_mime_defaults | combine(dict(kde_video_mimetypes
+           | product([kde_video_player]))) | dict2items }}
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Keep unwanted user services from starting with the session
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        scope: user
+        masked: true
+      loop: "{{ kde_masked_user_units }}"
 
     - name: Enable mpris-proxy (media keys / MPRIS for Bluetooth devices)
       # Bridges MPRIS players to Bluetooth AVRCP so BT headset buttons control

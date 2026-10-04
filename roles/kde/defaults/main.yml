@@ -44,6 +44,11 @@ kde_config_settings:
   - { file: kdeglobals, section: KFileDialog Settings, option: Sort reversed, value: "false" }
   - { file: kdeglobals, section: KFileDialog Settings, option: Speedbar Width, value: "196" }
   - { file: kdeglobals, section: KFileDialog Settings, option: View Style, value: "DetailTree" }
+  # Power management on AC: dim after 10 min, screen off after 15, suspend after
+  # 20. The power profile is left to the user (it changes with the season).
+  - { file: powerdevilrc, section: "AC][Display", option: DimDisplayIdleTimeoutSec, value: "600" }
+  - { file: powerdevilrc, section: "AC][Display", option: TurnOffDisplayIdleTimeoutSec, value: "900" }
+  - { file: powerdevilrc, section: "AC][SuspendAndShutdown", option: AutoSuspendIdleTimeoutSec, value: "1200" }
 
 # Dolphin rewrites its rc on exit, so these are applied only while Dolphin is
 # closed (separate task) — same pattern as the Brave local prefs.
@@ -64,3 +69,48 @@ kde_lookandfeel: org.kde.breezedark.desktop
 # non-interactive runs skip the question. The /latest/ URL always serves the
 # newest release asset.
 kde_rwp_package_url: "https://github.com/rxappdev/RememberWindowPositions/releases/latest/download/rememberwindowpositions.kwinscript"
+
+# Default applications (the user's mimeapps.list), in the format KDE writes them.
+kde_video_player: "org.videolan.VLC.desktop;"
+kde_video_mimetypes:
+  - application/x-matroska
+  - video/3gp
+  - video/3gpp
+  - video/3gpp2
+  - video/avi
+  - video/divx
+  - video/dv
+  - video/fli
+  - video/flv
+  - video/mp2t
+  - video/mp4
+  - video/mp4v-es
+  - video/mpeg
+  - video/msvideo
+  - video/ogg
+  - video/quicktime
+  - video/vnd.divx
+  - video/vnd.mpegurl
+  - video/vnd.rn-realvideo
+  - video/webm
+  - video/x-avi
+  - video/x-flv
+  - video/x-m4v
+  - video/x-matroska
+  - video/x-mpeg2
+  - video/x-ms-asf
+  - video/x-ms-wmv
+  - video/x-ms-wmx
+  - video/x-msvideo
+  - video/x-ogm
+  - video/x-ogm+ogg
+  - video/x-theora
+  - video/x-theora+ogg
+kde_mime_defaults:
+  model/stl: "com.prusa3d.PrusaSlicer.desktop;"
+  application/x-x509-ca-cert: "org.kde.kate.desktop;"
+  application/vnd.ms-publisher: "org.kde.kate.desktop;"
+
+# User services kept from starting with the session.
+kde_masked_user_units:
+  - app-org.kde.kdeconnect.daemon@autostart.service   # KDE Connect

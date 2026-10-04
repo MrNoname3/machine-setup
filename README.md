@@ -57,15 +57,17 @@ machine-setup/
 └── roles/
     ├── base/            # packages (present/absent), sudo; Cinnamon defaults where base_cinnamon
     ├── ssh-access/      # hardened SSH server
+    ├── printers/        # CUPS queues bound to the right driver
     ├── brave/           # browser (apt on Mint, rpm-ostree layer on Bazzite)
     ├── flatpaks/        # per-host Flatpak app set
     ├── appimages/       # Gear Lever's AppImage set + update sources
     ├── brew/            # Homebrew CLI packages (Bazzite)
+    ├── git/             # global git settings
     ├── synology-drive/  # Synology Drive client
     ├── steam/           # Steam (+ flatpak on Bazzite)
     ├── lutris/          # Flatpak Lutris: game icons shared with the host
     ├── heroic/          # Heroic's default Wine: a Proton build from ProtonPlus
-    ├── vscode/          # VS Code + settings + extensions
+    ├── vscode/          # VS Code + settings + extensions + board udev rules
     ├── luks-unlock/     # remote root unlock at boot (dropbear in the initramfs)
     ├── keyring/         # KeePassXC as the SSH agent (both OSes)
     ├── kde/             # Plasma desktop tweaks (Bazzite)

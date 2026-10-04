@@ -107,6 +107,15 @@
     - item not in (vscode_installed.stdout_lines | default([]))
   changed_when: true
 
+- name: Uninstall unwanted VS Code extensions
+  ansible.builtin.command: "code --uninstall-extension {{ item }}"
+  become: false
+  loop: "{{ vscode_extensions_absent }}"
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - item in (vscode_installed.stdout_lines | default([]))
+  changed_when: true
+
 - name: List installed VS Code extensions (flatpak)
   ansible.builtin.command: >-
     flatpak run --command=code com.visualstudio.code --list-extensions
@@ -124,3 +133,25 @@
     - ansible_facts['os_family'] != "Debian"
     - item not in (vscode_flatpak_installed.stdout_lines | default([]))
   changed_when: true
+
+- name: Uninstall unwanted VS Code extensions (flatpak)
+  ansible.builtin.command: >-
+    flatpak run --command=code com.visualstudio.code --uninstall-extension {{ item }}
+  become: false
+  loop: "{{ vscode_extensions_absent }}"
+  when:
+    - ansible_facts['os_family'] != "Debian"
+    - item in (vscode_flatpak_installed.stdout_lines | default([]))
+  changed_when: true
+
+# Lets the user flash and monitor the boards pioarduino builds for: serial
+# adapters and debug probes become user-accessible, and ModemManager leaves them alone.
+- name: Install PlatformIO's udev rules for development boards
+  ansible.builtin.copy:
+    src: 99-platformio-udev.rules
+    dest: /etc/udev/rules.d/99-platformio-udev.rules
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Apply udev rules

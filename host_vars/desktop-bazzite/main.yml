@@ -8,9 +8,11 @@
 # Roles to apply on this host (the "switch" for site.yml).
 roles_enabled:
   - brave           # rpm-ostree layered + policies/prefs (common tasks)
+  - printers        # the Samsung SCX-4x21 (printers below)
   - flatpaks        # the app set below
   - appimages       # Gear Lever's AppImage set + their update sources
   - brew            # CLI tools below
+  - git             # global git settings (+ the credential helper below)
   - synology-drive  # sync gate + home bind mounts (client via flatpaks)
   - steam           # autostart (Steam ships with the Bazzite image)
   - heroic          # ProtonPlus's GE-Proton as Heroic's default Wine
@@ -48,6 +50,7 @@ flatpak_apps:
   - org.kde.filelight
   - org.videolan.VLC
   - org.gnome.meld
+  - org.gnome.SimpleScan          # the Samsung SCX-4x21's scanner
   # 3D printing / EDA / CAD
   - com.prusa3d.PrusaSlicer
   - org.freecad.FreeCAD
@@ -75,6 +78,10 @@ flatpak_apps:
 flatpak_overrides:
   - app: com.heroicgameslauncher.hgl
     filesystems: ["~/.local/share/Steam/compatibilitytools.d:ro"]
+  # The whole session bus for VS Code, and the whole host filesystem for
+  # virt-manager, so installation media and disk images can live anywhere.
+  - { app: com.visualstudio.code, sockets: [session-bus] }
+  - { app: org.virt_manager.virt-manager, filesystems: [host] }
 
 # Heroic lists Proton builds under the Steam library path in libraryfolders.vdf,
 # which is the canonical /var/home one here; a default given by any other
@@ -188,11 +195,24 @@ amdgpu_profiles:
 # and change this value (plus re-run the role) to move the default.
 amdgpu_active_profile: efficient
 
+# Pushes to the Gitea authenticate with a token kept by git's own store helper.
+git_config_extra:
+  credential.helper: store
+
+# CUPS printers (printers role). The Samsung SCX-4x21 runs on Samsung's own ULD
+# driver here, which the image ships; the queue keeps the name it was created with.
+printers:
+  - name: SCX-4x21-Series
+    usb_match: "usb://Samsung/SCX-4x21"
+    model: "uld/Samsung_SCX-4x21_Series.ppd.gz"
+    model_nickname: "Samsung SCX-4x21 Series"
+
 # Homebrew CLI tools (leaves — dependencies follow automatically).
 brew_packages:
   - flashrom
   - htop
   - midnight-commander
   - node
+  - anomalyco/tap/opencode       # opencode coding agent, from its vendor's tap
   - pipx
   - podman-compose
