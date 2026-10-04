@@ -18,4 +18,5 @@ firewall_allowed:
 
 # port/proto allowed on one interface from any source, for overlay networks whose
 # addresses are not RFC1918 (an interface that does not exist yet is fine).
+# Without `port`, every port of that protocol is allowed.
 firewall_interface_allowed: []
