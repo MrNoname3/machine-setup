@@ -57,6 +57,7 @@ machine-setup/
 └── roles/
     ├── base/            # packages (present/absent), sudo; Cinnamon defaults where base_cinnamon
     ├── ssh-access/      # hardened SSH server
+    ├── printers/        # CUPS queues bound to the right driver
     ├── brave/           # browser (apt on Mint, rpm-ostree layer on Bazzite)
     ├── flatpaks/        # per-host Flatpak app set
     ├── appimages/       # Gear Lever's AppImage set + update sources

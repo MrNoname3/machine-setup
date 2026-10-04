@@ -10,6 +10,7 @@
 roles_enabled:
   - base
   - ssh-access
+  - printers       # the Samsung SCX-4x21 (printers below)
   - brave
   - git            # global git settings
   - synology-drive
@@ -120,7 +121,7 @@ packages_absent:
   - docker.io
   - containerd
 
-# CUPS printers (base role). The Samsung SCX-4x21 Series MFP is a Samsung QPDL
+# CUPS printers (printers role). The Samsung SCX-4x21 Series MFP is a Samsung QPDL
 # device, so it must use splix's rastertoqpdl driver (PPD "Samsung SCX-4521F");
 # the generic PCL-XL PPD the Mint dialog suggests prints nothing. The USB URI is
 # auto-discovered from `lpinfo -v` (usb_match), so no serial is stored here.

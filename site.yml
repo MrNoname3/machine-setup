@@ -292,6 +292,9 @@
       when: "'base' in (roles_enabled | default([]))"
     - role: ssh-access
       when: "'ssh-access' in (roles_enabled | default([]))"
+    - role: printers
+      when: "'printers' in (roles_enabled | default([]))"
+      tags: printers
     - role: brave
       when: "'brave' in (roles_enabled | default([]))"
     - role: flatpaks
