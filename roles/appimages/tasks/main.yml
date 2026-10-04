@@ -76,6 +76,16 @@
   loop_control:
     label: "{{ item.section }} -> {{ item.option }}"
 
+# Opt-in only (see install.yml). Runs after the update sources are written, so a
+# freshly integrated app is update-aware immediately, before the desktop-entry
+# repairs, so they find the entry it writes, and before the check below, so a
+# filename mismatch surfaces in the same run.
+- name: Download and integrate the missing AppImages
+  ansible.builtin.include_tasks: install.yml
+  when:
+    - appimages | length > 0
+    - appimages_install_missing | bool
+
 # --- Desktop-entry repairs ------------------------------------------------
 # Gear Lever regenerates an app's desktop entry from the AppImage's own internal
 # entry on every update, and copies whatever it finds — including nothing. When an
@@ -169,15 +179,6 @@
   loop: "{{ appimages_desktop_entries | default([]) }}"
   loop_control:
     label: "{{ item.file }} -> {{ item.option }}"
-
-# Opt-in only (see install.yml). Runs after the update sources are written, so a
-# freshly integrated app is update-aware immediately, and before the check below,
-# so a filename mismatch surfaces in the same run.
-- name: Download and integrate the missing AppImages
-  ansible.builtin.include_tasks: install.yml
-  when:
-    - appimages | length > 0
-    - appimages_install_missing | bool
 
 # --- Manual gate ----------------------------------------------------------
 # Without appimages_install_missing, integrating an AppImage stays a manual step
