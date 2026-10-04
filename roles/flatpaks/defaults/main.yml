@@ -6,5 +6,5 @@ flatpak_apps: []
 flatpak_remote: flathub
 
 # Extra filesystem access per application, beyond what its manifest grants:
-#   - { app: net.lutris.Lutris, filesystems: [/mnt/hdd] }
+#   - { app: org.example.App, filesystems: [/mnt/data, "~/Documents:ro"] }
 flatpak_overrides: []
