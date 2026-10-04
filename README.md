@@ -61,6 +61,7 @@ machine-setup/
     ├── flatpaks/        # per-host Flatpak app set
     ├── appimages/       # Gear Lever's AppImage set + update sources
     ├── brew/            # Homebrew CLI packages (Bazzite)
+    ├── git/             # global git settings
     ├── synology-drive/  # Synology Drive client
     ├── steam/           # Steam (+ flatpak on Bazzite)
     ├── lutris/          # Flatpak Lutris: game icons shared with the host

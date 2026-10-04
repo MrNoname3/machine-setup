@@ -303,6 +303,9 @@
       tags: appimages
     - role: brew
       when: "'brew' in (roles_enabled | default([]))"
+    - role: git
+      when: "'git' in (roles_enabled | default([]))"
+      tags: git
     - role: synology-drive
       when: "'synology-drive' in (roles_enabled | default([]))"
     - role: steam

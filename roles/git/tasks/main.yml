@@ -1,0 +1,12 @@
+---
+# git role: the primary user's global git settings.
+
+- name: Set the global git settings
+  community.general.git_config:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    scope: global
+  become: false
+  loop: "{{ git_config | combine(git_config_extra) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}={{ item.value }}"

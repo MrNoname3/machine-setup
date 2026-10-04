@@ -11,6 +11,7 @@ roles_enabled:
   - flatpaks        # the app set below
   - appimages       # Gear Lever's AppImage set + their update sources
   - brew            # CLI tools below
+  - git             # global git settings (+ the credential helper below)
   - synology-drive  # sync gate + home bind mounts (client via flatpaks)
   - steam           # autostart (Steam ships with the Bazzite image)
   - heroic          # ProtonPlus's GE-Proton as Heroic's default Wine
@@ -192,6 +193,10 @@ amdgpu_profiles:
 #   sudo amdgpu-tune performance
 # and change this value (plus re-run the role) to move the default.
 amdgpu_active_profile: efficient
+
+# Pushes to the Gitea authenticate with a token kept by git's own store helper.
+git_config_extra:
+  credential.helper: store
 
 # Homebrew CLI tools (leaves — dependencies follow automatically).
 brew_packages:

@@ -1,0 +1,10 @@
+---
+# The primary user's global git settings ({key: value}, written to ~/.gitconfig).
+# The address is GitHub's noreply one, which every commit already carries.
+git_config:
+  user.name: MrNoname3
+  user.email: 26522650+MrNoname3@users.noreply.github.com
+
+# Further settings for one host, merged over git_config (a credential helper,
+# say).
+git_config_extra: {}

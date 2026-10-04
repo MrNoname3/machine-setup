@@ -11,6 +11,7 @@ roles_enabled:
   - base
   - ssh-access
   - brave
+  - git            # global git settings
   - synology-drive
   - steam
   - vscode
