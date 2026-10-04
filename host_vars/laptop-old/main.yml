@@ -171,6 +171,13 @@ appimages:
 firewall_interface_allowed:
   - { interface: radminvpn0, proto: udp, comment: "Radmin VPN peers and LAN games" }
 
+# Steam's LAN features, from the private ranges only. The other client's reply
+# to a discovery broadcast arrives on UDP 27036 and matches no outgoing flow.
+firewall_allowed_extra:
+  - { port: "27031:27036", proto: udp, comment: "Steam discovery + Remote Play" }
+  - { port: "27036:27037", proto: tcp, comment: "Steam Remote Play" }
+  - { port: "27040", proto: tcp, comment: "Steam local game transfers" }
+
 # Podman is the only container engine here (no rootful Docker), so it is safe to
 # export DOCKER_HOST to the rootless Podman socket for testcontainers / IDE
 # docker plugins. NOT set on hosts that run a real Docker daemon (e.g. the
