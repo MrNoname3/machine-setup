@@ -59,7 +59,7 @@ machine-setup/
     ├── ssh-access/      # hardened SSH server
     ├── brave/           # browser (apt on Mint, rpm-ostree layer on Bazzite)
     ├── flatpaks/        # per-host Flatpak app set
-    ├── appimages/       # Gear Lever's AppImage set + update sources (Bazzite)
+    ├── appimages/       # Gear Lever's AppImage set + update sources
     ├── brew/            # Homebrew CLI packages (Bazzite)
     ├── synology-drive/  # Synology Drive client
     ├── steam/           # Steam (+ flatpak on Bazzite)

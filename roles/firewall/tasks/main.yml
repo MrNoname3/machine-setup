@@ -21,9 +21,22 @@
     port: "{{ item.1.port }}"
     proto: "{{ item.1.proto }}"
     comment: "{{ item.1.comment }} (private only)"
-  loop: "{{ firewall_private_ranges | product(firewall_allowed) | list }}"
+  loop: "{{ firewall_private_ranges | product(firewall_allowed + firewall_allowed_extra) | list }}"
   loop_control:
     label: "{{ item.1.comment }} {{ item.1.port }}/{{ item.1.proto }} from {{ item.0 }}"
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Allow inbound services on specific interfaces, from any source
+  community.general.ufw:
+    rule: allow
+    direction: in
+    interface: "{{ item.interface }}"
+    port: "{{ item.port | default(omit) }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_interface_allowed }}"
+  loop_control:
+    label: "{{ item.comment }} {{ item.port | default('any') }}/{{ item.proto }} on {{ item.interface }}"
   when: ansible_facts['os_family'] == "Debian"
 
 - name: Default-allow outgoing traffic

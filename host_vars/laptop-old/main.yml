@@ -14,6 +14,8 @@ roles_enabled:
   - synology-drive
   - steam
   - vscode
+  - flatpaks       # Gear Lever (flatpak_apps below)
+  - appimages      # Gear Lever's AppImage set + their update sources
   - luks-unlock
   - graphics
   - firewall
@@ -42,6 +44,8 @@ packages_present:
   - yaru-theme-icon              # Yaru cursor set (base role selects it via dconf)
   - cups                         # print server (Mint ships it; listed for clarity)
   - printer-driver-splix         # QPDL/SPL2 raster driver for Samsung SCX/ML/CLP (see printers)
+  - flatpak                      # the flatpaks role (Mint ships it; listed for clarity)
+  - libfuse2t64                  # FUSE 2 runtime of older AppImages (MQTT Explorer)
 
 # Packages to ensure are removed. Keep entries here permanently so fresh
 # installs stay clean. Never list a package in both lists.
@@ -123,6 +127,57 @@ printers:
     usb_match: "usb://Samsung/SCX-4x21"
     model: "drv:///splix-samsung.drv/scx4521f.ppd"
     model_nickname: "Samsung SCX-4521F"
+
+# Flatpak application set (system scope, Flathub).
+flatpak_apps:
+  - it.mijorus.gearlever
+
+# AppImages integrated with Gear Lever. The schema, and why each update source
+# is set the way it is, are documented in host_vars/desktop-bazzite/main.yml and
+# roles/appimages/README.md. A fresh machine needs the whole playbook, which
+# also installs Gear Lever:
+#   ./scripts/apply.sh laptop-old -e appimages_install_missing=true
+appimages:
+  - name: MQTT Explorer
+    file: mqtt_explorer.appimage
+    manager: GithubUpdater
+    config:
+      repo: thomasnordquist/MQTT-Explorer
+      repo_filename: "MQTT-Explorer-*.AppImage"
+      # REQUIRED: the whole 0.4.x line is tagged pre-release.
+      allow_prereleases: true
+  - name: Logic                      # Saleae Logic 2 analyser software
+    file: logic.appimage
+    manager: StaticFileUpdater
+    config:
+      url: "https://logic2api.saleae.com/download?os=linux&arch=x64"
+    # The AppImage's own desktop entry ships no Icon/Comment/Categories.
+    desktop:
+      Icon: logic-appimage
+      Comment: Debug hardware like a pro
+      Categories: Utility;
+      StartupWMClass: Logic
+  - name: Radmin VPN                 # Windows Radmin VPN client under bundled Wine
+    file: radmin_vpn.appimage
+    manager: GithubUpdater
+    config:
+      repo: baptisterajaut/radmin-vpn-linux
+      repo_filename: "RadminVPN-Linux-x86_64.AppImage"
+      # Release candidates are published as pre-releases.
+      allow_prereleases: false
+
+# All UDP on radminvpn0, whose addresses are not RFC1918. Radmin peers check the
+# tunnel on a UDP port the service takes from the kernel at each start, and the
+# LAN games played over it host and browse on UDP. TCP stays closed.
+firewall_interface_allowed:
+  - { interface: radminvpn0, proto: udp, comment: "Radmin VPN peers and LAN games" }
+
+# Steam's LAN features, from the private ranges only. The other client's reply
+# to a discovery broadcast arrives on UDP 27036 and matches no outgoing flow.
+firewall_allowed_extra:
+  - { port: "27031:27036", proto: udp, comment: "Steam discovery + Remote Play" }
+  - { port: "27036:27037", proto: tcp, comment: "Steam Remote Play" }
+  - { port: "27040", proto: tcp, comment: "Steam local game transfers" }
 
 # Podman is the only container engine here (no rootful Docker), so it is safe to
 # export DOCKER_HOST to the rootless Podman socket for testcontainers / IDE
