@@ -134,8 +134,9 @@ flatpak_apps:
 
 # AppImages integrated with Gear Lever. The schema, and why each update source
 # is set the way it is, are documented in host_vars/desktop-bazzite/main.yml and
-# roles/appimages/README.md. A fresh machine integrates them with
-#   ./scripts/apply.sh laptop-old --tags appimages -e appimages_install_missing=true
+# roles/appimages/README.md. A fresh machine needs the whole playbook, which
+# also installs Gear Lever:
+#   ./scripts/apply.sh laptop-old -e appimages_install_missing=true
 appimages:
   - name: MQTT Explorer
     file: mqtt_explorer.appimage
