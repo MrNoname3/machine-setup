@@ -81,3 +81,13 @@
       Steam is not signed in yet (no loginusers.vdf).
       Launch Steam, sign in to your account, then press Enter to continue.
   when: not steam_login.stat.exists
+
+# Runs after the gate: ProtonPlus finds the Steam launcher once Steam has run.
+- name: Install ProtonPlus's rolling Proton builds
+  ansible.builtin.command:
+    argv: [flatpak, run, com.vysp3r.ProtonPlus, install, steam-system, "{{ item.runner }}", latest]
+    creates: "/home/{{ primary_user }}/.steam/root/compatibilitytools.d/{{ item.dir }}/proton"
+  become: false
+  loop: "{{ steam_protonplus_latest }}"
+  loop_control:
+    label: "{{ item.dir }}"

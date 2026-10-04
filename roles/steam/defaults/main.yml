@@ -7,3 +7,9 @@
 # PROTON_USE_WINED3D=1 (OpenGL fallback).
 steam_flatpaks:
   - com.vysp3r.ProtonPlus
+
+# Rolling builds ProtonPlus installs as "<name> Latest" in Steam's
+# compatibilitytools.d, where Lutris and Heroic list them as well. `runner` is
+# ProtonPlus's id for the build, `dir` the folder it creates.
+steam_protonplus_latest:
+  - { runner: proton-ge, dir: Proton-GE Latest }
