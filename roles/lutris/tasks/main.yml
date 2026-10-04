@@ -1,32 +1,10 @@
 ---
-# Lutris lists Proton builds from its own runners/wine and from Steam's
-# steamapps, not from compatibilitytools.d, where ProtonPlus installs them.
-# A link per build keeps ProtonPlus the one place Proton is managed; a build it
-# updates in place, such as "Proton-GE Latest", stays current through the link.
-
-- name: Ensure Lutris's Wine runner directory exists
-  ansible.builtin.file:
-    path: "{{ lutris_wine_dir }}"
-    state: directory
-    mode: "0755"
-  become: false
-
-- name: Link Steam's Proton builds into Lutris
-  ansible.builtin.file:
-    src: "{{ lutris_steam_compat_dir }}/{{ item }}"
-    dest: "{{ lutris_wine_dir }}/{{ item }}"
-    state: link
-    force: true
-    follow: false
-  become: false
-  loop: "{{ lutris_proton_links }}"
-
 # The Flatpak Lutris saves game icons under its own data directory, where the
 # host's menu and desktop never look, so its launchers show no icon. Pointing
 # that directory at the host's icon theme puts each icon where the launchers'
 # `Icon=lutris_<slug>` is looked up.
+
 - name: Share the Flatpak Lutris's icons with the host
-  when: lutris_flatpak | bool
   become: false
   vars:
     lutris_app_icons: "/home/{{ primary_user }}/.var/app/net.lutris.Lutris/data/icons"

@@ -310,6 +310,9 @@
     - role: lutris
       when: "'lutris' in (roles_enabled | default([]))"
       tags: lutris
+    - role: heroic
+      when: "'heroic' in (roles_enabled | default([]))"
+      tags: heroic
     - role: vscode
       when: "'vscode' in (roles_enabled | default([]))"
     - role: luks-unlock

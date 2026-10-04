@@ -1,0 +1,8 @@
+---
+# The Proton build in Steam's compatibilitytools.d (see steam_protonplus_latest)
+# that Heroic uses for games without their own Wine setting. The Flatpak
+# Heroic needs read access to that directory (see flatpak_overrides).
+heroic_default_proton: Proton-GE Latest
+heroic_steam_compat_dir: "/home/{{ primary_user }}/.local/share/Steam/compatibilitytools.d"
+
+heroic_config_dir: "/home/{{ primary_user }}/.var/app/com.heroicgameslauncher.hgl/config/heroic"
