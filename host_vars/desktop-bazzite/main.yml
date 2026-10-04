@@ -76,6 +76,11 @@ flatpak_overrides:
   - app: com.heroicgameslauncher.hgl
     filesystems: ["~/.local/share/Steam/compatibilitytools.d:ro"]
 
+# Heroic lists Proton builds under the Steam library path in libraryfolders.vdf,
+# which is the canonical /var/home one here; a default given by any other
+# spelling shows up as a second entry.
+heroic_steam_compat_dir: "/var/home/{{ primary_user }}/.local/share/Steam/compatibilitytools.d"
+
 # AppImages integrated with Gear Lever, with the update source each one needs.
 # `file:` is the name Gear Lever gave the file in appimages_dir (it derives it
 # from the AppImage's own desktop entry) — the update config is keyed by that
