@@ -13,3 +13,10 @@ steam_flatpaks:
 # ProtonPlus's id for the build, `dir` the folder it creates.
 steam_protonplus_latest:
   - { runner: proton-ge, dir: Proton-GE Latest }
+
+# ProtonPlus's update settings (GSettings keys): it updates its tools each time
+# it is opened, and never in the background or at system startup.
+steam_protonplus_settings:
+  check-updates-on-launch: "true"
+  check-updates-on-boot: "false"
+  background-updates: "false"

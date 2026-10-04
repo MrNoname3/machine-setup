@@ -65,6 +65,19 @@
   become: false
   when: ansible_facts['os_family'] == "Debian"
 
+- name: Configure when ProtonPlus updates its tools
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.var/app/com.vysp3r.ProtonPlus/config/glib-2.0/settings/keyfile"
+    section: com/vysp3r/ProtonPlus/State
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+    no_extra_spaces: true
+    mode: "0600"
+  become: false
+  loop: "{{ steam_protonplus_settings | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}={{ item.value }}"
+
 # --- Manual gate ----------------------------------------------------------
 # Steam stores logged-in accounts in loginusers.vdf, created on first sign-in.
 # Pause ONLY while that file is missing, so a logged-in machine passes through
