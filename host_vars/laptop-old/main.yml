@@ -165,13 +165,11 @@ appimages:
       # Release candidates are published as pre-releases.
       allow_prereleases: false
 
-# LAN games over Radmin VPN, whose radminvpn0 addresses are not RFC1918: hosting,
-# and the replies a server browser receives on the game port after a broadcast.
+# All UDP on radminvpn0, whose addresses are not RFC1918. Radmin peers check the
+# tunnel on a UDP port the service takes from the kernel at each start, and the
+# LAN games played over it host and browse on UDP. TCP stays closed.
 firewall_interface_allowed:
-  - { interface: radminvpn0, port: "7777:7778", proto: udp, comment: "UT2004 game + query" }
-  - { interface: radminvpn0, port: "7787", proto: udp, comment: "UT2004 GameSpy query" }
-  - { interface: radminvpn0, port: "11777", proto: udp, comment: "UT2004 LAN beacon" }
-  - { interface: radminvpn0, port: "28960:28963", proto: udp, comment: "CoD United Offensive" }
+  - { interface: radminvpn0, proto: udp, comment: "Radmin VPN peers and LAN games" }
 
 # Podman is the only container engine here (no rootful Docker), so it is safe to
 # export DOCKER_HOST to the rootless Podman socket for testcontainers / IDE
