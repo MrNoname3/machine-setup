@@ -21,7 +21,7 @@
     port: "{{ item.1.port }}"
     proto: "{{ item.1.proto }}"
     comment: "{{ item.1.comment }} (private only)"
-  loop: "{{ firewall_private_ranges | product(firewall_allowed) | list }}"
+  loop: "{{ firewall_private_ranges | product(firewall_allowed + firewall_allowed_extra) | list }}"
   loop_control:
     label: "{{ item.1.comment }} {{ item.1.port }}/{{ item.1.proto }} from {{ item.0 }}"
   when: ansible_facts['os_family'] == "Debian"
