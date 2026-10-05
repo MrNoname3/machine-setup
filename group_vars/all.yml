@@ -9,3 +9,8 @@ primary_user: "{{ lookup('env', 'USER') }}"
 # Directory holding the IoT/device SSH keys + config (OneDrive-synced, same path
 # on both hosts). Used by the keyring role.
 ssh_keys_dir: "/home/{{ primary_user }}/SynologyDrive/OneDrive/IOT/SSH"
+
+# Mode of the user's config files that the desktop and its apps rewrite too
+# (mimeapps.list, kdeglobals, katerc): the one the user's umask gives a new
+# file, or every run resets what an app just wrote. 0644 matches umask 022.
+user_config_mode: "0644"

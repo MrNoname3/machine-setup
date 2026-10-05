@@ -27,15 +27,13 @@
     no_extra_spaces: true
   when: ansible_facts['os_family'] == "Debian"
 
-# Files the desktop apps rewrite as well get mode 0664, the one Mint's umask
-# (002) gives them; any other mode would be reset on every run.
 - name: Set VLC as the default video player (user MIME associations)
   community.general.ini_file:
     path: "/home/{{ primary_user }}/.config/mimeapps.list"
     section: Default Applications
     option: "{{ item }}"
     value: "{{ default_video_player }}"
-    mode: "0664"
+    mode: "{{ user_config_mode }}"
     no_extra_spaces: true
   become: false
   loop: "{{ video_mimetypes }}"
@@ -47,7 +45,7 @@
     section: Default Applications
     option: "{{ item }}"
     value: "{{ default_text_editor }}"
-    mode: "0664"
+    mode: "{{ user_config_mode }}"
     no_extra_spaces: true
   become: false
   loop: "{{ text_mimetypes }}"
@@ -136,8 +134,7 @@
 
 # Kate: Qt does not follow the GTK theme, so Kate gets a window colour scheme and
 # an editor theme of its own in VS Code's Dark Modern colours, and the Breeze
-# widget style (the breeze package). kdeglobals and katerc get 0664 like
-# mimeapps.list above.
+# widget style (the breeze package).
 - name: Ensure the Kate theme directories exist
   ansible.builtin.file:
     path: "/home/{{ primary_user }}/.local/share/{{ item }}"
@@ -166,7 +163,7 @@
     section: KDE
     option: widgetStyle
     value: Breeze
-    mode: "0664"
+    mode: "{{ user_config_mode }}"
     no_extra_spaces: true
   become: false
   when: ansible_facts['os_family'] == "Debian"
@@ -177,7 +174,7 @@
     section: "{{ item.section }}"
     option: "{{ item.option }}"
     value: "{{ item.value }}"
-    mode: "0664"
+    mode: "{{ user_config_mode }}"
     no_extra_spaces: true
   become: false
   loop:

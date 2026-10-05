@@ -31,6 +31,9 @@ roles_enabled:
 # The base role's Mint desktop defaults (roles/base/tasks/cinnamon.yml).
 base_cinnamon: true
 
+# Mint's umask is 002, so the apps write their config files as 0664.
+user_config_mode: "0664"
+
 # The key the ssh-access role authorizes for primary_user (roles/ssh-access/files).
 ssh_authorized_key_file: laptop.pub
 

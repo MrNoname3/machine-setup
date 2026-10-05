@@ -103,7 +103,7 @@
     section: Default Applications
     option: "{{ item }}"
     value: brave-browser.desktop
-    mode: "0644"
+    mode: "{{ user_config_mode }}"
     no_extra_spaces: true
   become: false
   loop:

@@ -50,7 +50,7 @@
     section: Default Applications
     option: "{{ item.key }}"
     value: "{{ item.value }}"
-    mode: "0644"
+    mode: "{{ user_config_mode }}"
     no_extra_spaces: true
   become: false
   loop: "{{ base_mime_defaults | dict2items }}"
