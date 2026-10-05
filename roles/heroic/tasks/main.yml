@@ -1,7 +1,7 @@
 ---
 # Heroic keeps its default settings in two files, config.json and its store's
-# copy, so the Wine is set in both. Only that key is edited; a file Heroic has
-# not created yet is left alone.
+# copy, so the defaults are set in both. Only these keys are edited; a file
+# Heroic has not created yet is left alone.
 
 - name: Check whether Heroic is running
   ansible.builtin.command: flatpak ps --columns=application
@@ -9,7 +9,7 @@
   changed_when: false
   become: false
 
-- name: Set Heroic's default Wine to the Proton build from ProtonPlus
+- name: Set Heroic's defaults (Wine, and where games and prefixes go)
   ansible.builtin.command:
     argv:
       - python3
@@ -22,20 +22,22 @@
         with open(path) as f:
             config = json.load(f)
         settings = config.setdefault(section, {})
-        if settings.get('wineVersion') == desired:
+        if all(settings.get(k) == v for k, v in desired.items()):
             print('OK'); sys.exit(0)
-        settings['wineVersion'] = desired
+        settings.update(desired)
         with open(path, 'w') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
         print('CHANGED')
       - "{{ heroic_config_dir }}/{{ item.file }}"
       - "{{ item.section }}"
-      - "{{ heroic_wine_version | to_json }}"
+      - "{{ heroic_defaults | to_json }}"
   vars:
-    heroic_wine_version:
-      bin: "{{ heroic_steam_compat_dir }}/{{ heroic_default_proton }}/proton"
-      name: "{{ heroic_default_proton }}"
-      type: proton
+    heroic_defaults: >-
+      {{ {'wineVersion': {'bin': heroic_steam_compat_dir ~ '/' ~ heroic_default_proton ~ '/proton',
+                          'name': heroic_default_proton, 'type': 'proton'}}
+         | combine({} if heroic_install_path | length == 0 else
+                   {'defaultInstallPath': heroic_install_path,
+                    'defaultWinePrefix': heroic_install_path ~ '/Prefixes/default'}) }}
   register: heroic_wine_result
   changed_when: "'CHANGED' in heroic_wine_result.stdout"
   become: false

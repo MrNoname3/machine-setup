@@ -21,6 +21,7 @@ roles_enabled:
   - kde             # Plasma tweaks (audited System Settings) + user services
   - vscode          # user settings for the flatpak VS Code (install via flatpaks)
   - containers      # rootless Podman user services (stack ships with the image)
+  - storage         # encrypted data disks (storage_disks below; needs root)
 
 # primary_user defaults to the running user (group_vars/all.yml); override in
 # host_vars/desktop-bazzite/local.yml if it ever differs.
@@ -87,6 +88,7 @@ flatpak_overrides:
 # which is the canonical /var/home one here; a default given by any other
 # spelling shows up as a second entry.
 heroic_steam_compat_dir: "/var/home/{{ primary_user }}/.local/share/Steam/compatibilitytools.d"
+heroic_install_path: /mnt/data/Games/Heroic
 
 # AppImages integrated with Gear Lever, with the update source each one needs.
 # `file:` is the name Gear Lever gave the file in appimages_dir (it derives it
@@ -206,6 +208,21 @@ printers:
     usb_match: "usb://Samsung/SCX-4x21"
     model: "uld/Samsung_SCX-4x21_Series.ppd.gz"
     model_nickname: "Samsung SCX-4x21 Series"
+
+# Encrypted data disks (storage role; bootstrap in roles/storage/README.md).
+# The 2 TB HDD is the main data disk (games, installers, backups); the 1 TB HDD
+# is spare space.
+storage_disks:
+  - name: data
+    device: PARTLABEL=data-crypt
+    mountpoint: /var/mnt/data
+    fstype: btrfs
+    opts: noatime,compress=zstd:3,autodefrag,nofail,nosuid,nodev,x-gvfs-show,x-gvfs-name=Data
+  - name: spare
+    device: PARTLABEL=spare-crypt
+    mountpoint: /var/mnt/spare
+    fstype: btrfs
+    opts: noatime,compress=zstd:3,autodefrag,nofail,nosuid,nodev,x-gvfs-show,x-gvfs-name=Spare
 
 # Homebrew CLI tools (leaves — dependencies follow automatically).
 brew_packages:

@@ -53,7 +53,7 @@
 
 # Keep the Cinnamon desktop clear: hide the standard icons (Computer, Home,
 # Network, Trash) and mounted-volume icons -- an internal fixed disk like
-# /mnt/hdd showing up there is unwanted. Everything still appears in the Nemo
+# /mnt/data showing up there is unwanted. Everything still appears in the Nemo
 # sidebar and in Disk Usage Analyzer (the data disk uses x-gvfs-show).
 - name: Hide the standard + mounted-volume icons from the Cinnamon desktop
   community.general.dconf:

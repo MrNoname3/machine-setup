@@ -4,7 +4,7 @@
 # timer, so config drift is captured without manual effort.
 #
 # SECURITY: the /etc/.git repository is LOCAL and root-only (mode 0700). It
-# captures secrets that live under /etc (shadow, /etc/luks/hdd.key, WireGuard
+# captures secrets that live under /etc (shadow, the data-disk keyfiles, WireGuard
 # private keys). It is never pushed -- PUSH_REMOTE is left empty on purpose.
 # Do not point this at the (anonymous-readable) Gitea repo.
 

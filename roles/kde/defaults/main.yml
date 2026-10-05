@@ -114,3 +114,7 @@ kde_mime_defaults:
 # User services kept from starting with the session.
 kde_masked_user_units:
   - app-org.kde.kdeconnect.daemon@autostart.service   # KDE Connect
+
+# The uBlue greeting in new terminals; `ujust toggle-user-motd` flips the same
+# switch file.
+kde_user_motd: false

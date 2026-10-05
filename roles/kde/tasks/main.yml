@@ -18,6 +18,7 @@
 #     typing on a physical keyboard.
 #   - Default applications (VLC for video, ...) and power-management timeouts.
 #   - Masks the user services that should not start with the session (KDE Connect).
+#   - Hides the uBlue greeting in new terminals (kde_user_motd).
 #   - Enables mpris-proxy (BT headset media buttons).
 #
 # KConfig edits mostly take effect at the next Plasma login; KWin is told to
@@ -162,6 +163,19 @@
         scope: user
         masked: true
       loop: "{{ kde_masked_user_units }}"
+
+    - name: Hide the uBlue terminal greeting
+      ansible.builtin.copy:
+        dest: "{{ kde_conf_dir }}/no-show-user-motd"
+        content: ""
+        mode: "0644"
+      when: not kde_user_motd
+
+    - name: Show the uBlue terminal greeting
+      ansible.builtin.file:
+        path: "{{ kde_conf_dir }}/no-show-user-motd"
+        state: absent
+      when: kde_user_motd
 
     - name: Enable mpris-proxy (media keys / MPRIS for Bluetooth devices)
       # Bridges MPRIS players to Bluetooth AVRCP so BT headset buttons control
