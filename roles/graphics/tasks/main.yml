@@ -132,6 +132,3 @@
 #   implemented"), and the falcon firmware (nvc1_fuc084) is missing. The GPU is
 #   stuck at pstate 07 (202/324 MHz); 0f (672/800) is unreachable. Known nouveau
 #   limitation for many Fermi laptop GPUs — do not retry.
-# --- TODO (later) ---
-# - PRIME render offload helpers (DRI_PRIME=1) for games
-# See: memory/old-laptop-linux-plan.md
