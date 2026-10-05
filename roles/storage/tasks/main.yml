@@ -1,76 +1,105 @@
 ---
-# storage role: auto-unlock + automount for the secondary encrypted data HDD.
+# storage role: auto-unlock + automount for the encrypted data disks.
 #
-# This role does NOT partition or format the disk -- that is destructive and is
+# This role does NOT partition or format a disk -- that is destructive and is
 # a one-time MANUAL bootstrap (see roles/storage/README.md). Here we only ensure
 # the persistent, idempotent config: the keyfile permissions, the crypttab
 # auto-unlock entry, the mountpoint, and the fstab automount line.
 #
-# The keyfile (/etc/luks/hdd.key) is a machine-local secret and is NEVER stored
-# in this repo; only its path and the LUKS UUID are.
+# The keyfiles are machine-local secrets and are NEVER stored in this repo; only
+# their paths are. Everything here needs root, so a run without it (the
+# desktop's day-to-day `-e ansible_become=false`) skips the role with a notice.
 
-- name: Ensure the LUKS keyfile directory exists
-  ansible.builtin.file:
-    path: "{{ storage_hdd_keyfile | dirname }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0700"
-  when: ansible_facts['os_family'] == "Debian"
+- name: Check whether this run has root
+  ansible.builtin.command: id -u
+  register: storage_uid
+  changed_when: false
+  check_mode: false
 
-- name: Check whether the data-disk keyfile is present
-  ansible.builtin.stat:
-    path: "{{ storage_hdd_keyfile }}"
-  register: storage_keyfile
+- name: Note that the data disks were skipped (no root)
+  ansible.builtin.debug:
+    msg: >-
+      The storage role needs root, so it was skipped. Run it with:
+      ./scripts/apply.sh {{ inventory_hostname }} --tags storage -K
+  when: storage_uid.stdout != "0"
 
-- name: Fail early if the keyfile is missing (run the manual disk bootstrap first)
-  ansible.builtin.assert:
-    that: storage_keyfile.stat.exists
-    fail_msg: >-
-      {{ storage_hdd_keyfile }} is missing. Run the one-time disk bootstrap in
-      roles/storage/README.md (partition + luksFormat + mkfs) before this role
-      can wire up auto-unlock.
-  when:
-    - ansible_facts['os_family'] == "Debian"
-    - storage_hdd_luks_uuid | length > 0
+- name: Wire up the encrypted data disks
+  when: storage_uid.stdout == "0"
+  vars:
+    disks: "{{ storage_disks | default(storage_legacy_disks) }}"
+  block:
+    - name: Ensure the keyfile directories exist
+      ansible.builtin.file:
+        path: "{{ (item.keyfile | default('/etc/cryptsetup-keys.d/' ~ item.name ~ '.key')) | dirname }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      loop: "{{ disks }}"
+      loop_control:
+        label: "{{ item.name }}"
 
-- name: Lock down the keyfile permissions (root read-only)
-  ansible.builtin.file:
-    path: "{{ storage_hdd_keyfile }}"
-    owner: root
-    group: root
-    mode: "0400"
-  when:
-    - ansible_facts['os_family'] == "Debian"
-    - storage_keyfile.stat.exists
+    - name: Check whether each keyfile is present
+      ansible.builtin.stat:
+        path: "{{ item.keyfile | default('/etc/cryptsetup-keys.d/' ~ item.name ~ '.key') }}"
+      register: storage_keyfiles
+      loop: "{{ disks }}"
+      loop_control:
+        label: "{{ item.name }}"
 
-- name: Configure crypttab auto-unlock for the data disk
-  community.general.crypttab:
-    name: "{{ storage_hdd_mapper }}"
-    backing_device: "UUID={{ storage_hdd_luks_uuid }}"
-    password: "{{ storage_hdd_keyfile }}"
-    opts: luks,nofail
-    state: present
-  when:
-    - ansible_facts['os_family'] == "Debian"
-    - storage_hdd_luks_uuid | length > 0
+    - name: Fail early if a keyfile is missing (run the manual disk bootstrap first)
+      ansible.builtin.assert:
+        that: item.stat.exists
+        fail_msg: >-
+          The keyfile of {{ item.item.name }} is missing. Run the one-time disk
+          bootstrap in roles/storage/README.md, or restore the keyfile with the
+          fallback passphrase (see Recovery there).
+        quiet: true
+      loop: "{{ storage_keyfiles.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
 
-- name: Ensure the data-disk mountpoint exists
-  ansible.builtin.file:
-    path: "{{ storage_hdd_mountpoint }}"
-    state: directory
-    owner: "{{ primary_user }}"
-    group: "{{ primary_user }}"
-    mode: "0755"
-  when: ansible_facts['os_family'] == "Debian"
+    - name: Lock down the keyfile permissions (root read-only)
+      ansible.builtin.file:
+        path: "{{ item.stat.path }}"
+        owner: root
+        group: root
+        mode: "0400"
+      loop: "{{ storage_keyfiles.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
 
-- name: Automount the data disk via fstab
-  ansible.posix.mount:
-    path: "{{ storage_hdd_mountpoint }}"
-    src: "/dev/mapper/{{ storage_hdd_mapper }}"
-    fstype: "{{ storage_hdd_fstype }}"
-    opts: "{{ storage_hdd_mount_opts }}"
-    state: mounted
-  when:
-    - ansible_facts['os_family'] == "Debian"
-    - storage_hdd_luks_uuid | length > 0
+    - name: Configure crypttab auto-unlock for each disk
+      community.general.crypttab:
+        name: "{{ item.name }}"
+        backing_device: "{{ item.device }}"
+        password: "{{ item.keyfile | default('/etc/cryptsetup-keys.d/' ~ item.name ~ '.key') }}"
+        opts: "{{ storage_crypttab_opts }}"
+        state: present
+      notify: Reload systemd
+      loop: "{{ disks }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Ensure the mountpoints exist
+      ansible.builtin.file:
+        path: "{{ item.mountpoint }}"
+        state: directory
+        owner: "{{ item.owner | default(primary_user) }}"
+        group: "{{ item.owner | default(primary_user) }}"
+        mode: "0755"
+      loop: "{{ disks }}"
+      loop_control:
+        label: "{{ item.mountpoint }}"
+
+    - name: Automount each disk via fstab
+      ansible.posix.mount:
+        path: "{{ item.mountpoint }}"
+        src: "/dev/mapper/{{ item.name }}"
+        fstype: "{{ item.fstype }}"
+        opts: "{{ item.opts }}"
+        state: mounted
+      notify: Reload systemd
+      loop: "{{ disks }}"
+      loop_control:
+        label: "{{ item.mountpoint }}"

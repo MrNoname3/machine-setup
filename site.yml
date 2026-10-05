@@ -56,7 +56,10 @@
           register: luks_scan
           changed_when: false
           check_mode: false
-          when: "'storage' in (roles_enabled | default([])) and luks_hdd_uuid is not defined"
+          when:
+            - "'storage' in (roles_enabled | default([]))"
+            - storage_disks is not defined # a host listing its disks names them itself
+            - luks_hdd_uuid is not defined
 
         - name: Record the LUKS candidate list
           ansible.builtin.set_fact:
@@ -337,6 +340,7 @@
       when: "'firewall' in (roles_enabled | default([]))"
     - role: storage
       when: "'storage' in (roles_enabled | default([]))"
+      tags: storage
     - role: wireguard
       when: "'wireguard' in (roles_enabled | default([]))"
     - role: containers

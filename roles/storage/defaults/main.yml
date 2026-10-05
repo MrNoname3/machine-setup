@@ -1,10 +1,22 @@
 ---
-# Secondary encrypted data disk (the 500 GB HGST HDD).
-# It is LUKS2 + ext4 and auto-unlocks at boot via a root-local keyfile, with a
-# passphrase slot as a manual fallback. The DESTRUCTIVE initial setup
-# (GPT partition + cryptsetup luksFormat + mkfs.ext4) is a one-time manual
-# bootstrap -- see roles/storage/README.md. This role only wires up the
-# persistent config (crypttab / fstab / mountpoint / keyfile permissions).
+# Encrypted data disks: LUKS2, auto-unlocked at boot with a root-only keyfile,
+# a passphrase slot as the manual fallback. The DESTRUCTIVE initial setup
+# (partition + luksFormat + mkfs) is a one-time manual bootstrap -- see
+# roles/storage/README.md. This role only wires up the persistent config
+# (keyfile permissions, crypttab, mountpoint, fstab).
+#
+# A host lists its disks in storage_disks (host_vars). Each item:
+#   name        crypttab / device-mapper name (/dev/mapper/<name>)
+#   device      the LUKS partition: "PARTLABEL=...", or "UUID=..." from local.yml
+#   mountpoint  where the opened filesystem is mounted
+#   fstype      filesystem inside the LUKS container
+#   opts        fstab mount options
+#   keyfile     optional; default /etc/cryptsetup-keys.d/<name>.key, the place
+#               systemd-cryptsetup looks first, inside the root filesystem
+#   owner       optional; owner of the mountpoint directory (primary_user)
+#
+# A host without storage_disks gets the single disk below, configured from the
+# storage_hdd_* values and luks_hdd_uuid (the laptop's 500 GB HDD).
 storage_hdd_mapper: hdd_crypt
 storage_hdd_keyfile: /etc/luks/hdd.key
 storage_hdd_mountpoint: /mnt/hdd
@@ -14,6 +26,18 @@ storage_hdd_fstype: ext4
 # fstab mounts by default). nosuid,nodev: it is a data disk, no executables/devs.
 storage_hdd_mount_opts: defaults,nofail,nosuid,nodev,x-gvfs-show
 
-# LUKS partition UUID of the data disk. Set per host in host_vars (luks_hdd_uuid).
-# While empty, the crypttab/fstab tasks are skipped (nothing to wire up yet).
+# LUKS partition UUID of the data disk. Set per host in local.yml (luks_hdd_uuid).
+# While empty, the disk is left out (nothing to wire up yet).
 storage_hdd_luks_uuid: "{{ luks_hdd_uuid | default('') }}"
+
+storage_legacy_disks: >-
+  {{ [] if storage_hdd_luks_uuid | length == 0 else
+     [{'name': storage_hdd_mapper,
+       'device': 'UUID=' ~ storage_hdd_luks_uuid,
+       'keyfile': storage_hdd_keyfile,
+       'mountpoint': storage_hdd_mountpoint,
+       'fstype': storage_hdd_fstype,
+       'opts': storage_hdd_mount_opts}] }}
+
+# crypttab options of every disk. nofail: boot goes on without a missing disk.
+storage_crypttab_opts: luks,nofail
