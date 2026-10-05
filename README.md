@@ -297,6 +297,10 @@ boot, via the bootstrap + playbook.
    `/etc/cryptsetup-keys.d/<name>.key` (root, mode 0400), then
    `./scripts/apply.sh desktop-bazzite --tags storage -K`. Without a keyfile a
    disk still opens with its fallback passphrase (see `roles/storage/README.md`).
+   The games are still on the data disk, but the launchers have to find them
+   again: add `/var/mnt/data/Games/SteamLibrary` in Steam (Settings → Storage),
+   and import each game installed under `/mnt/data/Games/Heroic` from its page
+   in Heroic (*Import Game*).
 4. **AppImages** — `./scripts/apply.sh desktop-bazzite --tags appimages
    -e ansible_become=false -e appimages_install_missing=true`.
 5. **KeePassXC** — unlock the database so it serves the SSH keys (`keyring`).
