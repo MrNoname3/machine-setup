@@ -132,6 +132,59 @@
     - { key: /org/x/apps/portal/color-scheme, value: "'prefer-dark'" }
   when: ansible_facts['os_family'] == "Debian"
 
+# Kate: Qt does not follow the GTK theme, so Kate gets a window colour scheme and
+# an editor theme of its own in VS Code's Dark Modern colours, and the Breeze
+# widget style (the breeze package).
+- name: Ensure the Kate theme directories exist
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.local/share/{{ item }}"
+    state: directory
+    mode: "0755"
+  become: false
+  loop:
+    - color-schemes
+    - org.kde.syntax-highlighting/themes
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install the Dark Modern colour scheme and editor theme for Kate
+  ansible.builtin.copy:
+    src: "kate/{{ item.src }}"
+    dest: "/home/{{ primary_user }}/.local/share/{{ item.dest }}"
+    mode: "0644"
+  become: false
+  loop:
+    - { src: DarkModern.colors, dest: color-schemes/DarkModern.colors }
+    - { src: dark-modern.theme, dest: org.kde.syntax-highlighting/themes/dark-modern.theme }
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Use the Breeze widget style in KDE apps
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.config/kdeglobals"
+    section: KDE
+    option: widgetStyle
+    value: Breeze
+    mode: "0644"
+    no_extra_spaces: true
+  become: false
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Select the Dark Modern colours in Kate
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.config/katerc"
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    no_extra_spaces: true
+  become: false
+  loop:
+    - { section: UiSettings, option: ColorScheme, value: Dark Modern }
+    - { section: KTextEditor Renderer, option: Auto Color Theme Selection, value: "false" }
+    - { section: KTextEditor Renderer, option: Color Theme, value: Dark Modern }
+  loop_control:
+    label: "{{ item.option }}"
+  when: ansible_facts['os_family'] == "Debian"
+
 # Hungarian keyboard layout. Set ONLY the Cinnamon key: csd-input-sources is the
 # authority in a Cinnamon session and mirrors it to the GNOME schema and IBus on
 # its own. Writing those mirror keys as well makes the daemon re-sync (and rewrite

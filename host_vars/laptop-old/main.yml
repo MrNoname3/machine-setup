@@ -41,6 +41,7 @@ packages_present:
   - htop
   - vlc
   - kate
+  - breeze                       # Breeze widget style for Kate (base role sets it)
   - keepassxc
   - meld
   - numlockx                     # turn NumLock on at the LightDM greeter / boot
