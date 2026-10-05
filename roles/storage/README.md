@@ -59,17 +59,27 @@ T=$(mktemp -d) && sudo mount /dev/mapper/$NAME "$T" && sudo chown "$USER:" "$T" 
 # 4. FALLBACK PASSPHRASE — type it yourself, keep it in KeePassXC
 sudo cryptsetup luksAddKey /dev/disk/by-partlabel/$NAME-crypt \
   --key-file /etc/cryptsetup-keys.d/$NAME.key
-
-# 5. Header backup — a damaged header loses the disk whatever the keys; keep
-#    the file in KeePassXC as an attachment, then delete it here
-sudo cryptsetup luksHeaderBackup /dev/disk/by-partlabel/$NAME-crypt \
-  --header-backup-file ~/luks-header-$NAME.img
-sudo chown "$USER:" ~/luks-header-$NAME.img
 ```
 
 Then add the disk to `storage_disks` in the host's host_vars, enable the role
 and run it with root — it wires up crypttab + fstab so the disk unlocks and
-mounts at every boot.
+mounts at every boot — and take a header backup (below).
+
+## Header backups
+
+A damaged LUKS header loses the disk whatever the keys, so every encrypted
+partition of a machine, the system disk's included, gets a header backup:
+
+```sh
+./scripts/luks-header-backup.sh -n <short host name> <dir>
+```
+
+It writes `luks-header-<name>-<disk>.img` per partition and a
+`SHA256SUMS-<name>`, each backup checked against its partition. Keep them off
+the disks they belong to, somewhere encrypted. A backup keeps the key slots it
+was taken with — the passphrase a backup holds still opens the disk once the
+header is restored — so after adding or removing a key take a new one (`-f`)
+and delete the old copies.
 
 ## Recovery
 
@@ -78,5 +88,5 @@ mounts at every boot.
   generate a new keyfile at the path the host expects, `luksAddKey` it with the
   passphrase, and re-run the role.
 - **Damaged LUKS header:** `sudo cryptsetup luksHeaderRestore <partition>
-  --header-backup-file <file>` with the backup from KeePassXC.
+  --header-backup-file <file>` with the header backup.
 - **Disk missing at boot:** `nofail` lets the system boot normally without it.

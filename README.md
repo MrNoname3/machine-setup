@@ -38,7 +38,8 @@ machine-setup/
 ├── scripts/
 │   ├── apply.sh                 # run the playbook with the repo-local toolchain
 │   ├── check.sh                 # release gate (CI runs exactly this)
-│   └── ensure-venv.sh           # bootstraps .venv/ + .ansible/ (gitignored)
+│   ├── ensure-venv.sh           # bootstraps .venv/ + .ansible/ (gitignored)
+│   └── luks-header-backup.sh    # LUKS header backups (see roles/storage)
 ├── tools/                       # standalone tooling — not part of the playbook
 │   ├── gpu-tune/                # measure an AMD GPU undervolt (see its README)
 │   ├── mem-tune/                # measure memory latency, bandwidth, capacity
