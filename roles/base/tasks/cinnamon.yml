@@ -267,12 +267,3 @@
     - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-schedule-mode, value: "'always'" }
     - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-temperature, value: "uint32 5200" }
   when: ansible_facts['os_family'] == "Debian"
-
-# Clear any geolocation left over from a previous automatic schedule -- unused in
-# 'always' mode, and we don't want the home coordinates lingering in dconf.
-- name: Clear the stored Night Light coordinates (Cinnamon)
-  community.general.dconf:
-    key: /org/cinnamon/settings-daemon/plugins/color/night-light-last-coordinates
-    state: absent
-  become: false
-  when: ansible_facts['os_family'] == "Debian"
