@@ -181,7 +181,8 @@ roles in `site.yml` as needed:
 
 Note the difference on Bazzite: most roles there run unprivileged
 (`-e ansible_become=false`), but `graphics` writes `/usr/local/bin` and
-`/etc/systemd/system`, so it needs `-K` and a sudo password instead.
+`/etc/systemd/system`, and `storage` writes crypttab and fstab, so they need
+`-K` and a sudo password instead (`storage` skips itself without root).
 
 ### Machine-local values (not in git)
 
@@ -256,6 +257,8 @@ The base install is interactive and destructive, so it stays a written runbook.
 It is deliberately short: everything that *can* be automated happens after first
 boot, via the bootstrap + playbook.
 
+### laptop-old (Linux Mint)
+
 1. **Live USB** — boot the Mint (Cinnamon) live USB and verify hardware first:
    Wi-Fi, audio, and both GPUs show up (`inxi -G`; Intel iGPU is the daily
    driver, NVIDIA via nouveau/PRIME is optional — see the `graphics` role).
@@ -274,3 +277,37 @@ boot, via the bootstrap + playbook.
    role's README): add the HDD fallback passphrase (`storage`), import the
    WireGuard client configs (`wireguard`), and unlock/populate KeePassXC so it
    serves the SSH keys (`keyring`).
+
+### desktop-bazzite (Bazzite)
+
+1. **Install Bazzite (KDE)** on the NVMe system disk; the installer's encryption
+   option is the way to an encrypted system disk. Leave both HDDs and the
+   Windows SSD untouched.
+2. **First boot** — run the bootstrap one-liner, then
+   `./scripts/apply.sh desktop-bazzite -K`. The playbook stops at its manual
+   gates (Synology Drive sign-in and initial sync, Brave sync, Steam sign-in)
+   and asks once for the machine-local values. **Reboot** — the Brave layer and
+   the amdgpu kernel argument take effect only then — and run it once more.
+3. **Data disks** — copy each disk's keyfile from its KeePassXC entry to
+   `/etc/cryptsetup-keys.d/<name>.key` (root, mode 0400), then
+   `./scripts/apply.sh desktop-bazzite --tags storage -K`. Without a keyfile a
+   disk still opens with its fallback passphrase (see `roles/storage/README.md`).
+4. **AppImages** — `./scripts/apply.sh desktop-bazzite --tags appimages
+   -e ansible_become=false -e appimages_install_missing=true`.
+5. **KeePassXC** — unlock the database so it serves the SSH keys (`keyring`).
+6. **Services from other repositories** — once git can push to the forge (a
+   token in the credential store), clone `ai-stack` and `gitea-act-runner` into
+   `~/Projects` and run their `scripts/setup.sh`; `ai-stack` also provides the
+   Claude Code skills.
+7. **Manual by choice**, not in the playbook:
+   - virtualization for virt-manager: `ujust setup-virtualization`
+   - Waydroid: `sudo waydroid init -c https://ota.waydro.id/system -v https://ota.waydro.id/vendor -s VANILLA`
+   - Steam: default compatibility tool *Proton-GE Latest*, and local network
+     game transfers (Settings → Downloads)
+   - Lutris game entries, KDE panels and widgets, the power profile
+   - Radmin VPN joins as a new device on its first start; Bluetooth devices
+     need pairing again
+8. **Secure Boot** (optional; a TPM unlock of an encrypted system disk needs
+   it) — enroll the uBlue key once with `ujust enroll-secure-boot-key` and
+   confirm it in the MOK screen at the next boot, then switch Secure Boot on in
+   the firmware (`ujust bios`).
