@@ -25,8 +25,6 @@
 
 - name: Wire up the encrypted data disks
   when: storage_uid.stdout == "0"
-  vars:
-    disks: "{{ storage_disks | default(storage_legacy_disks) }}"
   block:
     - name: Ensure the keyfile directories exist
       ansible.builtin.file:
@@ -35,7 +33,7 @@
         owner: root
         group: root
         mode: "0700"
-      loop: "{{ disks }}"
+      loop: "{{ storage_disks }}"
       loop_control:
         label: "{{ item.name }}"
 
@@ -43,7 +41,7 @@
       ansible.builtin.stat:
         path: "{{ item.keyfile | default('/etc/cryptsetup-keys.d/' ~ item.name ~ '.key') }}"
       register: storage_keyfiles
-      loop: "{{ disks }}"
+      loop: "{{ storage_disks }}"
       loop_control:
         label: "{{ item.name }}"
 
@@ -77,7 +75,7 @@
         opts: "{{ storage_crypttab_opts }}"
         state: present
       notify: Reload systemd
-      loop: "{{ disks }}"
+      loop: "{{ storage_disks }}"
       loop_control:
         label: "{{ item.name }}"
 
@@ -88,7 +86,7 @@
         owner: "{{ item.owner | default(primary_user) }}"
         group: "{{ item.owner | default(primary_user) }}"
         mode: "0755"
-      loop: "{{ disks }}"
+      loop: "{{ storage_disks }}"
       loop_control:
         label: "{{ item.mountpoint }}"
 
@@ -100,6 +98,6 @@
         opts: "{{ item.opts }}"
         state: mounted
       notify: Reload systemd
-      loop: "{{ disks }}"
+      loop: "{{ storage_disks }}"
       loop_control:
         label: "{{ item.mountpoint }}"

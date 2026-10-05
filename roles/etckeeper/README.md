@@ -25,7 +25,7 @@ Installing the package also wires up the **apt hooks** automatically
 files that contain secrets:
 
 - `/etc/shadow`, `/etc/gshadow`
-- `/etc/luks/hdd.key` (the HDD auto-unlock keyfile)
+- `/etc/cryptsetup-keys.d/` (the data disks' auto-unlock keyfiles)
 - WireGuard private keys under `/etc/NetworkManager/system-connections/`
 
 **It is never pushed.** `PUSH_REMOTE` is left empty on purpose. Do **not** point

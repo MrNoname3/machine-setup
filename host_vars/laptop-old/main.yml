@@ -1,7 +1,7 @@
 ---
 # Per-host settings for laptop-old.
 #
-# Machine-local values (ssh_port, luks_hdd_uuid, wg_home_gateway_macs, and
+# Machine-local values (ssh_port, wg_home_gateway_macs, and
 # optionally primary_user) live in local.yml next to this file — untracked by
 # git. If a value needed by an enabled role is missing, the playbook prompts
 # for it once and saves it there (see the pre_tasks in site.yml).
@@ -138,7 +138,16 @@ flatpak_apps:
 
 # Lutris's manifest grants the home directory but not the game disk.
 flatpak_overrides:
-  - { app: net.lutris.Lutris, filesystems: [/mnt/hdd] }
+  - { app: net.lutris.Lutris, filesystems: [/mnt/data] }
+
+# The 500 GB HDD: LUKS2 with ext4, unlocked at boot by its keyfile (storage role;
+# bootstrap in roles/storage/README.md).
+storage_disks:
+  - name: data
+    device: PARTLABEL=data-crypt
+    mountpoint: /mnt/data
+    fstype: ext4
+    opts: defaults,nofail,nosuid,nodev,x-gvfs-show
 
 # AppImages integrated with Gear Lever. The schema, and why each update source
 # is set the way it is, are documented in host_vars/desktop-bazzite/main.yml and
@@ -207,7 +216,6 @@ container_docker_host_export: true
 # --- Machine-local values (see local.yml) ---
 # ssh_port                      hardened SSH port
 # luks_root_uuid                crypto_LUKS partition UUID on the SSD
-# luks_hdd_uuid                 secondary HDD LUKS partition
 # unlock_pendrive_uuid          filesystem UUID of the home unlock pendrive
 # wg_home_gateway_macs          trusted home default-gateway MAC(s); if the AP
 #                               routes its own subnet (not bridge mode), add

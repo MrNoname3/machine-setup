@@ -5,8 +5,9 @@ a root-only keyfile, with a passphrase slot as the manual fallback.
 
 | Host | Disk | Inside LUKS | Found by | Keyfile | Mounted at |
 |---|---|---|---|---|---|
-| laptop-old | 500 GB HGST HDD | ext4 | `UUID=` from `luks_hdd_uuid` (local.yml) | `/etc/luks/hdd.key` | `/mnt/hdd` |
+| laptop-old | 500 GB HGST HDD | ext4 | `PARTLABEL=data-crypt` | `/etc/cryptsetup-keys.d/data.key` | `/mnt/data` |
 | desktop-bazzite | 2 TB Seagate HDD | btrfs | `PARTLABEL=data-crypt` | `/etc/cryptsetup-keys.d/data.key` | `/var/mnt/data` |
+| desktop-bazzite | 1 TB Toshiba HDD | btrfs | `PARTLABEL=spare-crypt` | `/etc/cryptsetup-keys.d/spare.key` | `/var/mnt/spare` |
 
 A host lists its disks in `storage_disks` (schema in `defaults/main.yml`). A GPT
 partition label identifies a disk without a machine identifier, so it can live
@@ -31,9 +32,8 @@ the **data** disk (verify the model/serial with `lsblk -o NAME,SIZE,MODEL`
 first — never a system disk!). Back up any existing data off the disk FIRST and
 verify the copy.
 
-### btrfs, found by partition label (desktop)
-
 `NAME` is the mapper name (`data`), the partition is labelled `NAME-crypt`.
+For ext4 instead of btrfs, step 3 uses `sudo mkfs.ext4 -L "$NAME" /dev/mapper/$NAME`.
 
 ```sh
 NAME=data
@@ -70,26 +70,6 @@ sudo chown "$USER:" ~/luks-header-$NAME.img
 Then add the disk to `storage_disks` in the host's host_vars, enable the role
 and run it with root — it wires up crypttab + fstab so the disk unlocks and
 mounts at every boot.
-
-### ext4, found by UUID (laptop)
-
-```sh
-sudo wipefs -a /dev/sdX
-sudo parted -s -a optimal /dev/sdX mklabel gpt
-sudo parted -s -a optimal /dev/sdX mkpart hdd 1MiB 100%
-sudo partprobe /dev/sdX
-
-sudo install -d -m 700 /etc/luks
-sudo dd if=/dev/urandom of=/etc/luks/hdd.key bs=4096 count=1
-sudo chmod 400 /etc/luks/hdd.key
-
-sudo cryptsetup luksFormat --type luks2 --batch-mode /dev/sdX1 /etc/luks/hdd.key
-sudo cryptsetup open /dev/sdX1 hdd_crypt --key-file /etc/luks/hdd.key
-sudo mkfs.ext4 -L hdd /dev/mapper/hdd_crypt
-
-sudo cryptsetup luksAddKey /dev/sdX1 --key-file /etc/luks/hdd.key
-sudo blkid -s UUID -o value /dev/sdX1     # -> luks_hdd_uuid in local.yml
-```
 
 ## Recovery
 
