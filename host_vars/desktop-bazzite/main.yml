@@ -87,6 +87,7 @@ flatpak_overrides:
 # which is the canonical /var/home one here; a default given by any other
 # spelling shows up as a second entry.
 heroic_steam_compat_dir: "/var/home/{{ primary_user }}/.local/share/Steam/compatibilitytools.d"
+heroic_install_path: /mnt/data/Games/Heroic
 
 # AppImages integrated with Gear Lever, with the update source each one needs.
 # `file:` is the name Gear Lever gave the file in appimages_dir (it derives it

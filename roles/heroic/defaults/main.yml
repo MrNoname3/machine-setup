@@ -6,3 +6,7 @@ heroic_default_proton: Proton-GE Latest
 heroic_steam_compat_dir: "/home/{{ primary_user }}/.local/share/Steam/compatibilitytools.d"
 
 heroic_config_dir: "/home/{{ primary_user }}/.var/app/com.heroicgameslauncher.hgl/config/heroic"
+
+# Where Heroic installs games, with their Wine prefixes under Prefixes/; empty
+# leaves Heroic's own choice. The Flatpak Heroic sees /mnt but not /var/mnt.
+heroic_install_path: ""
