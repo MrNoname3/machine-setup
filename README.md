@@ -39,7 +39,8 @@ machine-setup/
 │   ├── apply.sh                 # run the playbook with the repo-local toolchain
 │   ├── check.sh                 # release gate (CI runs exactly this)
 │   ├── ensure-venv.sh           # bootstraps .venv/ + .ansible/ (gitignored)
-│   └── luks-header-backup.sh    # LUKS header backups (see roles/storage)
+│   ├── luks-header-backup.sh    # LUKS header backups (see roles/storage)
+│   └── sudo-askpass.sh          # sudo password from a dialog, for runs without a terminal
 ├── tools/                       # standalone tooling — not part of the playbook
 │   ├── gpu-tune/                # measure an AMD GPU undervolt (see its README)
 │   ├── mem-tune/                # measure memory latency, bandwidth, capacity
@@ -150,6 +151,13 @@ First run, or whenever a task needs root (e.g. the KeePassXC flatpak install):
 
 ```sh
 ./scripts/apply.sh desktop-bazzite -K
+```
+
+Without a terminal to type into (from an IDE or an agent), a desktop dialog asks
+the password instead:
+
+```sh
+./scripts/apply.sh desktop-bazzite --become-password-file scripts/sudo-askpass.sh
 ```
 
 **tablet-miix** — the image already gives the user passwordless sudo, so every
