@@ -309,7 +309,9 @@ boot, via the bootstrap + playbook.
    `~/Projects` and run their `scripts/setup.sh`; `ai-stack` also provides the
    Claude Code skills.
 7. **Manual by choice**, not in the playbook:
-   - virtualization for virt-manager: `ujust setup-virtualization`
+   - virtualization for virt-manager: `ujust setup-virtualization`; QEMU and
+     libvirt then run inside the flatpak, so virt-manager connects to *QEMU/KVM
+     User session* (`qemu:///session`), not to the system connection
    - Waydroid: `sudo waydroid init -c https://ota.waydro.id/system -v https://ota.waydro.id/vendor -s VANILLA`
    - Steam: default compatibility tool *Proton-GE Latest*, and local network
      game transfers (Settings → Downloads)
