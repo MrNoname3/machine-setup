@@ -13,6 +13,8 @@ kde_config_settings:
   - { file: kwinrc, section: Effect-overview, option: BorderActivate, value: "9" }
   # Remember Window Positions kwin script (installed by this role)
   - { file: kwinrc, section: Plugins, option: rememberwindowpositionsEnabled, value: "true" }
+  # Window Places kwin script (installed by this role)
+  - { file: kwinrc, section: Plugins, option: windowplacesEnabled, value: "true" }
   # NumLock on at login (0 = turn on)
   - { file: kcminputrc, section: Keyboard, option: NumLock, value: "0" }
   # Flat mouse profile (no acceleration) for the USB mouse — device-keyed group
@@ -72,11 +74,19 @@ kde_lookandfeel: org.kde.breezedark.desktop
 kde_rwp_version: "7.0.0"
 kde_rwp_package_url: "https://github.com/rxappdev/RememberWindowPositions/releases/download/v{{ kde_rwp_version }}/rememberwindowpositions.kwinscript"
 
-# Windows the script saves each time they close, not only when their whole
-# application quits: { <window class>: [<exact window title>, ...] }. The role
-# adds them to the script's overrides and keeps the rest (its menu's, Meta+Ctrl+W).
-kde_rwp_remember_always:
+# Windows the script leaves alone, for Window Places to place instead:
+# { <window class>: [<exact window title>, ...] }. A window that shares its
+# class with the application's other windows can be handed one of their saved
+# places by the script, and theirs. The role adds these to the script's
+# overrides and keeps the rest (its menu's, Meta+Ctrl+W).
+kde_rwp_remember_never:
   brave-browser: ["Picture-in-picture"]   # Brave's video pop-out
+
+# Windows the Window Places script (files/windowplaces) gives back the place,
+# size and keep-above state they had when they last closed, each picked by its
+# exact window class and title.
+kde_window_places:
+  - { class: brave-browser, title: Picture-in-picture }   # Brave's video pop-out
 
 # Default applications (the user's mimeapps.list), in the format KDE writes them.
 kde_video_player: "org.videolan.VLC.desktop;"

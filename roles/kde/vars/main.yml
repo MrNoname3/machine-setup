@@ -17,18 +17,19 @@ kde_rwp_overrides_current: >-
   {%- endif -%}
   {{ raw | from_json }}
 
-# The stored overrides with kde_rwp_remember_always added, in the override
+# The stored overrides with kde_rwp_remember_never added, in the override
 # format of kde_rwp_version: an application new to them gets the script's
-# defaults, a listed window "remember always" (r) instead of "on close" (c).
+# defaults, a listed window "never remember" (n) as an override (o), the flags
+# the script gives its own such entries.
 kde_rwp_flags: { o: 0, c: 1, n: 0, r: 0, p: 1, s: 1, d: 1, a: 1, m: 1, k: 1, b: 1, f: 1 }
-kde_rwp_window_flags: "{{ kde_rwp_flags | combine({'c': 0, 'r': 1}) }}"
+kde_rwp_window_flags: "{{ kde_rwp_flags | combine({'o': 1, 'c': 0, 'n': 1}) }}"
 kde_rwp_overrides: >-
   {%- set ns = namespace(apps={}) -%}
-  {%- for app in kde_rwp_remember_always -%}
+  {%- for app in kde_rwp_remember_never -%}
   {%- set ns.apps = ns.apps | combine({app: kde_rwp_flags | combine({'w': {}})}) -%}
   {%- endfor -%}
   {%- set ns.apps = ns.apps | combine(kde_rwp_overrides_current, recursive=True) -%}
-  {%- for app, titles in kde_rwp_remember_always.items() -%}
+  {%- for app, titles in kde_rwp_remember_never.items() -%}
   {%- set ns.apps = ns.apps | combine({app: {'w': dict(titles | product([kde_rwp_window_flags]))}},
         recursive=True) -%}
   {%- endfor -%}

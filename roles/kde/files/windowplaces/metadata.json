@@ -1,0 +1,13 @@
+{
+    "KPackageStructure": "KWin/Script",
+    "KPlugin": {
+        "Name": "Window Places",
+        "Description": "Remembers the place, size and keep-above state of chosen windows",
+        "Icon": "preferences-system-windows",
+        "Id": "windowplaces",
+        "Version": "1",
+        "License": "MIT"
+    },
+    "X-Plasma-API": "declarativescript",
+    "X-Plasma-MainScript": "ui/main.qml"
+}
