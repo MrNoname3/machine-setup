@@ -26,6 +26,8 @@ kde_config_settings:
   - { file: plasma-localerc, section: Formats, option: LC_PAPER, value: "hu_HU.UTF-8" }
   - { file: plasma-localerc, section: Formats, option: LC_TELEPHONE, value: "hu_HU.UTF-8" }
   - { file: plasma-localerc, section: Formats, option: LC_TIME, value: "hu_HU.UTF-8" }
+  # File search (Baloo) leaves out ~/Projects: source trees, models, build output
+  - { file: baloofilerc, section: General, option: "exclude folders[$e]", value: "$HOME/Projects/" }
   # Brave as KDE's default browser
   - { file: kdeglobals, section: General, option: BrowserApplication, value: "brave-browser.desktop" }
   # File-dialog behaviour (show hidden files, detailed tree, date sort, ...)
