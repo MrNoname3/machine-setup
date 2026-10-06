@@ -15,6 +15,7 @@ roles_enabled:
   - git            # global git settings
   - synology-drive
   - steam
+  - heroic         # ProtonPlus's GE-Proton as Heroic's default Wine
   - vscode
   - flatpaks       # Gear Lever (flatpak_apps below)
   - appimages      # Gear Lever's AppImage set + their update sources
@@ -43,6 +44,7 @@ packages_present:
   - git
   - python3-venv                 # repo-local toolchain (scripts/ensure-venv.sh)
   - htop
+  - mc                           # Midnight Commander
   - vlc
   - kate
   - breeze                       # Breeze widget style for Kate (base role sets it)
@@ -140,10 +142,21 @@ printers:
 flatpak_apps:
   - it.mijorus.gearlever
   - net.lutris.Lutris            # Windows games outside Steam and Heroic
+  - com.heroicgameslauncher.hgl  # Epic and GOG games
+  - com.github.Matoking.protontricks
+  - com.github.tchx84.Flatseal   # flatpak permissions
 
-# Lutris's manifest grants the home directory but not the game disk.
+# Lutris's manifest grants the home directory but not the game disk, and
+# Protontricks's grants Steam's own library but not the one on the game disk.
 flatpak_overrides:
   - { app: net.lutris.Lutris, filesystems: [/mnt/data] }
+  - { app: com.github.Matoking.protontricks, filesystems: [/mnt/data/Games/SteamLibrary] }
+
+# Steam lives in ~/.steam/debian-installation here, which Heroic's manifest
+# already grants, and that is the path its libraryfolders.vdf lists.
+heroic_steam_compat_dir: "/home/{{ primary_user }}/.steam/debian-installation/compatibilitytools.d"
+# Where Heroic installs games, with their Wine prefixes under Prefixes/.
+heroic_install_path: /mnt/data/Games/Heroic
 
 # The 500 GB HDD: LUKS2 with ext4, unlocked at boot by its keyfile (storage role;
 # bootstrap in roles/storage/README.md).
