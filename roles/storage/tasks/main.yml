@@ -101,3 +101,16 @@
       loop: "{{ storage_disks }}"
       loop_control:
         label: "{{ item.mountpoint }}"
+
+    # The policy spells /var/mnt as /mnt (an equivalence rule), so the rule must too.
+    - name: Set the SELinux type of each disk's files
+      community.general.sefcontext:
+        target: "{{ item.mountpoint | regex_replace('^/var/mnt/', '/mnt/') }}(/.*)?"
+        setype: "{{ item.selinux_type | default(storage_selinux_type) }}"
+        state: present
+      register: storage_sefcontext
+      notify: Relabel the disks' files
+      loop: "{{ storage_disks }}"
+      loop_control:
+        label: "{{ item.mountpoint }}"
+      when: ansible_facts['selinux']['status'] | default('disabled') == 'enabled'

@@ -17,8 +17,9 @@ first; it is on the root filesystem, so it is protected once the root is
 encrypted too.
 
 The Ansible role is **non-destructive**: it only ensures the keyfile
-permissions, the `crypttab` auto-unlock entry, the mountpoint, and the `fstab`
-line. It never partitions or formats a disk. It needs root, so on the desktop
+permissions, the `crypttab` auto-unlock entry, the mountpoint, the `fstab`
+line, and, where SELinux is enabled, the type of the disk's files
+(`storage_selinux_type`). It never partitions or formats a disk. It needs root, so on the desktop
 (no passwordless sudo) it runs only when asked:
 
 ```sh

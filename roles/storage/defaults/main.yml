@@ -14,7 +14,12 @@
 #   keyfile     optional; default /etc/cryptsetup-keys.d/<name>.key, the place
 #               systemd-cryptsetup looks first, inside the root filesystem
 #   owner       optional; owner of the mountpoint directory (primary_user)
+#   selinux_type  optional; SELinux type of the disk's files (storage_selinux_type)
 storage_disks: []
+
+# SELinux type of the disks' files where SELinux is enabled: a new filesystem
+# carries no labels, and unlabeled files are out of reach of confined services.
+storage_selinux_type: user_home_t
 
 # crypttab options of every disk. nofail: boot goes on without a missing disk.
 storage_crypttab_opts: luks,nofail

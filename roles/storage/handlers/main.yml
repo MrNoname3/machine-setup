@@ -3,3 +3,12 @@
 - name: Reload systemd
   ansible.builtin.systemd_service:
     daemon_reload: true
+
+# Only the disks whose rule changed: restorecon walks every file on the disk.
+- name: Relabel the disks' files
+  ansible.builtin.command: restorecon -R {{ item.item.mountpoint }}
+  changed_when: true
+  loop: "{{ storage_sefcontext.results }}"
+  loop_control:
+    label: "{{ item.item.mountpoint }}"
+  when: item is changed
