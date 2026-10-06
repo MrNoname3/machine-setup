@@ -63,12 +63,12 @@ kde_dolphin_settings:
 # the colour scheme etc. — writing the kdeglobals key alone would not).
 kde_lookandfeel: org.kde.breezedark.desktop
 
-# Remember Window Positions kwin script. When it is missing, the play asks
-# whether to install the latest release from the author's GitHub, or to leave
-# it for a manual KDE Store install (which keeps Discover updates working);
-# non-interactive runs skip the question. The /latest/ URL always serves the
-# newest release asset.
-kde_rwp_package_url: "https://github.com/rxappdev/RememberWindowPositions/releases/latest/download/rememberwindowpositions.kwinscript"
+# Remember Window Positions kwin script: the release the role installs, and
+# replaces any other installed version with. Bazzite has no Discover to update
+# KDE Store add-ons, so Renovate proposes each new release instead.
+# renovate: datasource=github-releases depName=rxappdev/RememberWindowPositions
+kde_rwp_version: "7.0.0"
+kde_rwp_package_url: "https://github.com/rxappdev/RememberWindowPositions/releases/download/v{{ kde_rwp_version }}/rememberwindowpositions.kwinscript"
 
 # Default applications (the user's mimeapps.list), in the format KDE writes them.
 kde_video_player: "org.videolan.VLC.desktop;"

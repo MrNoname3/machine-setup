@@ -1,0 +1,4 @@
+---
+kde_rwp_installed_version: >-
+  {{ (kde_rwp_metadata.content | b64decode | from_json).KPlugin.Version
+     if kde_rwp_metadata.content is defined else '' }}

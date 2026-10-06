@@ -5,6 +5,19 @@
     "helpers:pinGitHubActionDigests"
   ],
   "dependencyDashboard": true,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Versions in role defaults, under a '# renovate: datasource=... depName=...' comment",
+      "managerFilePatterns": [
+        "/(^|/)roles/[^/]+/defaults/main\\.yml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n\\w+: \"?(?<currentValue>[^\"\\s]+)\"?"
+      ],
+      "extractVersionTemplate": "^v?(?<version>.+)$"
+    }
+  ],
   "labels": [
     "dependencies"
   ],
