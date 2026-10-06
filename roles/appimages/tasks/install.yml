@@ -74,8 +74,8 @@
       {{ appimages_downloads | default([]) | length }} AppImage(s) to fetch:
       {{ appimages_downloads | default([]) | map(attribute='url') | join(' ') }}
 
-# Staged under the user's ~/.cache: /tmp is a tmpfs here (LM Studio alone is over
-# 1 GB), and Gear Lever's flatpak sees a private /var/tmp of its own.
+# Staged under the user's ~/.cache: /tmp is a tmpfs here (an AppImage can run to
+# hundreds of MB), and Gear Lever's flatpak sees a private /var/tmp of its own.
 - name: Ensure the download staging directory exists
   ansible.builtin.file:
     path: "{{ appimages_download_dir }}"

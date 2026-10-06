@@ -140,11 +140,6 @@ appimages:
     # The ids in the udev rules the AppImage ships (resources/udev/): the first
     # generation Logic and Logic16, then the current models.
     usb_devices: ["0925:3881", "21a9:1001", "21a9:1003", "21a9:1004", "21a9:1005", "21a9:1006", "21a9:1007"]
-  - name: LM-Studio                  # local LLM runner; name has a '-' (see README)
-    file: lm_studio.appimage
-    manager: StaticFileUpdater
-    config:
-      url: "https://lmstudio.ai/download/latest/linux/x64?format=AppImage"
   - name: Radmin VPN                 # Windows Radmin VPN client under bundled Wine
     file: radmin_vpn.appimage
     manager: GithubUpdater

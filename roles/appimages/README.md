@@ -189,13 +189,12 @@ local account. Taking the ids from the vendor's file keeps the two lists in step
 | FlightCore | `GithubUpdater` | `R2NorthstarTools/FlightCore`, `FlightCore_*_amd64.AppImage` |
 | MQTT Explorer | `GithubUpdater` | `thomasnordquist/MQTT-Explorer`, `MQTT-Explorer-*.AppImage`, **pre-releases on** |
 | Logic (Saleae) | `StaticFileUpdater` | `https://logic2api.saleae.com/download?os=linux&arch=x64` |
-| LM Studio | `StaticFileUpdater` | `https://lmstudio.ai/download/latest/linux/x64?format=AppImage` |
 | Radmin VPN | `GithubUpdater` | `baptisterajaut/radmin-vpn-linux`, `RadminVPN-Linux-x86_64.AppImage` |
 
 **`StaticFileUpdater`** does a `HEAD` (following redirects) and compares
-`content-length` against the local file's size. Both vendor URLs above are
-`302`s to a versioned file and answer with a `content-length`, which is what
-makes them usable — a redirect target without one would make the app look
+`content-length` against the local file's size. The vendor URL above is a
+`302` to a versioned file and answers with a `content-length`, which is what
+makes it usable — a redirect target without one would make the app look
 permanently up to date.
 
 **`GithubUpdater`** queries the releases API and glob-matches asset names:
@@ -225,7 +224,7 @@ Other managers Gear Lever supports, if an app ever needs one:
 
 **Integrating the declared AppImages.** A normal run never downloads anything —
 it only reports which declared entries are missing. Bootstrapping a fresh machine
-is opt-in, because the current set is about 1.5 GB (LM Studio alone is over 1 GB):
+is opt-in, because the set runs to hundreds of MB:
 
 ```sh
 ./scripts/apply.sh desktop-bazzite --tags appimages \
