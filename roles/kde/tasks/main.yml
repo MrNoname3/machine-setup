@@ -8,7 +8,8 @@
 #   - Dolphin preferences — applied only while Dolphin is closed (it rewrites
 #     dolphinrc on exit, which would clobber a live edit).
 #   - "Remember Window Positions" kwin script at kde_rwp_version, from its
-#     GitHub release.
+#     GitHub release, and the windows it saves on every close
+#     (kde_rwp_remember_always).
 #   - Applies the global look-and-feel with plasma-apply-lookandfeel (writing
 #     the kdeglobals key alone would not pull in the colour scheme).
 #   - Forces the on-screen input method OFF (kwinrc [Wayland] InputMethod=""):
@@ -129,6 +130,23 @@
         xpath: /hotnewstuffregistry/stuff[contains(installedfile, '/kwin/scripts/rememberwindowpositions/')]
         state: absent
       when: kde_rwp_knsregistry.stat.exists
+
+    - name: Read the Remember Window Positions settings
+      ansible.builtin.slurp:
+        src: "{{ kde_rwp_settings }}"
+      register: kde_rwp_settings_file
+      failed_when: false
+
+    # The script reads its overrides when it loads and writes them back when it
+    # unloads, so the handlers change the file only while the script is unloaded.
+    - name: Check the script's overrides for the windows saved on every close
+      ansible.builtin.debug:
+        msg: "{{ kde_rwp_overrides }}"
+      changed_when: kde_rwp_overrides != kde_rwp_overrides_current
+      notify:
+        - Unload the Remember Window Positions script
+        - Write the Remember Window Positions overrides
+        - Load the Remember Window Positions script again
 
     # --- Make KWin pick up changed settings without waiting for a re-login ---
     - name: Reconfigure KWin

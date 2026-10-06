@@ -2,3 +2,40 @@
 kde_rwp_installed_version: >-
   {{ (kde_rwp_metadata.content | b64decode | from_json).KPlugin.Version
      if kde_rwp_metadata.content is defined else '' }}
+
+# Remember Window Positions keeps its data in a QSettings file of its own.
+kde_rwp_settings: "/home/{{ primary_user }}/.config/kde.org/kwin.conf"
+
+# The overrides the script stored, unquoted and unescaped the way QSettings
+# writes a string that holds commas or quotes.
+kde_rwp_overrides_current: >-
+  {%- set found = (kde_rwp_settings_file.content | default('') | b64decode)
+        | regex_search('(?m)^rememberwindowpositions_configOverrides=(.*)$', '\\1') -%}
+  {%- set raw = found[0] if found else '{}' -%}
+  {%- if raw.startswith('"') -%}
+  {%- set raw = raw[1:-1] | regex_replace('\\\\(.)', '\\1') -%}
+  {%- endif -%}
+  {{ raw | from_json }}
+
+# The stored overrides with kde_rwp_remember_always added, in the override
+# format of kde_rwp_version: an application new to them gets the script's
+# defaults, a listed window "remember always" (r) instead of "on close" (c).
+kde_rwp_flags: { o: 0, c: 1, n: 0, r: 0, p: 1, s: 1, d: 1, a: 1, m: 1, k: 1, b: 1, f: 1 }
+kde_rwp_window_flags: "{{ kde_rwp_flags | combine({'c': 0, 'r': 1}) }}"
+kde_rwp_overrides: >-
+  {%- set ns = namespace(apps={}) -%}
+  {%- for app in kde_rwp_remember_always -%}
+  {%- set ns.apps = ns.apps | combine({app: kde_rwp_flags | combine({'w': {}})}) -%}
+  {%- endfor -%}
+  {%- set ns.apps = ns.apps | combine(kde_rwp_overrides_current, recursive=True) -%}
+  {%- for app, titles in kde_rwp_remember_always.items() -%}
+  {%- set ns.apps = ns.apps | combine({app: {'w': dict(titles | product([kde_rwp_window_flags]))}},
+        recursive=True) -%}
+  {%- endfor -%}
+  {{ ns.apps }}
+
+# As the script writes it: compact JSON, quoted and escaped for QSettings.
+kde_rwp_overrides_value: >-
+  {%- set json = kde_rwp_overrides | to_json(separators=(',', ':'), ensure_ascii=False)
+        | replace('\\', '\\\\') | replace('"', '\\"') -%}
+  "{{ json }}"

@@ -1,0 +1,31 @@
+---
+- name: Unload the Remember Window Positions script
+  ansible.builtin.command: >-
+    gdbus call --session --dest org.kde.KWin --object-path /Scripting
+    --method org.kde.kwin.Scripting.unloadScript rememberwindowpositions
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts['user_uid'] }}/bus"
+  become: false
+  register: kde_rwp_unload
+  changed_when: "'true' in kde_rwp_unload.stdout"
+  failed_when: false # no running session (e.g. fresh install) is fine
+
+- name: Write the Remember Window Positions overrides
+  community.general.ini_file:
+    path: "{{ kde_rwp_settings }}"
+    section: General
+    option: rememberwindowpositions_configOverrides
+    value: "{{ kde_rwp_overrides_value }}"
+    no_extra_spaces: true
+    mode: "0644"
+  become: false
+
+- name: Load the Remember Window Positions script again
+  ansible.builtin.command: >-
+    gdbus call --session --dest org.kde.KWin --object-path /Scripting
+    --method org.kde.kwin.Scripting.start
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts['user_uid'] }}/bus"
+  become: false
+  changed_when: true
+  when: kde_rwp_unload.rc | default(1) == 0 # a session is running

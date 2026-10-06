@@ -70,6 +70,12 @@ kde_lookandfeel: org.kde.breezedark.desktop
 kde_rwp_version: "7.0.0"
 kde_rwp_package_url: "https://github.com/rxappdev/RememberWindowPositions/releases/download/v{{ kde_rwp_version }}/rememberwindowpositions.kwinscript"
 
+# Windows the script saves each time they close, not only when their whole
+# application quits: { <window class>: [<exact window title>, ...] }. The role
+# adds them to the script's overrides and keeps the rest (its menu's, Meta+Ctrl+W).
+kde_rwp_remember_always:
+  brave-browser: ["Picture-in-picture"]   # Brave's video pop-out
+
 # Default applications (the user's mimeapps.list), in the format KDE writes them.
 kde_video_player: "org.videolan.VLC.desktop;"
 kde_video_mimetypes:
