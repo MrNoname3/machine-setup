@@ -1,0 +1,3 @@
+---
+# The most disk space the systemd journal may take (journald's SystemMaxUse).
+journal_max_use: 500M

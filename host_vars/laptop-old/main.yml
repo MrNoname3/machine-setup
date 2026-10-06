@@ -25,6 +25,7 @@ roles_enabled:
   - storage
   - wireguard
   - containers
+  - journal        # cap the systemd journal
   - etckeeper
   - keyring
 
