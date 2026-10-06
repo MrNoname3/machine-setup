@@ -13,6 +13,31 @@
     state: present
   when: flatpak_apps | length > 0
 
+- name: Read the runtime of each application that has add-ons
+  ansible.builtin.command: flatpak info --system --show-runtime {{ item.app }}
+  register: flatpak_ext_runtime
+  changed_when: false
+  check_mode: false
+  become: false
+  loop: "{{ flatpak_extensions }}"
+  loop_control:
+    label: "{{ item.app }}"
+
+# An explicit install pins its branch, and a pinned branch would outlive the
+# application's next runtime change, hence --no-auto-pin.
+- name: Install the add-ons in the branch of their application's runtime
+  ansible.builtin.shell: |
+    set -eu
+    ref="{{ item.item.name }}//{{ item.item.branch | replace('{runtime}', item.stdout.split('/')[-1].split('-')[-1]) }}"
+    flatpak info --system "$ref" >/dev/null 2>&1 && exit 0
+    flatpak install --system --noninteractive --no-auto-pin {{ flatpak_remote }} "$ref"
+    echo CHANGED
+  register: flatpak_ext_install
+  changed_when: "'CHANGED' in flatpak_ext_install.stdout"
+  loop: "{{ flatpak_ext_runtime.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
 # A per-user override, the file `flatpak override --user` writes: it needs no
 # root, and other keys in it (set with Flatseal, say) are left alone.
 - name: Grant the host's Flatpak applications extra access

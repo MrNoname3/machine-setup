@@ -73,6 +73,9 @@ flatpak_apps:
   - org.mozilla.firefox
   - org.virt_manager.virt-manager
 
+flatpak_extensions:
+  - { name: org.videolan.VLC.Plugin.pause_click, app: org.videolan.VLC, branch: "3-{runtime}" }  # click to pause
+
 # Heroic finds Proton builds in Steam's compatibilitytools.d, where ProtonPlus
 # installs them, but its manifest grants only ~/.steam, whose `steam` link points
 # into ~/.local/share/Steam here.

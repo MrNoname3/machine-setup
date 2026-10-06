@@ -5,6 +5,12 @@
 flatpak_apps: []
 flatpak_remote: flathub
 
+# Add-ons, installed unpinned in the branch that matches their application's
+# runtime, so `flatpak update` carries them along when the runtime changes.
+# {runtime} in `branch` is the part of the runtime's branch after its last "-":
+#   - { name: <add-on id>, app: <application id>, branch: "<prefix>{runtime}" }
+flatpak_extensions: []
+
 # Extra access per application, beyond what its manifest grants; each key is
 # optional:
 #   - { app: org.example.App, filesystems: [/mnt/data, "~/Documents:ro"], sockets: [session-bus] }
