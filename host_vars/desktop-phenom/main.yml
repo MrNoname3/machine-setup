@@ -1,0 +1,190 @@
+---
+# Per-host settings for desktop-phenom: an AMD Phenom X4 desktop (AM2+, DDR2,
+# legacy BIOS) with an NVIDIA GT 1030, running Linux Mint with Xfce on a LUKS-
+# encrypted SSD.
+#
+# Machine-local values (ssh_port, wg_home_gateway_macs) live in local.yml next
+# to this file — untracked by git (see the pre_tasks in site.yml).
+
+# Roles to apply on this host (the "switch" for site.yml).
+roles_enabled:
+  - base
+  - ssh-access
+  - brave
+  - git            # global git settings
+  - synology-drive
+  - steam
+  - heroic         # ProtonPlus's GE-Proton as Heroic's default Wine
+  - vscode
+  - flatpaks       # Gear Lever (flatpak_apps below)
+  - appimages      # Gear Lever's AppImage set + their update sources
+  - lutris         # the Flatpak Lutris's game icons
+  - luks-unlock
+  - graphics       # the proprietary NVIDIA driver
+  - firewall
+  - wireguard
+  - containers
+  - journal        # cap the systemd journal
+  - etckeeper
+  - keyring
+
+# The base role's Mint desktop defaults (roles/base/tasks/mint.yml + xfce.yml).
+# Switching to cinnamon installs that session too; pick it at the login screen.
+base_desktop: xfce
+
+# Mint's umask is 002, so the apps write their config files as 0664.
+user_config_mode: "0664"
+
+# The key the ssh-access and luks-unlock roles authorize for primary_user.
+ssh_authorized_key_file: phenom.pub
+
+# The GT 1030 (Pascal) is supported by the 580 branch, not by the open kernel
+# modules.
+graphics_nvidia_branch: "580"
+
+# Packages the base role installs.
+packages_present:
+  - git
+  - python3-venv                 # repo-local toolchain (scripts/ensure-venv.sh)
+  - htop
+  - mc                           # Midnight Commander
+  - vlc
+  - kate
+  - breeze                       # Breeze widget style for Kate (base role sets it)
+  - keepassxc
+  - meld
+  - numlockx                     # turn NumLock on at the LightDM greeter / boot
+  - yaru-theme-icon              # Yaru cursor set (base role selects it)
+  - flatpak                      # the flatpaks role (Mint ships it; listed for clarity)
+  - libfuse2t64                  # FUSE 2 runtime of older AppImages (MQTT Explorer)
+
+packages_absent:
+  # System-wide ansible — replaced by the repo-local .venv toolchain
+  # (scripts/ensure-venv.sh); the venv-run playbook can remove it safely.
+  - ansible
+  - ansible-core
+  # Browser / mail — using Brave + webmail
+  - firefox
+  - firefox-locale-en
+  - thunderbird
+  - thunderbird-locale-en
+  - thunderbird-locale-en-us
+  # Redundant / unused Mint default apps
+  - celluloid                   # Mint video player (VLC is the default now)
+  - hypnotix                    # Mint IPTV/TV player
+  - warpinator                  # Mint LAN file transfer (we have Synology/SMB)
+  - rhythmbox                   # music player (VLC covers it)
+  - rhythmbox-data
+  - rhythmbox-plugins
+  - rhythmbox-plugin-tray-icon
+  - pix                         # image organiser (xviewer stays as the viewer)
+  - pix-data
+  - sticky                      # sticky notes
+  # Accessibility — not needed; brltty also hijacks USB-serial devices (bad for embedded dev)
+  - onboard
+  - onboard-common
+  - orca
+  - brltty
+  - xbrlapi
+  - mousetweaks
+  # Misc unused apps (the panel clock/calendar is the desktop's own, not gnome-calendar)
+  - gnome-calendar
+  - neofetch                    # cosmetic system-info printer
+  - thingy                      # Mint document manager
+  - mintchat                    # Mint community chat integration
+  # Apple iOS device support (no Apple devices) + Mint welcome + char map
+  - ideviceinstaller
+  - ifuse
+  - mintwelcome
+  - gucharmap
+  # Legacy network clients
+  - telnet
+  - inetutils-telnet
+  - ftp
+  - tnftp
+  - rdate
+  # Document Viewer — Brave handles PDFs; Nemo preview keeps the xreader libs
+  - xreader
+  - xreader-dbg
+  # Mint default text editor — replaced by Kate as the default editor
+  - xed
+  - xed-dbg
+  # Fingerprint auth — no fingerprint reader here; not active in PAM
+  - fingwit
+  - libpam-fingwit
+  - fprintd
+  - libpam-fprintd
+  # Unused services / live-ISO leftovers
+  - casper                      # live-ISO boot only; useless once installed (also clears the failed casper-md5check unit)
+  - cups-browsed                # network printer *browsing* — no printer here
+  - modemmanager                # no WWAN modem, and it grabs USB-serial ports (bad for embedded dev, like brltty)
+  - touchegg                    # Cinnamon gestures (the Cinnamon fallback session needs none)
+  # Real Docker engine — only ever pulled as a docker-compose-v2 *Recommends*; we
+  # run rootless Podman (podman compose uses docker-compose-v2's provider directly,
+  # so the compose tooling stays). The containers role installs with
+  # install_recommends:false so these are not resurrected. Podman is independent
+  # (crun/conmon/netavark, not containerd).
+  - docker.io
+  - containerd
+
+# Flatpak application set (system scope, Flathub).
+flatpak_apps:
+  - it.mijorus.gearlever
+  - net.lutris.Lutris            # Windows games outside Steam and Heroic
+  - com.heroicgameslauncher.hgl  # Epic and GOG games
+  - com.github.Matoking.protontricks
+  - com.github.tchx84.Flatseal   # flatpak permissions
+
+# Steam lives in ~/.steam/debian-installation here, which Heroic's manifest
+# already grants, and that is the path its libraryfolders.vdf lists.
+heroic_steam_compat_dir: "/home/{{ primary_user }}/.steam/debian-installation/compatibilitytools.d"
+
+# AppImages integrated with Gear Lever. The schema, and why each update source
+# is set the way it is, are documented in host_vars/desktop-bazzite/main.yml and
+# roles/appimages/README.md. A fresh machine needs the whole playbook, which
+# also installs Gear Lever:
+#   ./scripts/apply.sh desktop-phenom -e appimages_install_missing=true
+appimages:
+  - name: MQTT Explorer
+    file: mqtt_explorer.appimage
+    manager: GithubUpdater
+    config:
+      repo: thomasnordquist/MQTT-Explorer
+      repo_filename: "MQTT-Explorer-*.AppImage"
+      # REQUIRED: the whole 0.4.x line is tagged pre-release.
+      allow_prereleases: true
+  - name: Radmin VPN                 # Windows Radmin VPN client under bundled Wine
+    file: radmin_vpn.appimage
+    manager: GithubUpdater
+    config:
+      repo: baptisterajaut/radmin-vpn-linux
+      repo_filename: "RadminVPN-Linux-x86_64.AppImage"
+      # Release candidates are published as pre-releases.
+      allow_prereleases: false
+
+# All UDP on radminvpn0, whose addresses are not RFC1918. Radmin peers check the
+# tunnel on a UDP port the service takes from the kernel at each start, and the
+# LAN games played over it host and browse on UDP. TCP stays closed.
+firewall_interface_allowed:
+  - { interface: radminvpn0, proto: udp, comment: "Radmin VPN peers and LAN games" }
+
+# Steam's LAN features, from the private ranges only. The other client's reply
+# to a discovery broadcast arrives on UDP 27036 and matches no outgoing flow.
+firewall_allowed_extra:
+  - { port: "27031:27036", proto: udp, comment: "Steam discovery + Remote Play" }
+  - { port: "27036:27037", proto: tcp, comment: "Steam Remote Play" }
+  - { port: "27040", proto: tcp, comment: "Steam local game transfers" }
+
+# Podman is the only container engine here, so DOCKER_HOST may point at its
+# rootless socket.
+container_docker_host_export: true
+
+# Away from home only the home subnet goes through the tunnel.
+wireguard_auto_connection: wg-home-split
+
+# Remote LUKS unlock (dropbear) uses ip=dhcp: the initramfs gets its address
+# from the DHCP server of whichever network the machine is on.
+
+# --- Machine-local values (see local.yml) ---
+# ssh_port                      hardened SSH port
+# wg_home_gateway_macs          trusted home default-gateway MAC(s)

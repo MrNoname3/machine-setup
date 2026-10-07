@@ -17,6 +17,8 @@ only *procedures and templates*. If a secret must live here, encrypt it with
 ## Hosts
 - **laptop-old** — Intel i5-2430M (Sandy Bridge), NVIDIA GT 520M (Fermi), 8 GB RAM,
   SSD + HDD, Optimus. Runs Linux Mint (Cinnamon).
+- **desktop-phenom** — AMD Phenom X4 (AM2+, DDR2, legacy BIOS), NVIDIA GT 1030,
+  8 GB RAM, one SSD. Runs Linux Mint (Xfce), with Cinnamon as the fallback session.
 - **desktop-bazzite** — main desktop, Bazzite (immutable, rpm-ostree). Uses a different
   package model than apt; the `base` role's apt tasks are guarded and will not run here.
 - **tablet-miix** — Lenovo Miix 2 8 (Atom Z3740, 2 GB RAM), Debian 13 with Phosh,
@@ -55,6 +57,7 @@ machine-setup/
 │   │   ├── main.yml             # per-host settings (roles_enabled, ...)
 │   │   └── local.yml            # machine identifiers — untracked; prompted+saved by site.yml
 │   ├── desktop-bazzite/         # same layout (main.yml + untracked local.yml)
+│   ├── desktop-phenom/          # same layout
 │   └── tablet-miix/             # same layout
 └── roles/
     ├── base/            # packages (present/absent), sudo; Mint desktop defaults (base_desktop)
@@ -142,7 +145,8 @@ runs `ansible-playbook -c local` with it. The host argument selects which
 machine's configuration to apply (the "switch" for the multi-host repo); any
 further arguments are passed straight to `ansible-playbook`.
 
-**laptop-old (Mint)** — day-to-day (passwordless sudo is set up by the playbook):
+**laptop-old (Mint)** — day-to-day (passwordless sudo is set up by the playbook;
+desktop-phenom runs the same way):
 
 ```sh
 cd ~/Projects/machine-setup && git pull --ff-only
@@ -302,6 +306,28 @@ boot, via the bootstrap + playbook.
    `/etc/cryptsetup-keys.d/data.key` and re-run the playbook (`storage`),
    import the WireGuard client configs (`wireguard`), and unlock/populate
    KeePassXC so it serves the SSH keys (`keyring`).
+
+### desktop-phenom (Linux Mint Xfce)
+
+1. **Live USB** — the board boots legacy BIOS only, so boot the Mint Xfce live
+   USB in BIOS mode. Check the network, audio and the GT 1030 (`inxi -G`; the
+   live system drives it with nouveau, the proprietary driver comes later).
+2. **Install with full-disk encryption**: language **English**, keyboard layout
+   **Hungarian** (the boot-time passphrase prompt uses it too), time zone
+   Europe/Budapest. *Erase disk and install*, tick *Encrypt the new
+   installation* (LUKS), and pick a strong passphrase — the primary unlock,
+   **never stored anywhere**. Add a generated fallback passphrase to a second
+   key slot afterwards and keep that one in KeePassXC.
+3. **First boot** — run the bootstrap one-liner (it suggests `desktop-phenom`
+   on Xfce), then `./scripts/apply.sh desktop-phenom -K`. **Reboot**: the
+   NVIDIA driver and the dropbear initramfs take effect only then.
+4. **Manual follow-ups that need secrets in hand**: import the WireGuard
+   client configs (`wireguard`), and unlock/populate KeePassXC so it serves the
+   SSH keys (`keyring`). The remote unlock is described in
+   `roles/luks-unlock/README.md`.
+5. **Desktop fallback** — to try Cinnamon instead, set `base_desktop: cinnamon`
+   in `host_vars/desktop-phenom/main.yml`, re-run the playbook and pick the
+   Cinnamon session at the login screen.
 
 ### desktop-bazzite (Bazzite)
 
