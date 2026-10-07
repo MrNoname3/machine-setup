@@ -79,6 +79,7 @@ machine-setup/
     ├── storage/         # data-disk crypttab/mount
     ├── wireguard/       # auto-VPN when away from home
     ├── containers/      # rootless Podman
+    ├── applied/         # records the applied branch + commit in /etc
     └── etckeeper/       # /etc in git (runs last)
 ```
 
@@ -181,6 +182,11 @@ run, the first included, is:
 cd ~/Projects/machine-setup && git pull --ff-only
 ./scripts/apply.sh tablet-miix
 ```
+
+**What a machine runs** — every full run (not one limited by `--tags`) ends
+by writing the branch and commit it applied, and whether the checkout had local
+changes, to `/etc/machine-setup-applied` (the `applied` role), which etckeeper
+then commits.
 
 **Dry run** — show what *would* change (with diffs) without touching anything;
 works with any command above:

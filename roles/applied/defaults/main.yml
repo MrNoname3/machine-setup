@@ -1,0 +1,3 @@
+---
+# Where the applied role records the checkout the last full run came from.
+applied_record_path: /etc/machine-setup-applied

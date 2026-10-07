@@ -268,6 +268,9 @@
     - role: journal
       when: "'journal' in (roles_enabled | default([]))"
       tags: journal
+    # Every host, untagged: a run limited by --tags applies only part of the
+    # repo, so it records nothing.
+    - role: applied
     # etckeeper runs last so its /etc snapshot captures the other roles' changes.
     - role: etckeeper
       when: "'etckeeper' in (roles_enabled | default([]))"

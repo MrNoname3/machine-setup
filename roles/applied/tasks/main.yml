@@ -1,0 +1,49 @@
+---
+# applied role: record which branch and commit of this repo the last full run
+# applied. site.yml runs it after every other role but etckeeper, so a run that
+# failed earlier leaves the previous record, and etckeeper commits the new one.
+# It needs root, so a run without it (the desktop's day-to-day
+# `-e ansible_become=false`) skips the role with a notice.
+
+- name: Check whether this run has root
+  ansible.builtin.command: id -u
+  register: applied_uid
+  changed_when: false
+  check_mode: false
+
+- name: Note that the applied revision was not recorded (no root)
+  ansible.builtin.debug:
+    msg: >-
+      The applied role needs root, so {{ applied_record_path }} was not
+      updated. A full run with -K records it.
+  when: applied_uid.stdout != "0"
+
+- name: Record the applied revision
+  when: applied_uid.stdout == "0"
+  block:
+    # noqa'd: no module reads a checkout's branch, commit or status.
+    - name: Read the checkout's branch, commit and local changes # noqa: command-instead-of-module
+      ansible.builtin.command: "git -C {{ playbook_dir }} {{ item }}"
+      loop:
+        - rev-parse --abbrev-ref HEAD
+        - rev-parse HEAD
+        - status --porcelain
+      register: applied_git
+      changed_when: false
+      check_mode: false
+      become: false
+
+    # Untracked files count as local changes too; gitignored ones such as
+    # host_vars/*/local.yml do not.
+    - name: Write the applied revision
+      ansible.builtin.copy:
+        dest: "{{ applied_record_path }}"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # The machine-setup checkout the last full playbook run applied.
+          host: {{ inventory_hostname }}
+          branch: {{ applied_git.results[0].stdout }}
+          commit: {{ applied_git.results[1].stdout }}
+          local_changes: {{ (applied_git.results[2].stdout | length > 0) | lower }}
