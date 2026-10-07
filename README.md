@@ -117,6 +117,20 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/MrNoname3/machine-setup/
 > The `bash -c "$(curl ...)"` form (instead of `curl | bash`) keeps stdin on the
 > terminal so the menu can prompt.
 
+**From a branch** — `--branch` (before the host) clones that branch, or switches
+an existing clone to it; anything after the host goes to `scripts/apply.sh`,
+here a dry run first:
+
+```sh
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/MrNoname3/machine-setup/main/bootstrap.sh)" -- --branch my-branch laptop-old --check --diff
+```
+
+Without `--branch`, a new clone gets `main` and an existing one stays on its
+branch and is fast-forwarded. The branch must already be on GitHub, which the
+Gitea push mirror takes care of. The same by hand: pick `0) clone/update only`
+in the menu, then `git -C ~/Projects/machine-setup switch my-branch` and
+`./scripts/apply.sh laptop-old -K`.
+
 At home you can clone from the local Gitea instead (it mirrors to GitHub on
 every push): prefix the command with `REPO_URL=<gitea-clone-url>`.
 
