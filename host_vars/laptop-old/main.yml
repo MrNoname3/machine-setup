@@ -223,6 +223,9 @@ firewall_allowed_extra:
 # desktop), where it would hijack the `docker` CLI.
 container_docker_host_export: true
 
+# The unrouted VGA connector reports a phantom monitor (graphics role).
+graphics_disable_vga: true
+
 # No brave_flags: Brave cannot decode video in hardware on this X11 Optimus
 # machine (VA-API lands on the nouveau render node, and decoded frames cannot
 # be handed to GLX), so it decodes in software, which the CPU keeps up with.

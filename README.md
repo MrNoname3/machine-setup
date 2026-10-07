@@ -74,7 +74,7 @@ machine-setup/
     ├── keyring/         # KeePassXC as the SSH agent (both OSes)
     ├── kde/             # Plasma desktop tweaks (Bazzite)
     ├── phosh/           # Phosh session settings in dconf (tablet)
-    ├── graphics/        # phantom VGA (laptop) + AMD undervolt profiles (Bazzite)
+    ├── graphics/        # phantom VGA (laptop), NVIDIA driver (Phenom), AMD undervolt (Bazzite)
     ├── firewall/        # ufw
     ├── storage/         # data-disk crypttab/mount
     ├── wireguard/       # auto-VPN when away from home

@@ -1,4 +1,12 @@
 ---
+# Disable both analog VGA outputs on the kernel command line (Mint laptop: the
+# unrouted connector reports a phantom monitor).
+graphics_disable_vga: false
+
+# The proprietary NVIDIA driver branch to install on a Mint host, e.g. "580".
+# Empty leaves the GPU to the open drivers.
+graphics_nvidia_branch: ""
+
 # AMD GPU tuning (Bazzite / amdgpu). Empty default = the role does no GPU tuning
 # unless the host defines profiles; see host_vars/desktop-bazzite/main.yml.
 #

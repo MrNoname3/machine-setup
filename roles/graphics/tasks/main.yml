@@ -1,9 +1,11 @@
 ---
-# graphics role: per-GPU fixes and tuning. Two unrelated halves, split by OS
-# family the same way the brave role is:
+# graphics role: per-GPU fixes and tuning, split by OS family the same way the
+# brave role is:
 #
 #   Mint laptop     -- NVIDIA GT 520M (Fermi) + Intel HD 3000 Optimus: kill the
 #                      phantom VGA display.
+#   Mint desktop    -- the proprietary NVIDIA driver, where graphics_nvidia_branch
+#                      is set.
 #   Bazzite desktop -- Radeon RX 9070 XT (Navi 48 / RDNA4): undervolt and power
 #                      profiles. See README.md for how the numbers were measured.
 #
@@ -29,7 +31,23 @@
     - "video=VGA-1:d"
     - "video=VGA-2:d"
   notify: Update grub
-  when: ansible_facts['os_family'] == "Debian"
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - graphics_disable_vga | bool
+
+# --- Mint desktop: proprietary NVIDIA driver --------------------------------
+# The package blacklists nouveau and enables nvidia_drm modesetting; the
+# module is built by DKMS against the installed kernel headers. Steam's 32-bit
+# games need the i386 GL library besides the 64-bit one.
+- name: Install the proprietary NVIDIA driver
+  ansible.builtin.apt:
+    name:
+      - "nvidia-driver-{{ graphics_nvidia_branch }}"
+      - "libnvidia-gl-{{ graphics_nvidia_branch }}:i386"
+    state: present
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - graphics_nvidia_branch | length > 0
 
 # --- Bazzite desktop: amdgpu tuning ----------------------------------------
 - name: Configure AMD GPU tuning profiles
