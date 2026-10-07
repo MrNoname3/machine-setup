@@ -30,8 +30,8 @@ roles_enabled:
   - etckeeper
   - keyring
 
-# The base role's Mint desktop defaults (roles/base/tasks/cinnamon.yml).
-base_cinnamon: true
+# The base role's Mint desktop defaults (roles/base/tasks/mint.yml + cinnamon.yml).
+base_desktop: cinnamon
 
 # Mint's umask is 002, so the apps write their config files as 0664.
 user_config_mode: "0664"

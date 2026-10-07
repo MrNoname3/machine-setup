@@ -1,8 +1,9 @@
 ---
 # Base role: package management and common configuration.
 # apt tasks are guarded so this role is safe to include on non-Debian hosts
-# (e.g. the immutable Bazzite desktop, which uses rpm-ostree instead). The
-# Cinnamon desktop defaults are in cinnamon.yml, for hosts that set base_cinnamon.
+# (e.g. the immutable Bazzite desktop, which uses rpm-ostree instead). The Mint
+# desktop defaults are in mint.yml plus <base_desktop>.yml, for hosts that set
+# base_desktop.
 
 - name: Passwordless sudo for the primary user
   ansible.builtin.copy:
@@ -74,6 +75,10 @@
     label: "{{ item.key }}"
   notify: Restart upower
 
-- name: Cinnamon desktop defaults
-  ansible.builtin.include_tasks: cinnamon.yml
-  when: base_cinnamon
+- name: Linux Mint desktop defaults
+  ansible.builtin.include_tasks: mint.yml
+  when: base_desktop | length > 0
+
+- name: Desktop session defaults ({{ base_desktop }})
+  ansible.builtin.include_tasks: "{{ base_desktop }}.yml"
+  when: base_desktop | length > 0

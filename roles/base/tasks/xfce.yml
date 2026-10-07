@@ -1,0 +1,158 @@
+---
+# Desktop defaults for Linux Mint with Xfce: the session's xfconf settings,
+# kept in step with the Cinnamon ones in cinnamon.yml where Xfce has a
+# counterpart.
+
+# The session itself, not the edition's metapackage (see cinnamon.yml).
+- name: Install the Xfce desktop
+  ansible.builtin.apt:
+    name:
+      - xfce4-session
+      - xfwm4
+      - xfdesktop4
+      - xfce4-panel
+      - xfce4-settings
+      - xfconf
+      - thunar
+      - xfce4-whiskermenu-plugin
+      - xfce4-power-manager
+      - xfce4-screensaver
+      - xdg-desktop-portal-xapp
+      - redshift                 # Night Light (no Xfce counterpart)
+    state: present
+  when: ansible_facts['os_family'] == "Debian"
+
+# Mint ships these hidden already; they are set so a changed default does not
+# bring them back.
+- name: Hide the standard + removable-volume icons from the Xfce desktop
+  community.general.xfconf:
+    channel: xfce4-desktop
+    property: "/desktop-icons/file-icons/{{ item }}"
+    value_type: bool
+    value: "false"
+  become: false
+  loop:
+    - show-filesystem
+    - show-home
+    - show-trash
+    - show-removable
+
+# misc-directory-specific-settings keeps a view set by hand on its folder.
+- name: Default Thunar to list view sorted by name ascending (manual per-folder overrides respected)
+  community.general.xfconf:
+    channel: thunar
+    property: "{{ item.property }}"
+    value_type: "{{ item.type }}"
+    value: "{{ item.value }}"
+  become: false
+  loop:
+    - { property: /default-view, type: string, value: ThunarDetailsView }
+    - { property: /last-sort-column, type: string, value: THUNAR_COLUMN_NAME }
+    - { property: /last-sort-order, type: string, value: GTK_SORT_ASCENDING }
+    - { property: /misc-directory-specific-settings, type: bool, value: "true" }
+  loop_control:
+    label: "{{ item.property }}"
+
+# xfwm4 does not follow the GTK theme on its own. The portal key is the one
+# libadwaita apps read, as in the Cinnamon session.
+- name: Apply the dark desktop theme + icon/cursor themes (Xfce)
+  community.general.xfconf:
+    channel: "{{ item.channel }}"
+    property: "{{ item.property }}"
+    value_type: string
+    value: "{{ item.value }}"
+  become: false
+  loop:
+    - { channel: xsettings, property: /Net/ThemeName, value: Mint-Y-Dark-Aqua }
+    - { channel: xsettings, property: /Net/IconThemeName, value: Mint-Y-Sand }
+    - { channel: xsettings, property: /Gtk/CursorThemeName, value: Yaru }
+    - { channel: xfwm4, property: /general/theme, value: Mint-Y-Dark-Aqua }
+  loop_control:
+    label: "{{ item.channel }}{{ item.property }}"
+
+- name: Prefer the dark colour scheme in portal-aware apps (Xfce)
+  community.general.dconf:
+    key: /org/x/apps/portal/color-scheme
+    value: "'prefer-dark'"
+    state: present
+  become: false
+
+- name: Set the Hungarian keyboard layout (Xfce)
+  community.general.xfconf:
+    channel: keyboard-layout
+    property: "{{ item.property }}"
+    value_type: "{{ item.type }}"
+    value: "{{ item.value }}"
+  become: false
+  loop:
+    - { property: /Default/XkbDisable, type: bool, value: "false" }
+    - { property: /Default/XkbLayout, type: string, value: hu }
+  loop_control:
+    label: "{{ item.property }}"
+
+# Without a restored state of its own, the session keeps the NumLock the
+# login screen switched on.
+- name: Keep the login screen's NumLock in the session (Xfce)
+  community.general.xfconf:
+    channel: keyboards
+    property: /Default/RestoreNumlock
+    value_type: bool
+    value: "false"
+  become: false
+
+# The screensaver blanks the screen after 15 min and locks it at once; the
+# display powers off with it, and the machine suspends after 30 min.
+- name: Blank and lock the screen after 15 min (Xfce)
+  community.general.xfconf:
+    channel: xfce4-screensaver
+    property: "{{ item.property }}"
+    value_type: "{{ item.type }}"
+    value: "{{ item.value }}"
+  become: false
+  loop:
+    - { property: /saver/mode, type: int, value: "0" }    # blank screen only
+    - { property: /saver/idle-activation/enabled, type: bool, value: "true" }
+    - { property: /saver/idle-activation/delay, type: int, value: "15" }
+    - { property: /lock/enabled, type: bool, value: "true" }
+    - { property: /lock/saver-activation/enabled, type: bool, value: "true" }
+    - { property: /lock/saver-activation/delay, type: int, value: "0" }
+  loop_control:
+    label: "{{ item.property }}"
+
+- name: Configure power management — display off, auto-suspend (Xfce)
+  community.general.xfconf:
+    channel: xfce4-power-manager
+    property: "/xfce4-power-manager/{{ item.property }}"
+    value_type: "{{ item.type }}"
+    value: "{{ item.value }}"
+  become: false
+  loop:
+    - { property: dpms-enabled, type: bool, value: "true" }
+    - { property: dpms-on-ac-sleep, type: uint, value: "15" }
+    - { property: dpms-on-ac-off, type: uint, value: "15" }
+    - { property: inactivity-on-ac, type: uint, value: "30" }
+    - { property: inactivity-sleep-mode-on-ac, type: uint, value: "1" }   # suspend
+  loop_control:
+    label: "{{ item.property }}"
+
+# Night Light as in the Cinnamon session: a fixed 5200 K. With equal day and
+# night temperatures the location given to redshift has no effect.
+- name: Ensure ~/.config/autostart exists
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.config/autostart"
+    state: directory
+    mode: "0755"
+  become: false
+
+- name: Autostart an always-on Night Light (redshift)
+  ansible.builtin.copy:
+    dest: "/home/{{ primary_user }}/.config/autostart/redshift-night-light.desktop"
+    mode: "0644"
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name=Night Light
+      Exec=redshift -P -r -l 0:0 -t 5200:5200
+      NoDisplay=true
+      X-GNOME-Autostart-enabled=true
+  become: false

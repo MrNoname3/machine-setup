@@ -3,8 +3,9 @@
 packages_present: []
 packages_absent: []
 
-# Apply the Linux Mint / Cinnamon desktop defaults (tasks/cinnamon.yml).
-base_cinnamon: false
+# The Linux Mint desktop whose defaults to apply: cinnamon or xfce
+# (tasks/mint.yml, then tasks/<base_desktop>.yml). Empty applies none.
+base_desktop: ""
 
 # Default applications per MIME type ({type: desktop entry}), written to the
 # user's mimeapps.list; set per host.

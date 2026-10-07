@@ -57,7 +57,7 @@ machine-setup/
 │   ├── desktop-bazzite/         # same layout (main.yml + untracked local.yml)
 │   └── tablet-miix/             # same layout
 └── roles/
-    ├── base/            # packages (present/absent), sudo; Cinnamon defaults where base_cinnamon
+    ├── base/            # packages (present/absent), sudo; Mint desktop defaults (base_desktop)
     ├── ssh-access/      # hardened SSH server
     ├── printers/        # CUPS queues bound to the right driver
     ├── brave/           # browser (apt on Mint, rpm-ostree layer on Bazzite)
