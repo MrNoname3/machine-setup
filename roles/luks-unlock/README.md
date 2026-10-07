@@ -1,13 +1,14 @@
 # luks-unlock role — remote root unlock at boot (dropbear)
 
-The laptop's root disk is LUKS-encrypted, so after power-on it sits at the
+A Mint host's root disk is LUKS-encrypted, so after power-on it sits at the
 passphrase prompt. This role puts a tiny SSH server (**dropbear**) into the
 initramfs so the passphrase can be typed **remotely** — useful when the machine
 runs headless.
 
 The unlock still requires the LUKS passphrase every time; this role only adds a
-remote way to enter it. Only the **public** key lives in this repo
-(`files/laptop.pub`).
+remote way to enter it. Only the **public** key lives in this repo: the host's
+`ssh_authorized_key_file` under `files/`, the same key the `ssh-access` role
+authorizes.
 
 ## What the role does
 
@@ -30,7 +31,7 @@ the same, known IP.
    one only exists after boot):
 
    ```sh
-   ssh root@<laptop-address>        # or a dedicated ssh-config alias
+   ssh root@<machine-address>       # or a dedicated ssh-config alias
    ```
 
 3. At the BusyBox prompt run:

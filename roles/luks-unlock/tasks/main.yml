@@ -20,9 +20,10 @@
     group: root
     mode: "0755"
 
+# The same key the ssh-access role authorizes for the booted system.
 - name: Authorize the unlock SSH key for dropbear (initramfs)
   ansible.builtin.copy:
-    src: laptop.pub
+    src: "{{ ssh_authorized_key_file }}"
     dest: /etc/dropbear/initramfs/authorized_keys
     owner: root
     group: root
