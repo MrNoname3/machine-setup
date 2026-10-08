@@ -7,7 +7,7 @@ laptop: what it writes to change clocks is what nouveau needs to learn. The
 installed system on the machine is left alone.
 
 Once the machine has booted the ISO, everything happens over SSH from another
-machine. It goes onto a [Ventoy](https://www.ventoy.net/) stick, next to the
+machine. It goes onto a [Ventoy](https://www.ventoy.net/) stick, like the
 [rescue image](../rescue-usb/).
 
 ## What the image is
@@ -46,7 +46,16 @@ too, and pass it back in for a rebuild that keeps the same identity.
 ## Using it
 
 1. Copy the ISO onto the Ventoy stick, plug in wired network, and boot the
-   stick. Pick the ISO in the Ventoy menu; it then starts by itself.
+   stick. Pick the ISO in the Ventoy menu; it then starts by itself. On a
+   stick of its own, a `ventoy/ventoy.json` that makes it the default image
+   needs no key press at all:
+
+   ```
+   { "control": [
+       { "VTOY_MENU_TIMEOUT": "5" },
+       { "VTOY_DEFAULT_IMAGE": "/linuxmint-21.3-xfce-mmiotrace.iso" },
+       { "VTOY_SECONDARY_TIMEOUT": "5" } ] }
+   ```
 2. From the other machine:
 
    ```

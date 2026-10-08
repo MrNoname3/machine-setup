@@ -56,6 +56,14 @@ transition and chain of them fault-free:
 At `0f`, the full `glmark2` suite passes and `glmark2 --validate` matches every
 scene that has a reference image.
 
+On the installed system (Mint 22, kernel 7.0, Mesa 25.2.8, built through the
+graphics role) the same run scores 558 at the boot clocks and 1216 at `0f`;
+nouveau sets `0f` at load and again whenever the GPU comes back from runtime
+power-off, memory included. There, `glmark2 --validate` fails the same eight
+shader scenes (conditionals, function, loop) at `0f`, at `07`, and with the
+clocks the VBIOS leaves, so those failures belong to that Mesa, not to the
+clocks.
+
 ## Core clocks
 
 nouveau has code to change GF100-family clocks but creates the clock subdev
@@ -112,8 +120,8 @@ GDDR5 board, and carries the same opcodes as comments.
 
 ## Next
 
-- The installed system: the same patches on its kernel's nouveau, as a DKMS
-  module, and a level chosen at boot and after the GPU resumes from runtime
-  power-off.
 - What decides each recorded value, so the VBIOS can produce them for other
   boards and the patches can go upstream.
+- Choosing the level from the load. nouveau has no governor for it; on this
+  Optimus laptop the GPU is off whenever nothing renders on it, so a fixed
+  `0f` behaves much like the 390 driver under load.
