@@ -17,7 +17,7 @@ machine. It goes onto a [Ventoy](https://www.ventoy.net/) stick, next to the
 | **Base** | Linux Mint 21.3 Xfce, on Ubuntu 22.04 |
 | **Kernel** | Ubuntu's latest 5.15 (`linux-generic`), which has mmiotrace built in; Ubuntu ships the 390 module prebuilt for exactly this kernel line, not for its newer ones |
 | **Driver** | the 390 kernel module, X driver and GL libraries, `nvidia-settings`; no DKMS |
-| **NVIDIA modules** | blacklisted, so nothing loads them at boot ([mmiotrace.conf](overlay/etc/modprobe.d/mmiotrace.conf)); a trace starts first, then `modprobe nvidia`. `gpu-manager` is masked, and the display stays on the integrated GPU |
+| **NVIDIA modules** | kept from loading, by name too ([mmiotrace.conf](overlay/etc/modprobe.d/mmiotrace.conf)); a trace starts first, then `modprobe --ignore-install nvidia`. `gpu-manager` is masked, and the display stays on the integrated GPU |
 | **SSH** | root login with the public keys given to `build.sh`, from private address ranges (RFC 1918) only; no passwords |
 | **Host key** | fixed, created on the first build and reused |
 | **Tools** | `glmark2`, `mesa-utils`, `build-essential` and the kernel headers, for load during a trace and for building modules on the live system |
