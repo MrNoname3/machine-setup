@@ -152,10 +152,38 @@ build it against the new headers, and replace the patches in
 `roles/graphics/files/nouveau-gf108`; from 5.15 to 7.0 only the clock
 subdev's allocation call changed.
 
-## Next
+## Toward upstream
 
-- What decides each recorded value, so the VBIOS can produce them for other
-  boards and the patches can go upstream.
-- Choosing the level from the load. nouveau has no governor for it; on this
-  Optimus laptop the GPU is off whenever nothing renders on it, so a fixed
-  `0f` behaves much like the 390 driver under load.
+The patches carry values recorded on one board. Every Fermi chip, GF100 to
+GF119, runs the same `gf100_clk` and `gf100_ram_calc` code, and the GT 520M
+alone comes as GF108 (`0DED`, `0DF7`) and GF119 (`1050`, `1052`, and the
+`1051` GT 520MX), with whatever DDR3 each laptop maker fitted. For all of them,
+nouveau has to compute these values from the VBIOS. What the VBIOS of this
+board (decoded with envytools' `nvbios`) already explains:
+
+- **Clock sources.** Each domain's entry in the performance table carries
+  flags beside its frequency: `0x4000` on the domains the 390 driver runs from
+  a PLL at level 2 (shader, hub06, hub07, memory), `0x8000` ("force no PLL")
+  on the ones it never does. `calc_clk` ignores both.
+- **Memory timings.** The timing table (version 10) entries 4, 5 and 6 give the
+  `0x10f290`, `0x10f298` and `0x10f2a0` values of the 135, 324 and 800 MHz
+  scripts exactly; a few bits of `0x10f294` and `0x10f29c` come from somewhere
+  else, likely the ramcfg entry.
+
+Still open:
+
+- The source mode of domain 8 at level 2 (`0x137180 = 0x07000102`), which
+  nouveau reads as the 100 MHz reference although the VBIOS asks for 1344 MHz.
+- The pre-divider of domains above 2 (`0x13715c`), which `read_div` skips.
+- When the shared PLL `0x1370e0` may be switched off.
+- Opcodes `0x34` and `0x3a` of the memory scripts.
+- A DDR3 path for `gf100_ram_calc` built from the VBIOS tables, after the DDR3
+  code nouveau has for GT215 (mode registers through `sddr3`, the memory PLL
+  from the VBIOS PLL limits), shaped like the recorded scripts.
+- Traces from other GF108 and GF119 boards, which the live ISO and
+  [trace-clocks.sh](../trace-clocks.sh) can take; only what is decoded from them
+  may be shared.
+
+nouveau's level choice stays manual: it has no governor that follows the load.
+On this Optimus laptop the GPU is off whenever nothing renders on it, so a
+fixed `0f` behaves much like the 390 driver under load.
