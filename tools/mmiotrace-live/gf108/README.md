@@ -198,9 +198,15 @@ them in the trace showed how they work. Input 2 of the select, chosen at
 level 1, stopped the domain and took the GPU off the bus until a reboot: an
 input whose source is off has no clock.
 
+- **The PLLs' reference dividers.** Each PLL's reference passes a divider of
+  the same `(src × 2) / (div + 2)` form as the domains' own: SPPLL1 1620 MHz
+  through `0x13715c = 0x81200606` gives 405 MHz, and PLL `0x1370e0` (37/14)
+  makes 1070 MHz of it, which the counter confirms for domain 7. `read_div`
+  skips that divider for domains above 2, and so reports 1620 × 37 / 14 =
+  4281 MHz for domain 7.
+
 Still open:
 
-- The pre-divider of domains above 2 (`0x13715c`), which `read_div` skips.
 - When the shared PLL `0x1370e0` may be switched off.
 - What inputs 2 to 6 of the select are.
 - Opcodes `0x34` and `0x3a` of the memory scripts.
