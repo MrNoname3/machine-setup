@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""pmu-scripts.py <trace.mmio> [bar0-map-id]
+"""pmu-scripts.py [--c] <trace.mmio> [bar0-map-id]
 
 Follows the writes into the PMU's data memory (address port 0x10a1c0, data
 port 0x10a1c4) and prints every script uploaded to 0x5800, the script buffer,
 decoded as (nwords << 16 | opcode) followed by its arguments. Other data the
 driver places there, which does not end in opcode 0x16, is left out. MARK lines
 are printed where they fall, so each script sits in the step that sent it.
+
+With --c, each script is printed as a C array of its raw words instead, named
+after the MARK before it and its place after that MARK.
 """
 import sys
 
@@ -32,6 +35,14 @@ def decode(words):
     return out
 
 
+def c_array(name, words):
+    lines = [f"static const u32 {name}[] = {{"]
+    for i in range(0, len(words), 6):
+        lines.append("\t" + " ".join(f"0x{w:08x}," for w in words[i:i + 6]))
+    lines.append("};")
+    return "\n".join(lines)
+
+
 def ends_script(words):
     i = 0
     while i < len(words):
@@ -45,17 +56,27 @@ def ends_script(words):
 
 
 def main():
-    path = sys.argv[1]
-    bar0 = sys.argv[2] if len(sys.argv) > 2 else "3"
+    args = sys.argv[1:]
+    as_c = "--c" in args
+    args = [a for a in args if a != "--c"]
+    path = args[0]
+    bar0 = args[1] if len(args) > 1 else "3"
     addr = 0
     block_start = None
     block = []
+    mark = "start"
+    count = 0
 
     def flush():
-        nonlocal block_start, block
+        nonlocal block_start, block, count
         if block_start == SCRIPT and ends_script(block):
-            print(f"  script ({len(block)} words)")
-            print("\n".join(decode(block)))
+            if not as_c:
+                print(f"  script ({len(block)} words)")
+                print("\n".join(decode(block)))
+            else:
+                count += 1
+                print(f"/* after \"{mark}\", script {count} */")
+                print(c_array(f"script_{''.join(c if c.isalnum() else '_' for c in mark)}_{count}", block))
         block_start, block = None, []
 
     with open(path, errors="replace") as f:
@@ -65,7 +86,9 @@ def main():
                 continue
             if p[0] == "MARK":
                 flush()
-                print(f"== {' '.join(p[2:])}")
+                mark, count = " ".join(p[2:]), 0
+                if not as_c:
+                    print(f"== {mark}")
                 continue
             if p[0] != "W" or p[3] != bar0:
                 continue
