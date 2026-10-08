@@ -90,6 +90,23 @@
   loop_control:
     label: "{{ item.property }}"
 
+# Super+arrows as in Cinnamon: tile to the left or right half, toggle
+# maximized, minimize. Mint binds none of them.
+- name: Bind Super+arrows to window tiling (Xfce)
+  community.general.xfconf:
+    channel: xfce4-keyboard-shortcuts
+    property: "/xfwm4/custom/<Super>{{ item.key }}"
+    value_type: string
+    value: "{{ item.action }}"
+  become: false
+  loop:
+    - { key: Left, action: tile_left_key }
+    - { key: Right, action: tile_right_key }
+    - { key: Up, action: maximize_window_key }
+    - { key: Down, action: hide_window_key }
+  loop_control:
+    label: "<Super>{{ item.key }}"
+
 # Without a restored state of its own, the session keeps the NumLock the
 # login screen switched on.
 - name: Keep the login screen's NumLock in the session (Xfce)
