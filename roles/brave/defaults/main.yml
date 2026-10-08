@@ -6,6 +6,8 @@
 brave_policies:
   # Privacy
   MetricsReportingEnabled: false
+  BraveP3AEnabled: false        # privacy-preserving product analytics (P3A)
+  BraveStatsPingEnabled: false  # daily usage ping to Brave
   BackgroundModeEnabled: false
   # NOTE: "clear data on exit" is configured via local prefs (the
   # browser.clear_data.*_on_exit keys below), NOT policy, because the desired
@@ -58,10 +60,6 @@ brave_local_prefs:
   # No spell checking, and downloads go to the download folder without asking
   browser.enable_spellchecking: false
   download.prompt_for_download: false
-
-  # Telemetry off
-  brave.p3a.enabled: false                    # privacy-preserving product analytics (P3A)
-  brave.stats.reporting_enabled: false        # daily usage ping to Brave
 
   # "Delete browsing data" dialog defaults (Advanced tab)
   browser.clear_data.browsing_history: true
