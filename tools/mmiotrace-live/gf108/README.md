@@ -43,6 +43,8 @@ chosen through debugfs, for example
 `echo 0f > /sys/kernel/debug/dri/1/pstate`; nouveau does not change levels by
 itself.
 
+[pstate.sh](pstate.sh) shows the pstate table and switches levels without
+letting a hang in the clock code take the shell with it.
 With [bench.sh](bench.sh) (five `glmark2` scenes, PRIME offload), every
 transition and chain of them fault-free:
 
@@ -115,6 +117,15 @@ cover every change: from the VBIOS state (324 MHz, memory PLL off) to 800, and
 any target is at most two scripts away; the memory PLL's coefficients tell the
 states apart.
 
+The patch's `gf108ddr3.h` is the output of
+
+```
+pmu-scripts.py --header gf108_ddr3 --mhz 793=800 clocks.mmio
+```
+
+where `--mhz` names the memory clock `nvidia-settings` reports (793) after the
+VBIOS level it stands for.
+
 nouveau's own `gf100_ram_calc` was written the same way, from a trace of a
 GDDR5 board, and carries the same opcodes as comments.
 
@@ -133,7 +144,8 @@ The order that worked, each step on the live system with nothing to lose:
    build the memory script without running it, so a pstate change touches core
    clocks only.
 4. **Measure, then check the picture.** `glmark2` scores show whether clocks
-   took effect; `glmark2 --validate` shows whether rendering is still right.
+   took effect; `glmark2 --validate` (`bench.sh --validate`) shows whether
+   rendering is still right.
    When a scene fails, repeat it in the state the VBIOS leaves (write `none` to
    the pstate file and let runtime power management switch the GPU off and on):
    failures that remain there are not the clocks' doing.
@@ -159,7 +171,7 @@ GF119, runs the same `gf100_clk` and `gf100_ram_calc` code, and the GT 520M
 alone comes as GF108 (`0DED`, `0DF7`) and GF119 (`1050`, `1052`, and the
 `1051` GT 520MX), with whatever DDR3 each laptop maker fitted. For all of them,
 nouveau has to compute these values from the VBIOS. What the VBIOS of this
-board (decoded with envytools' `nvbios`) already explains:
+board (decoded with [nvbios.sh](../nvbios.sh)) already explains:
 
 - **Clock sources.** Each domain's entry in the performance table carries
   flags beside its frequency: `0x4000` on the domains the 390 driver runs from

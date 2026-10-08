@@ -43,6 +43,22 @@ and its `known_hosts` entry land in `~/.local/state/mmiotrace-live`
 the repository; when building in a container, copy it out of the container
 too, and pass it back in for a rebuild that keeps the same identity.
 
+### Trying the ISO in QEMU
+
+Before it goes onto a stick, the ISO boots in QEMU without KVM, slowly but far
+enough to show that the system comes up and SSH answers with the baked-in host
+key and refuses a login without one. With `casper/vmlinuz` and
+`casper/initrd.lz` extracted from it (`xorriso -osirrox on -indev <iso>
+-extract ...`):
+
+```
+qemu-system-x86_64 -m 4096 -smp 2 -cdrom <iso> -kernel vmlinuz -initrd initrd.lz \
+  -append "boot=casper username=mint hostname=mmiotrace console=ttyS0 systemd.unit=multi-user.target --" \
+  -nographic -serial file:serial.log -monitor none \
+  -netdev user,id=n,hostfwd=tcp:127.0.0.1:2222-:22 -device e1000,netdev=n
+ssh-keyscan -p 2222 127.0.0.1 | ssh-keygen -lf -
+```
+
 ## Using it
 
 1. Copy the ISO onto the Ventoy stick, plug in wired network, and boot the
@@ -120,6 +136,12 @@ mmiotrace sees what the CPU does. Work the GPU's own microcontrollers do, such
 as the PMU, shows only as the data the driver uploads to them, through their
 data memory ports; [gf108/pmu-scripts.py](gf108/pmu-scripts.py) pulls such
 uploads apart.
+
+Many values in a trace come from the VBIOS tables, which nouveau reads too.
+[nvbios.sh](nvbios.sh) decodes a VBIOS with envytools' `nvbios`, built from a
+pinned commit, as root in a throwaway container; nouveau exposes the GPU's
+VBIOS as `/sys/kernel/debug/dri/<n>/vbios.rom`. A VBIOS is the board maker's
+firmware, so it stays out of the repository.
 
 ## Pitfalls
 
