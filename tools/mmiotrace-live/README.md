@@ -97,6 +97,51 @@ mappings made after it starts. While it records, mmiotrace takes all but one
 CPU offline, so the machine answers slowly. The registers are the 16 MiB
 mapping of BAR0; `UNKNOWN` lines fall on the VRAM apertures.
 
+## Reading a trace
+
+Each line is one event:
+
+| Line | Fields |
+|---|---|
+| `MAP` | timestamp, map id, physical address, virtual address, length |
+| `R`, `W` | access width, timestamp, map id, physical address, value |
+| `UNKNOWN` | timestamp, map id, physical address, instruction bytes |
+| `MARK` | timestamp, text written to `trace_marker` |
+
+BAR0 is the `MAP` line whose length is `0x1000000`; register offsets are the
+physical addresses minus its base. A level change happens *before* the `MARK`
+that reports it, because the script notices the new level afterwards: the
+writes of one change lie between the previous `MARK` and that one.
+[gf108/lastval.awk](gf108/lastval.awk) gives the last value of each register up
+to a `MARK`, and comparing two of those is the quickest way to see what a
+change touched.
+
+mmiotrace sees what the CPU does. Work the GPU's own microcontrollers do, such
+as the PMU, shows only as the data the driver uploads to them, through their
+data memory ports; [gf108/pmu-scripts.py](gf108/pmu-scripts.py) pulls such
+uploads apart.
+
+## Pitfalls
+
+- **Something else loads the driver.** The X server on the integrated GPU
+  probes every EGL vendor library, and NVIDIA's loads its kernel module by name,
+  which a blacklist does not stop; [mmiotrace.conf](overlay/etc/modprobe.d/mmiotrace.conf)
+  refuses it with an `install` line. Check `/proc/modules` before a trace.
+- **One driver after another.** Unloading the proprietary driver leaves the GPU
+  in a state its boot code does not expect: nouveau loaded after it saw a
+  different memory clock and soon hung. Reboot between drivers when the result
+  has to mean anything.
+- **The live system keeps nothing.** It runs from RAM; copy traces, built
+  modules and notes off it, and stream a trace over SSH
+  (`ssh mmiotrace cat /sys/kernel/tracing/trace_pipe >file`) when the experiment
+  may hang the machine.
+- **Raw traces identify the machine.** The driver uploads the GPU's unique ID
+  to the PMU when it starts, and it ends up in the trace. Publish what is
+  decoded from a trace, never the trace.
+- **Rebooting a BIOS machine.** There is no way to ask it for the USB stick on
+  the next boot from software; put USB first in the firmware's boot order, or
+  be at the machine.
+
 ## What the stick is worth to someone else
 
 As with the rescue image: whoever holds one of the authorised private keys gets

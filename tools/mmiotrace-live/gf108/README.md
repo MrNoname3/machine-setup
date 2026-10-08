@@ -118,6 +118,40 @@ states apart.
 nouveau's own `gf100_ram_calc` was written the same way, from a trace of a
 GDDR5 board, and carries the same opcodes as comments.
 
+## From trace to patch
+
+The order that worked, each step on the live system with nothing to lose:
+
+1. **Diff the states.** The last value of every register in the clock block
+   at each level ([lastval.awk](lastval.awk)), from the proprietary driver and
+   from nouveau, side by side ([clock-block-states.txt](clock-block-states.txt)).
+2. **Replay before writing code.** Put the recorded state into the hardware by
+   hand under a loaded nouveau ([nvreg](../nvreg.c) and the `.nvreg` scripts),
+   then benchmark. That separated "nouveau computes the wrong values" from
+   "these values or this order do not work here".
+3. **Core first, memory second.** `nouveau.config=NvMemExec=0` makes nouveau
+   build the memory script without running it, so a pstate change touches core
+   clocks only.
+4. **Measure, then check the picture.** `glmark2` scores show whether clocks
+   took effect; `glmark2 --validate` shows whether rendering is still right.
+   When a scene fails, repeat it in the state the VBIOS leaves (write `none` to
+   the pstate file and let runtime power management switch the GPU off and on):
+   failures that remain there are not the clocks' doing.
+5. **Then the installed system**, through the graphics role.
+
+A test nouveau loads beside the proprietary driver's packages with
+`modprobe -C <empty file> nouveau`, since those packages alias nouveau off.
+
+## A new kernel series
+
+DKMS rebuilds the module only for kernels of the series its source came from,
+and other kernels boot with their stock nouveau. Under a new series, run the
+graphics role again: prepare.sh fetches that series' source and applies the
+patches. If a hunk no longer applies, port it on a copy of the new nouveau,
+build it against the new headers, and replace the patches in
+`roles/graphics/files/nouveau-gf108`; from 5.15 to 7.0 only the clock
+subdev's allocation call changed.
+
 ## Next
 
 - What decides each recorded value, so the VBIOS can produce them for other
