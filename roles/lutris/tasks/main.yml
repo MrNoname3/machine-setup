@@ -33,6 +33,13 @@
         state: absent
       when: lutris_app_icons_stat.stat.isdir | default(false)
 
+    # Lutris creates its data directory on first start; the link needs it now.
+    - name: Ensure the Flatpak Lutris's data directory exists
+      ansible.builtin.file:
+        path: "{{ lutris_app_icons | dirname }}"
+        state: directory
+        mode: "0755"
+
     - name: Point the Flatpak Lutris's icon directory at the host's
       ansible.builtin.file:
         src: "{{ lutris_host_icons }}"
