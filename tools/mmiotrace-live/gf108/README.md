@@ -181,13 +181,28 @@ board (decoded with [nvbios.sh](../nvbios.sh)) already explains:
   `0x10f290`, `0x10f298` and `0x10f2a0` values of the 135, 324 and 800 MHz
   scripts exactly; a few bits of `0x10f294` and `0x10f29c` come from somewhere
   else, likely the ramcfg entry.
+- **Domain 8 at level 2.** The source select of a divider (`0x137160` and
+  on) picks, with `SRC = 2`, one of several inputs in bits 24 to 26: 0 is the
+  100 MHz reference, 1 a 277 MHz one, and 7 the output of PLL `0x137040`,
+  which feeds domain 2 at level 2. That is how the 390 driver runs domain 8 at
+  the 1344 MHz the VBIOS asks for while it "forces no PLL": it borrows domain
+  2's. At its lower levels, domain 8 runs from SPPLL1 (1620 MHz) through
+  dividers, at the VBIOS's 540 and 810 MHz. nouveau reads every `SRC = 2` as
+  100 MHz.
+
+Measured with the GPU's clock counters ([clocks.sh](clocks.sh)), which count
+for 0x3fff periods of the 27 MHz crystal: the shader clock and domain 7 run at
+what the VBIOS asks for at every level, and the SPPLL reference at 1620 MHz. The
+counters are not in envytools' register database; the 390 driver's own use of
+them in the trace showed how they work. Input 2 of the select, chosen at
+level 1, stopped the domain and took the GPU off the bus until a reboot: an
+input whose source is off has no clock.
 
 Still open:
 
-- The source mode of domain 8 at level 2 (`0x137180 = 0x07000102`), which
-  nouveau reads as the 100 MHz reference although the VBIOS asks for 1344 MHz.
 - The pre-divider of domains above 2 (`0x13715c`), which `read_div` skips.
 - When the shared PLL `0x1370e0` may be switched off.
+- What inputs 2 to 6 of the select are.
 - Opcodes `0x34` and `0x3a` of the memory scripts.
 - A DDR3 path for `gf100_ram_calc` built from the VBIOS tables, after the DDR3
   code nouveau has for GT215 (mode registers through `sddr3`, the memory PLL
