@@ -28,11 +28,12 @@ die() { printf 'trace-clocks.sh: %s\n' "$*" >&2; exit 1; }
 [ "$(id -u)" = 0 ] || die "must run as root"
 [ -e $T/trace_marker ] || mount -t tracefs nodev $T
 grep -qw mmiotrace $T/available_tracers || die "this kernel has no mmiotrace"
-! lsmod | grep -q '^nvidia ' || die "nvidia is loaded; the trace has to start before it"
-! pgrep -a -x Xorg | grep -q " $DPY " || die "an X server already runs on $DPY"
+loaded() { grep -q "^$1 " /proc/modules; }
+! loaded nvidia || die "nvidia is loaded; the trace has to start before it"
+! pgrep -a -x Xorg | grep " $DPY " >/dev/null || die "an X server already runs on $DPY"
 
 mark() { echo "$*" >$T/trace_marker; printf '%s %s\n' "$(date +%T)" "$*"; }
-query() { DISPLAY=$DPY nvidia-settings -t -q "[gpu:0]/$1" 2>/dev/null | head -1; }
+query() { DISPLAY=$DPY nvidia-settings -t -q "[gpu:0]/$1" 2>/dev/null | sed -n 1p; }
 
 last=
 wait_level() { # wait_level <level> <timeout-seconds>, marking each change
@@ -97,6 +98,6 @@ kill "$xpid"; wait "$xpid" 2>/dev/null || true; xpid=
 
 mark "unload driver"
 for m in nvidia_drm nvidia_uvm nvidia_modeset nvidia; do
-  ! lsmod | grep -q "^$m " || rmmod "$m"
+  ! loaded "$m" || rmmod "$m"
 done
 mark "end"
