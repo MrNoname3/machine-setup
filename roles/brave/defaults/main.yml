@@ -108,6 +108,9 @@ brave_local_state_prefs:
   brave.shields.fb_embed_default: false       # Facebook
   brave.shields.twitter_embed_default: false  # X / Twitter
 
+# Further Local State preferences for one host, merged over brave_local_state_prefs.
+brave_local_state_prefs_extra: {}
+
 # Extra command-line flags, appended to every Exec= line of user-local copies
 # of the desktop entries (the official package reads no flags file). The local
 # entries shadow the system ones, so menu / default-browser / open-with

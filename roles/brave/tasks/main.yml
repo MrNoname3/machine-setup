@@ -219,7 +219,7 @@
   when: brave_running.rc != 0
   loop:
     - { path: "{{ brave_prefs_path }}", prefs: "{{ brave_local_prefs | combine(brave_local_prefs_extra) }}" }
-    - { path: "{{ brave_local_state_path }}", prefs: "{{ brave_local_state_prefs }}" }
+    - { path: "{{ brave_local_state_path }}", prefs: "{{ brave_local_state_prefs | combine(brave_local_state_prefs_extra) }}" }
   loop_control:
     label: "{{ item.path | basename }}"
 

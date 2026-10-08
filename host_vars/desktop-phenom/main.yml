@@ -42,6 +42,11 @@ ssh_authorized_key_file: phenom.pub
 # modules.
 graphics_nvidia_branch: "580"
 
+# Brave's Memory Saver on, at its "Moderate" savings level.
+brave_local_state_prefs_extra:
+  performance_tuning.high_efficiency_mode.state: 2           # on
+  performance_tuning.high_efficiency_mode.aggressiveness: 0  # Moderate
+
 # Packages the base role installs.
 packages_present:
   - git
