@@ -69,6 +69,25 @@ Host mmiotrace
 `HostKeyAlias` keeps the live system's key apart from the installed system's,
 which answers on the same address when DHCP hands the machine a fixed one.
 
+## Tracing the clock changes
+
+[trace-clocks.sh](trace-clocks.sh) records one cycle: the driver loading, a
+second X server coming up on the NVIDIA GPU alone
+([xorg-nvidia.conf](xorg-nvidia.conf), no display and no input devices), the
+GPU settling to its lowest performance level, `glmark2` driving it to the
+highest, and back down again. Each step and each level change lands in the
+trace as a `MARK` line.
+
+```
+scp tools/mmiotrace-live/trace-clocks.sh tools/mmiotrace-live/xorg-nvidia.conf mmiotrace:
+ssh mmiotrace 'setsid ./trace-clocks.sh clocks.mmio >clocks.log 2>&1 </dev/null &'
+```
+
+It refuses to start once the driver is loaded, since mmiotrace sees only the
+mappings made after it starts. While it records, mmiotrace takes all but one
+CPU offline, so the machine answers slowly. The registers are the 16 MiB
+mapping of BAR0; `UNKNOWN` lines fall on the VRAM apertures.
+
 ## What the stick is worth to someone else
 
 As with the rescue image: whoever holds one of the authorised private keys gets
