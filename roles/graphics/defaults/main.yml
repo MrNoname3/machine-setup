@@ -26,3 +26,15 @@ amdgpu_ppfeaturemask: "0xfff7ffff"
 # Set false to leave the kernel argument alone (e.g. to keep a machine stock
 # while still shipping the profiles for later use).
 amdgpu_enable_overdrive: true
+
+# GT 520M reclocking (Mint laptop): nouveau rebuilt through DKMS with the patches
+# in files/nouveau-gf108 (how they were made: tools/mmiotrace-live/gf108). They
+# reclock only the GF108 they were recorded on; every other GPU keeps stock
+# behaviour even with this on.
+nouveau_gf108_reclock: false
+
+# The pstate nouveau sets when it loads and after every runtime resume, as its
+# hex id ("0f" = 672/800 MHz core/memory, "07" = 202/324, "03" = 50/135), or ""
+# to keep the boot clocks until one is written to debugfs:
+#   echo 0f | sudo tee /sys/kernel/debug/dri/*/pstate
+nouveau_gf108_pstate: ""

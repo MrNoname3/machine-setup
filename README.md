@@ -44,6 +44,7 @@ machine-setup/
 ├── tools/                       # standalone tooling — not part of the playbook
 │   ├── gpu-tune/                # measure an AMD GPU undervolt (see its README)
 │   ├── mem-tune/                # measure memory latency, bandwidth, capacity
+│   ├── mmiotrace-live/          # Mint live ISO for tracing the NVIDIA 390 driver over SSH
 │   ├── rescue-usb/              # SystemRescue stick that is driven over SSH
 │   └── tablet-image/            # Debian + Phosh disk image for Bay Trail tablets
 ├── work/                        # working files; in the repo, out of git (see AGENTS.md)

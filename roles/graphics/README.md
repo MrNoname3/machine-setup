@@ -3,7 +3,11 @@
 Two unrelated halves, split by OS family:
 
 - **Mint laptop** — NVIDIA GT 520M + Intel HD 3000 Optimus: suppress a phantom
-  VGA output. Unchanged; see the notes at the bottom of `tasks/main.yml`.
+  VGA output, and with `nouveau_gf108_reclock` run the GT 520M at full clocks
+  through a DKMS-built nouveau (`files/nouveau-gf108`; how the patches were
+  made, and what they do, is in `tools/mmiotrace-live/gf108`).
+  `nouveau_gf108_pstate` picks the level nouveau sets at load and after each
+  runtime resume.
 - **Bazzite desktop** — Radeon RX 9070 XT (Navi 48, RDNA4): undervolt and power
   profiles. Everything below is about that half.
 

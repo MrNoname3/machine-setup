@@ -1,0 +1,23 @@
+# Puts the GF108 core clock block into the 390 driver's lowest performance
+# level (clocks-1.mmio, level 0) from its highest: every domain back on its
+# divider, the PLLs left running as the driver leaves them. Memory is left alone.
+
+# Divider paths for gpc (idx 0) and hubk07 (idx 2) before they leave their PLLs.
+w 0x137160 0x00000003
+w 0x1371d0 0x81200606
+w 0x137168 0x00000103
+w 0x1371d8 0x81200a04
+
+# Source select back to dividers: idx 0, then 2, then 7.
+w 0x137100 0x00000084
+wait 0x137100 0x00000001 0x00000000 100
+w 0x137100 0x00000080
+wait 0x137100 0x00000004 0x00000000 100
+w 0x137100 0x00000000
+wait 0x137100 0x00000080 0x00000000 100
+
+# hubk01 (idx 8) back to SPPLL1/3, divider first; copy and vdec slowed down.
+w 0x137270 0x81200004
+w 0x137180 0x07000103
+w 0x137274 0x81200016
+w 0x137288 0x81200016
