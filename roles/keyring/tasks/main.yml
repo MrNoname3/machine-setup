@@ -35,6 +35,21 @@
 #     "Remove when locked". If the same .kdbx is synced across machines, opening
 #     it on the second machine already carries these per-entry settings.
 
+# The ssh config and keys arrive with the Synology Drive sync; until it has run,
+# the steps that use them are skipped with a notice.
+- name: Check whether the synced ssh config has arrived
+  ansible.builtin.stat:
+    path: "{{ ssh_keys_dir }}/config"
+  register: keyring_ssh_config
+  become: false
+
+- name: Note that the ssh config link was skipped (not synced yet)
+  ansible.builtin.debug:
+    msg: >-
+      {{ ssh_keys_dir }}/config does not exist yet, so ~/.ssh/config was not
+      linked. Re-run the playbook once Synology Drive has synced.
+  when: not keyring_ssh_config.stat.exists
+
 # ===========================================================================
 # Fedora-atomic / KDE host (Bazzite): KeePassXC flatpak -> systemd ssh-agent
 # ===========================================================================
@@ -81,11 +96,13 @@
         dest: "{{ ssh_dir }}/config"
         state: link
         force: true
+      when: keyring_ssh_config.stat.exists
 
     - name: Enforce 0600 on the ssh config file
       ansible.builtin.file:
         path: "{{ ssh_keys_dir }}/config"
         mode: "0600"
+      when: keyring_ssh_config.stat.exists
 
     - name: Find private keys still present in the SSH key directory
       ansible.builtin.find:
@@ -93,12 +110,13 @@
         file_type: file
         excludes: ["*.pub", "*.ppk", "config", "*config", "*known_hosts*"]
       register: keyring_private_keys
+      when: keyring_ssh_config.stat.exists
 
     - name: Generate a public key (.pub) for every private key
       ansible.builtin.shell:
         cmd: "ssh-keygen -y -P '' -f {{ item.path | quote }} > {{ (item.path ~ '.pub') | quote }}"
         creates: "{{ item.path }}.pub"
-      loop: "{{ keyring_private_keys.files }}"
+      loop: "{{ keyring_private_keys.files | default([]) }}"
       loop_control:
         label: "{{ item.path | basename }}"
 
@@ -217,11 +235,13 @@
         dest: "{{ ssh_dir }}/config"
         state: link
         force: true
+      when: keyring_ssh_config.stat.exists
 
     - name: Enforce 0600 on the ssh config file
       ansible.builtin.file:
         path: "{{ ssh_keys_dir }}/config"
         mode: "0600"
+      when: keyring_ssh_config.stat.exists
 
     - name: Find private keys still present in the SSH key directory
       ansible.builtin.find:
@@ -229,12 +249,13 @@
         file_type: file
         excludes: ["*.pub", "*.ppk", "config", "*config", "*known_hosts*"]
       register: keyring_private_keys
+      when: keyring_ssh_config.stat.exists
 
     - name: Generate a public key (.pub) for every private key
       ansible.builtin.shell:
         cmd: "ssh-keygen -y -P '' -f {{ item.path | quote }} > {{ (item.path ~ '.pub') | quote }}"
         creates: "{{ item.path }}.pub"
-      loop: "{{ keyring_private_keys.files }}"
+      loop: "{{ keyring_private_keys.files | default([]) }}"
       loop_control:
         label: "{{ item.path | basename }}"
 
