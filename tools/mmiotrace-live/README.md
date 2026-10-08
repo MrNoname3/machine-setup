@@ -94,3 +94,10 @@ As with the rescue image: whoever holds one of the authorised private keys gets
 root on any machine running it on a private network, and anyone who copies the
 ISO can impersonate its host key. Rebuild with a new host key (delete the old
 one first) if the stick goes missing.
+
+## Poking registers
+
+[nvreg.c](nvreg.c) reads and writes GPU registers through BAR0 with aligned
+32-bit accesses, one command at a time or as a script on stdin; build it on the
+live system with `gcc -O2 -o /usr/local/sbin/nvreg nvreg.c`. What the traces
+showed about the GT 520M, and the scripts that replay it, are in [gf108/](gf108/).
