@@ -77,3 +77,24 @@
     name: ssh.service
     enabled: true
     state: started
+
+# The firewall role later allows only ssh_port, so the restart cannot wait for
+# the end of the play.
+- name: Apply a pending sshd restart now
+  ansible.builtin.meta: flush_handlers
+
+# A run that failed after changing the port never ran its restart handler, and
+# later runs see no change to notify it again; the listener itself is the test.
+- name: Check that sshd listens on the configured port
+  ansible.builtin.command: ss -ltnH "sport = :{{ ssh_port }}"
+  register: ssh_listener
+  changed_when: false
+  check_mode: false
+
+- name: Restart sshd when it does not listen on the configured port
+  ansible.builtin.systemd_service:
+    name: ssh.service
+    state: restarted
+  when:
+    - ssh_listener.stdout | length == 0
+    - not ansible_check_mode
