@@ -1,0 +1,73 @@
+From c1bd63b7b16b7a4a2a16ef38fd3b9ce302042fc8 Mon Sep 17 00:00:00 2001
+From: Your_Name <you@example.org>
+Date: Thu, 8 Oct 2026 23:02:03 +0200
+Subject: [PATCH 1/4] drm/nouveau/clk: keep the VBIOS flags of each clock
+ domain
+
+Version 0x40 performance sub-entries hold a domain's frequency in their
+low 14 bits and two flags above it: bit 14 is set on domains the VBIOS
+expects to run from a PLL, bit 15 on those it keeps off a PLL of their
+own. The parser dropped both. Keep them in the cstate next to the
+frequency, for the clock code to choose its sources by.
+
+Assisted-by: Claude:claude-opus-5-5
+---
+ include/nvkm/subdev/bios/perf.h | 1 +
+ include/nvkm/subdev/clk.h       | 3 +++
+ nvkm/subdev/bios/perf.c         | 1 +
+ nvkm/subdev/clk/base.c          | 1 +
+ 4 files changed, 6 insertions(+)
+
+diff --git a/include/nvkm/subdev/bios/perf.h b/include/nvkm/subdev/bios/perf.h
+index 1b67c09..c5b1075 100644
+--- a/include/nvkm/subdev/bios/perf.h
++++ b/include/nvkm/subdev/bios/perf.h
+@@ -27,6 +27,7 @@ struct nvbios_perfS {
+ 	union {
+ 		struct {
+ 			u32 freq;
++			u8  flags;
+ 		} v40;
+ 	};
+ };
+diff --git a/include/nvkm/subdev/clk.h b/include/nvkm/subdev/clk.h
+index 6a09d39..527a3cc 100644
+--- a/include/nvkm/subdev/clk.h
++++ b/include/nvkm/subdev/clk.h
+@@ -56,6 +56,9 @@ struct nvkm_cstate {
+ 	struct list_head head;
+ 	u8  voltage;
+ 	u32 domain[nv_clk_src_max];
++	u8  domain_flags[nv_clk_src_max];
++#define NVKM_CSTATE_DOM_PLL    0x01 /* run from a PLL */
++#define NVKM_CSTATE_DOM_NO_PLL 0x02 /* not from a PLL of its own */
+ 	u8  id;
+ };
+ 
+diff --git a/nvkm/subdev/bios/perf.c b/nvkm/subdev/bios/perf.c
+index f039388..0fb18db 100644
+--- a/nvkm/subdev/bios/perf.c
++++ b/nvkm/subdev/bios/perf.c
+@@ -191,6 +191,7 @@ nvbios_perfSp(struct nvkm_bios *bios, u32 perfE, int idx,
+ 	switch (!!data * *ver) {
+ 	case 0x40:
+ 		info->v40.freq = (nvbios_rd16(bios, data + 0x00) & 0x3fff) * 1000;
++		info->v40.flags = nvbios_rd16(bios, data + 0x00) >> 14;
+ 		break;
+ 	default:
+ 		break;
+diff --git a/nvkm/subdev/clk/base.c b/nvkm/subdev/clk/base.c
+index 572e638..b39719b 100644
+--- a/nvkm/subdev/clk/base.c
++++ b/nvkm/subdev/clk/base.c
+@@ -450,6 +450,7 @@ nvkm_pstate_new(struct nvkm_clk *clk, int idx)
+ 		}
+ 
+ 		cstate->domain[domain->name] = perfS.v40.freq;
++		cstate->domain_flags[domain->name] = perfS.v40.flags;
+ 	}
+ 
+ 	data = nvbios_cstepEm(bios, pstate->pstate, &ver, &hdr, &cstepE);
+-- 
+2.55.0
+

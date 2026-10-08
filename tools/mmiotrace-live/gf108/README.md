@@ -164,6 +164,29 @@ build it against the new headers, and replace the patches in
 `roles/graphics/files/nouveau-gf108`; from 5.15 to 7.0 only the clock
 subdev's allocation call changed.
 
+## Upstream series
+
+[upstream/](upstream/) holds four patches for nouveau as in kernel 7.0 that
+make the core clock code compute what the board-specific patch hard-codes,
+from the VBIOS, for any GF100-family GPU:
+
+1. keep the PLL / no-PLL flags of each domain from the VBIOS performance table;
+2. read the PLL reference divider of domain 7, and the source select's
+   second inputs;
+3. leave the PLL control's bit 4 clear after the lock test, which otherwise
+   bypasses the core PLL;
+4. choose PLLs by those flags, let a domain kept off its own PLL borrow domain
+   2's, and keep a shared PLL running while a domain uses it.
+
+On the GF108 here, with reclocking enabled for the test, the shader, domain 7
+and domain 8 come out at the 390 driver's clocks at every level, as the clock
+counters measure them; each patch builds on its own, and `checkpatch.pl
+--strict` finds nothing beyond the sign-off. They do not yet enable reclocking
+on Fermi, which stays off upstream, and they leave memory clocks alone. The
+author line is a placeholder: whoever submits them signs them off under their
+own name, and the kernel's rules for AI-assisted work want the `Assisted-by`
+line they carry.
+
 ## Toward upstream
 
 The patches carry values recorded on one board. Every Fermi chip, GF100 to
@@ -176,7 +199,8 @@ board (decoded with [nvbios.sh](../nvbios.sh)) already explains:
 - **Clock sources.** Each domain's entry in the performance table carries
   flags beside its frequency: `0x4000` on the domains the 390 driver runs from
   a PLL at level 2 (shader, hub06, hub07, memory), `0x8000` ("force no PLL")
-  on the ones it never does. `calc_clk` ignores both.
+  on the ones it never does. Upstream `calc_clk` ignores both; the series
+  above uses them.
 - **Memory timings.** The timing table (version 10) entries 4, 5 and 6 give the
   `0x10f290`, `0x10f298` and `0x10f2a0` values of the 135, 324 and 800 MHz
   scripts exactly; a few bits of `0x10f294` and `0x10f29c` come from somewhere
