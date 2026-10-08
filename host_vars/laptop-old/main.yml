@@ -228,9 +228,10 @@ container_docker_host_export: true
 # be handed to GLX), so it decodes in software, which the CPU keeps up with.
 
 # GT 520M at full clocks: nouveau rebuilt with the GF108 reclocking patches
-# (graphics role); with no pstate set, a level is chosen through debugfs.
+# (graphics role). The GPU powers off whenever nothing renders on it, so the
+# highest level costs nothing at idle.
 nouveau_gf108_reclock: true
-nouveau_gf108_pstate: ""
+nouveau_gf108_pstate: "0f"
 
 # Remote LUKS unlock (dropbear) uses ip=dhcp; the address is pinned by a DHCP
 # reservation on the router (external dependency, not captured in this repo —
