@@ -1,0 +1,9 @@
+--- a/nvkm/subdev/clk/gf100.c
++++ b/nvkm/subdev/clk/gf100.c
+@@ -477,5 +477,5 @@
+ 		return -ENOMEM;
+ 	*pclk = &clk->base;
+ 
+-	return nvkm_clk_ctor(&gf100_clk, device, type, inst, false, &clk->base);
++	return nvkm_clk_ctor(&gf100_clk, device, type, inst, true, &clk->base);
+ }
