@@ -95,6 +95,14 @@
       Launch Steam, sign in to your account, then press Enter to continue.
   when: not steam_login.stat.exists
 
+# A run without a terminal passes the gate without waiting, so the steps below
+# check the sign-in again rather than trust it.
+- name: Check again whether Steam has a logged-in account
+  ansible.builtin.stat:
+    path: "/home/{{ primary_user }}/.steam/steam/config/loginusers.vdf"
+  register: steam_login_after_gate
+  become: false
+
 # Runs after the gate: ProtonPlus finds the Steam launcher once Steam has run.
 - name: Install ProtonPlus's rolling Proton builds
   ansible.builtin.command:
@@ -104,3 +112,4 @@
   loop: "{{ steam_protonplus_latest }}"
   loop_control:
     label: "{{ item.dir }}"
+  when: steam_login_after_gate.stat.exists
