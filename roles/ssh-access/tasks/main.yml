@@ -30,6 +30,16 @@
       X11Forwarding no
   notify: Restart ssh service
 
+# sshd -t refuses to run without its privilege separation directory, which only
+# the first start of the service creates.
+- name: Ensure sshd's privilege separation directory exists
+  ansible.builtin.file:
+    path: /run/sshd
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Validate the sshd configuration
   ansible.builtin.command: sshd -t
   changed_when: false
