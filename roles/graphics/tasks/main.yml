@@ -3,7 +3,8 @@
 # family the same way the brave role is:
 #
 #   Mint laptop     -- NVIDIA GT 520M (Fermi) + Intel HD 3000 Optimus: kill the
-#                      phantom VGA display.
+#                      phantom VGA display; reclock the GT 520M with a patched
+#                      nouveau.
 #   Bazzite desktop -- Radeon RX 9070 XT (Navi 48 / RDNA4): undervolt and power
 #                      profiles. See README.md for how the numbers were measured.
 #
@@ -30,6 +31,93 @@
     - "video=VGA-2:d"
   notify: Update grub
   when: ansible_facts['os_family'] == "Debian"
+
+# --- Mint laptop: GT 520M reclocking ---------------------------------------
+# nouveau ships Fermi reclocking disabled. The patched build comes from the
+# Ubuntu source of the running kernel (prepare.sh fetches and verifies it), and
+# DKMS rebuilds it for later kernels of the same series; a new series keeps its
+# stock nouveau until the role runs again under it.
+- name: Reclock the GT 520M with a patched nouveau
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - nouveau_gf108_reclock | bool
+  block:
+    - name: Install what the DKMS build needs
+      ansible.builtin.apt:
+        name:
+          - dkms
+          - build-essential
+          - curl
+          - gpgv
+          - xz-utils
+          - patch
+          - python3
+          - ubuntu-keyring
+          - "linux-headers-{{ ansible_facts['kernel'] }}"
+        state: present
+
+    - name: Install the patches and the source preparation script
+      ansible.builtin.copy:
+        src: nouveau-gf108/
+        dest: /usr/local/share/nouveau-gf108/
+        owner: root
+        group: root
+        mode: preserve
+
+    - name: Read the running kernel's source version
+      ansible.builtin.command: >-
+        dpkg-query -W -f='${source:Version}' linux-modules-{{ ansible_facts['kernel'] }}
+      register: nouveau_gf108_srcver
+      changed_when: false
+      check_mode: false
+
+    - name: Name the DKMS module version
+      ansible.builtin.set_fact:
+        nouveau_gf108_dkms: "nouveau-gf108/{{ nouveau_gf108_srcver.stdout | replace('~', '-') }}"
+
+    - name: Prepare the DKMS source tree
+      ansible.builtin.command: >-
+        /usr/local/share/nouveau-gf108/prepare.sh {{ ansible_facts['kernel'] }} /usr/src
+      args:
+        creates: "/usr/src/{{ nouveau_gf108_dkms | replace('/', '-') }}/dkms.conf"
+
+    - name: Add the tree to DKMS
+      ansible.builtin.command: dkms add {{ nouveau_gf108_dkms }}
+      args:
+        creates: "/var/lib/dkms/{{ nouveau_gf108_dkms }}/source"
+
+    - name: Check whether the module is installed for the running kernel
+      ansible.builtin.command: >-
+        dkms status {{ nouveau_gf108_dkms }} -k {{ ansible_facts['kernel'] }}
+      register: nouveau_gf108_status
+      changed_when: false
+      check_mode: false
+
+    - name: Build and install the module for the running kernel
+      ansible.builtin.command: >-
+        dkms install {{ nouveau_gf108_dkms }} -k {{ ansible_facts['kernel'] }}
+      when: "': installed' not in nouveau_gf108_status.stdout"
+      changed_when: true
+      notify: Update initramfs
+
+    # nouveau reads the option at load, and applies the pstate again whenever the
+    # GPU comes back from runtime power-off.
+    - name: Set the pstate nouveau applies
+      ansible.builtin.copy:
+        dest: /etc/modprobe.d/nouveau-gf108.conf
+        content: "options nouveau config=NvClkMode=0x{{ nouveau_gf108_pstate }}\n"
+        owner: root
+        group: root
+        mode: "0644"
+      when: nouveau_gf108_pstate | length > 0
+      notify: Update initramfs
+
+    - name: Leave the boot clocks when no pstate is chosen
+      ansible.builtin.file:
+        path: /etc/modprobe.d/nouveau-gf108.conf
+        state: absent
+      when: nouveau_gf108_pstate | length == 0
+      notify: Update initramfs
 
 # --- Bazzite desktop: amdgpu tuning ----------------------------------------
 - name: Configure AMD GPU tuning profiles

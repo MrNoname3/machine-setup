@@ -13,28 +13,35 @@ that do the same for the GF108 in the Acer Aspire 5750G (PCI subsystem
 
 ## The patches
 
-Against nouveau as in Ubuntu's 5.15 kernel (`drivers/gpu/drm/nouveau`, applied
-with `patch -p1` inside it). Both act on that one board only; every other
-GF100-family GPU keeps reclocking disabled, as upstream has it.
+[0001](../../../roles/graphics/files/nouveau-gf108/0001-clk-gf100-reclock-the-gf108-in-the-aspire-5750g.patch)
+and
+[0002](../../../roles/graphics/files/nouveau-gf108/0002-fb-gf100-ddr3-scripts-for-the-gf108-in-the-aspire-5750g.patch),
+applied with `patch -p1` inside `drivers/gpu/drm/nouveau`, are kept with the
+graphics role that installs them; [5.15/](5.15/) has them for Ubuntu's 5.15
+kernel, which the live system runs. Both act on that one board only; every
+other GF100-family GPU keeps reclocking disabled, as upstream has it.
 
-- [0001](0001-clk-gf100-reclock-the-gf108-in-the-aspire-5750g.patch) enables
-  reclocking and programs the clock block to the 390 driver's state for each
-  level. Going up, core clocks and voltage change before memory, as the 390
-  driver orders it.
-- [0002](0002-fb-gf100-ddr3-scripts-for-the-gf108-in-the-aspire-5750g.patch)
-  changes memory clocks by running the 390 driver's DDR3 scripts through
+- 0001 enables reclocking and programs the clock block to the 390 driver's
+  state for each level. Going up, core clocks and voltage change before memory,
+  as the 390 driver orders it.
+- 0002 changes memory clocks by running the 390 driver's DDR3 scripts through
   nouveau's PMU script engine (memx).
 
-Built as an out-of-tree module against the running kernel's headers:
+On the installed system the graphics role builds them through DKMS:
+[prepare.sh](../../../roles/graphics/files/nouveau-gf108/prepare.sh) takes
+nouveau from the Ubuntu source of the running kernel, checked along the
+archive's signature chain. By hand, as an out-of-tree module against the
+running kernel's headers:
 
 ```
-make -C /lib/modules/$(uname -r)/build M=$PWD NOUVEAU_PATH= modules
+make -C /lib/modules/$(uname -r)/build M=$PWD modules
 ```
 
-`NOUVEAU_PATH=` empties the prefix nouveau's Kbuild puts before its include
-paths, which only fits an in-tree build. A pstate is then chosen through
-debugfs, for example `echo 0f > /sys/kernel/debug/dri/1/pstate`; nouveau does
-not change levels by itself.
+On 5.15, nouveau's Kbuild prefixes its include paths for an in-tree build, and
+`NOUVEAU_PATH=` on the make line empties that prefix. A pstate is then
+chosen through debugfs, for example
+`echo 0f > /sys/kernel/debug/dri/1/pstate`; nouveau does not change levels by
+itself.
 
 With [bench.sh](bench.sh) (five `glmark2` scenes, PRIME offload), every
 transition and chain of them fault-free:

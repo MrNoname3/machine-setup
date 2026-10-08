@@ -227,6 +227,11 @@ container_docker_host_export: true
 # machine (VA-API lands on the nouveau render node, and decoded frames cannot
 # be handed to GLX), so it decodes in software, which the CPU keeps up with.
 
+# GT 520M at full clocks: nouveau rebuilt with the GF108 reclocking patches
+# (graphics role); with no pstate set, a level is chosen through debugfs.
+nouveau_gf108_reclock: true
+nouveau_gf108_pstate: ""
+
 # Remote LUKS unlock (dropbear) uses ip=dhcp; the address is pinned by a DHCP
 # reservation on the router (external dependency, not captured in this repo —
 # details in local.yml).
