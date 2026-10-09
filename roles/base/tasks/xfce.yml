@@ -108,6 +108,20 @@
   loop_control:
     label: "<Super>{{ item.key }}"
 
+# xfwm4 keeps one key per action, whichever it reads last, so the other keys
+# Mint gives these actions are removed.
+- name: Drop Mint's other keys for the Super+arrow actions (Xfce)
+  community.general.xfconf:
+    channel: xfce4-keyboard-shortcuts
+    property: "/xfwm4/custom/{{ item }}"
+    state: absent
+  become: false
+  loop:
+    - <Super>KP_Left
+    - <Super>KP_Right
+    - <Alt>F10
+    - <Alt>F9
+
 # xfsettingsd runs a lone-Super shortcut on key press, so the menu takes the
 # focus before Super+arrow arrives. xcape sends Ctrl+Esc for a Super tap only.
 - name: Drop the menu's Super press shortcut (Xfce)
