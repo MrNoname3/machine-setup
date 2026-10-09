@@ -61,9 +61,10 @@ At `0f`, the full `glmark2` suite passes and `glmark2 --validate` matches every
 scene that has a reference image.
 
 On the installed system (Mint 22, kernel 7.0, Mesa 25.2.8, built through the
-graphics role) the same run scores 558 at the boot clocks and 1216 at `0f`;
-nouveau sets `0f` at load and again whenever the GPU comes back from runtime
-power-off, memory included. There, `glmark2 --validate` fails the same eight
+graphics role) the same run scores 558 at the boot clocks and 1216 at `0f`
+with the board-specific pair, 1203 with the VBIOS-driven series; nouveau sets
+`0f` at load and again whenever the GPU comes back from runtime power-off,
+memory included. There, `glmark2 --validate` fails the same eight
 shader scenes (conditionals, function, loop) at `0f`, at `07`, and with the
 clocks the VBIOS leaves, so those failures belong to that Mesa, not to the
 clocks.
