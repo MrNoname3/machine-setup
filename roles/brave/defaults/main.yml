@@ -111,14 +111,16 @@ brave_local_state_prefs:
 # Further Local State preferences for one host, merged over brave_local_state_prefs.
 brave_local_state_prefs_extra: {}
 
-# Extra command-line flags, appended to every Exec= line of user-local copies
-# of the desktop entries (the official package reads no flags file). The local
-# entries shadow the system ones, so menu / default-browser / open-with
-# launches pick the flags up. Empty list = no override (the local copies are
-# removed). Per-host — see host_vars.
+# Extra command-line flags for every launch (Debian hosts). The official
+# package's launcher script reads no flags file, so the role diverts it and
+# installs a copy with the flags on its exec line; menu, panel, web-app and
+# relaunch-after-update starts all go through it. Empty list = the package's own
+# script. Per-host — see host_vars.
 brave_flags: []
+brave_launcher: /opt/brave.com/brave/brave-browser
 
-# The desktop entries the official package installs in /usr/share/applications.
+# The desktop entries the official package installs in /usr/share/applications;
+# user-local copies of these carried brave_flags before the launcher did.
 brave_desktop_entries:
   - brave-browser.desktop
   - com.brave.Browser.desktop

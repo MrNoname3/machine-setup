@@ -115,56 +115,74 @@
     - x-scheme-handler/unknown
     - application/pdf
 
-# --- Extra launch flags (user-local desktop-entry overrides) ---------------
-# The official package's launcher reads no flags file (brave-flags.conf is a
-# distro-packaging convention Brave's own deb lacks), so the flags are baked
-# into user-local copies of the package's desktop entries (it ships two, and
-# MIME associations may pick either), which shadow the system ones. Removed
-# when brave_flags is empty, falling back to the stock entries.
-- name: Ensure the user applications directory exists
-  ansible.builtin.file:
-    path: "/home/{{ primary_user }}/.local/share/applications"
-    state: directory
-    mode: "0755"
-  become: false
-  when: brave_flags | length > 0
+# --- Extra launch flags (diverted launcher script) ------------------------
+# The package's launcher script reads no flags file. It is diverted to
+# <launcher>.distrib and a copy with the flags on its exec line takes its place,
+# regenerated from the diverted original on every run. The copy keeps the
+# original's name, which Brave records as CHROME_WRAPPER and relaunches through.
+- name: Check whether the Brave launcher is diverted
+  ansible.builtin.command: dpkg-divert --listpackage {{ brave_launcher }}
+  register: brave_launcher_divert
+  changed_when: false
+  check_mode: false
+  when: ansible_facts['os_family'] == "Debian"
 
-- name: Find the system Brave desktop entries
-  ansible.builtin.find:
-    paths: /usr/share/applications
-    patterns: "{{ brave_desktop_entries }}"
-  register: brave_desktop_files
-  when: brave_flags | length > 0
+- name: Add the flags to the Brave launcher
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - brave_flags | length > 0
+  block:
+    - name: Divert the package's Brave launcher
+      ansible.builtin.command: >-
+        dpkg-divert --local --rename --divert {{ brave_launcher }}.distrib
+        --add {{ brave_launcher }}
+      when: brave_launcher_divert.stdout != 'LOCAL'
+      changed_when: true
 
-- name: Read the system Brave desktop entries
-  ansible.builtin.slurp:
-    src: "{{ item.path }}"
-  loop: "{{ brave_desktop_files.files | default([]) }}"
-  loop_control:
-    label: "{{ item.path | basename }}"
-  register: brave_desktop_entry
-  when: brave_flags | length > 0
+    - name: Read the package's Brave launcher
+      ansible.builtin.slurp:
+        src: "{{ brave_launcher }}.distrib"
+      register: brave_launcher_original
+      check_mode: false
+      failed_when: false
 
-- name: Deploy the flagged Brave desktop entries (shadow the system ones)
-  ansible.builtin.copy:
-    dest: "/home/{{ primary_user }}/.local/share/applications/{{ item.source | basename }}"
-    content: >-
-      {{ item.content | b64decode
-         | regex_replace('(?m)^Exec=(\S+)', 'Exec=\1 ' ~ (brave_flags | join(' '))) }}
-    mode: "0644"
-  become: false
-  loop: "{{ brave_desktop_entry.results | default([]) }}"
-  loop_control:
-    label: "{{ item.source | basename }}"
-  when: brave_flags | length > 0
+    - name: Require the launcher's exec line to be where the flags go
+      ansible.builtin.assert:
+        that: brave_launcher_original.content | default('') | b64decode is search(brave_launcher_exec)
+        fail_msg: >-
+          {{ brave_launcher }}.distrib has no line matching {{ brave_launcher_exec }};
+          the package changed its launcher, so the flags cannot be added.
+        quiet: true
+      when: not ansible_check_mode
 
-- name: Remove the desktop-entry overrides when no flags are set
+    - name: Install the Brave launcher with the flags
+      ansible.builtin.copy:
+        dest: "{{ brave_launcher }}"
+        content: >-
+          {{ brave_launcher_original.content | b64decode
+             | regex_replace(brave_launcher_exec,
+                             '\\1 ' ~ (brave_flags | map('quote') | join(' ')) ~ ' "$@"') }}
+        mode: "0755"
+      when: not ansible_check_mode
+  vars:
+    brave_launcher_exec: '(?m)^(\s*"\$HERE/brave") "\$@"'
+
+- name: Restore the package's Brave launcher
+  ansible.builtin.shell: |
+    rm -f {{ brave_launcher | quote }}
+    dpkg-divert --local --rename --remove {{ brave_launcher | quote }}
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - brave_flags | length == 0
+    - brave_launcher_divert.stdout == 'LOCAL'
+  changed_when: true
+
+- name: Remove the user-local desktop entries that used to carry the flags
   ansible.builtin.file:
     path: "/home/{{ primary_user }}/.local/share/applications/{{ item }}"
     state: absent
   become: false
   loop: "{{ brave_desktop_entries }}"
-  when: brave_flags | length == 0
 
 # --- Local (non-syncing) preferences --------------------------------------
 # These have no managed-policy equivalent, so we edit only the specific dotted
