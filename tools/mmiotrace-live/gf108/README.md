@@ -105,7 +105,7 @@ its arguments, which 0002 turns into memx commands:
 | `00`, `01`, `15` | value; address; mask, timeout | wait for `(reg & mask) == value` | `WAIT` |
 | `20` | 1 or 0 | block, unblock the GPU's memory traffic | `ENTER`, `LEAVE` |
 | `14` | head, timeout | wait for a display head | `VBLANK` |
-| `3a` | count | follows writes to `0x13d834`; not identified | a delay |
+| `3a` | count | follows a write to `0x13d834`; the count is the writes to `0x10f600`–`0x10f8ff` since the last one | a delay, 10 µs per write |
 | `34` | `0x0a`, `0x0b` | brackets the blocked part; not identified | dropped |
 | `16` | – | end | – |
 
@@ -128,6 +128,50 @@ VBIOS level it stands for.
 
 nouveau's own `gf100_ram_calc` was written the same way, from a trace of a
 GDDR5 board, and carries the same opcodes as comments.
+
+## DDR3 from the VBIOS
+
+Upstream patch 0007 computes these scripts instead of replaying them.
+[ddr3-model.py](ddr3-model.py) is the same sequence in Python: from the
+register state the 390 driver left before each script, it reproduces the
+800 → 324, 324 → 135 and 135 → 800 scripts word for word, `0x3a` counts
+included, and the first one apart from the display stop, which the 390 driver
+leaves out while no head is running. Where each value comes from:
+
+| Registers | Source |
+|---|---|
+| `0x10f290`, `0x10f298`, `0x10f2a0` | timing entry: RP, RAS, RFC, RC; WR, WTR; RRD |
+| `0x10f294` | timing entry: RCDWR, RCDRD, CWL, CL; CL one lower while the DLL is off |
+| `0x10f29c`, `0x10f224` | timing entry bytes 0x14, 0x15, 0x0d; byte 0x12 |
+| `0x10f300`/`304`/`320` | `nvkm_sddr3_calc` (MR0–MR2), DLL off from the ramcfg entry |
+| `0x10f658`, `0x10f660` | ramcfg bytes 5–8, as GT215's `0x1005a0`/`0x1005a4`, while rammap bit `04_08` is set; else `0x10f910`/`914` get `0x2000` |
+| `0x10f610`, `0x10f614`, `0x10f200` bit 12 | ramcfg `02_02`, `02_01`, `02_08` and timing byte 0x18, as GT215's `0x100718`, `0x10071c`, `0x100200` |
+| `0x10f808` | ramcfg `02_04` and `02_10`, as GT215's `0x111100` |
+| `0x10f870` | ramcfg byte 0x0d in every nibble, as Kepler's `ramcfg_11_03_0f` |
+| `0x132004` | memory PLL from the VBIOS limits: smallest error, then the highest VCO |
+| the rest (`0x10f604`, `0x10f824`, `0x10f830`, `0x10f874`, `0x1373ec`, `0x1373f8`, `0x132018`, `0x100c00`) | one value for the high-speed entry, one for the others (ramcfg `02_04` clear or set) |
+
+The waits after a DLL reset are the DRAM's DLL lock time, 512 clocks, rounded
+up to whole microseconds. Every ramcfg flag in the last row changes together on
+this board, so which one each register really follows needs a second board.
+
+nouveau's devinit leaves the memory controller in another state than the one
+the 390 driver starts from: memory PLL off with bits 1 and 16 of `0x132000`
+set, `0x132018` and `0x10f808` with bits the VBIOS init scripts set. A script
+that kept bit 1 of `0x132000` corrupted VRAM within seconds of the change; the
+390 driver's host code clears both bits before its first script, and so does
+0007. Its host code also sets bits 16 and 19 of `0x100c00` at load, which
+nothing here does; and around each script it writes `0x10f2fc`, `0x10f254`
+and `0x10f2f8`, and bits of `0x10f808` and `0x10f824`, from the CPU, which
+0007 leaves out as well.
+
+On the live system, with the series built for 5.15 and reclocking enabled for
+the test, every change between 135, 324 and 800 MHz, including 800 → 135 and
+135 → 324, which the 390 driver never makes, passes `glmark2 --validate`;
+`glmark2` scores 2088 at `0f`, as with the board-specific patch. nouveau's
+pstate file still shows 324 MHz memory on the `AC` line at 800: it reads the
+memory clock from the PLL only when `0x1373f0` says so, which the GDDR5 path
+sets and this one does not.
 
 ## From trace to patch
 
@@ -153,6 +197,9 @@ The order that worked, each step on the live system with nothing to lose:
 
 A test nouveau loads beside the proprietary driver's packages with
 `modprobe -C <empty file> nouveau`, since those packages alias nouveau off.
+On this laptop nouveau also reports the GPU's VGA output (`card1-VGA-2`) as
+connected, and X then extends the desktop onto a monitor that is not there;
+`echo off > /sys/class/drm/card1-VGA-2/status` after loading switches it off.
 
 ## A new kernel series
 
@@ -166,9 +213,9 @@ subdev's allocation call changed.
 
 ## Upstream series
 
-[upstream/](upstream/) holds four patches for nouveau as in kernel 7.0 that
-make the core clock code compute what the board-specific patch hard-codes,
-from the VBIOS, for any GF100-family GPU:
+[upstream/](upstream/) holds seven patches for nouveau as in kernel 7.0 that
+make the clock and memory code compute what the board-specific patches
+hard-code, from the VBIOS, for any GF100-family GPU:
 
 1. keep the PLL / no-PLL flags of each domain from the VBIOS performance table;
 2. read the PLL reference divider of domain 7, and the source select's
@@ -176,13 +223,17 @@ from the VBIOS, for any GF100-family GPU:
 3. leave the PLL control's bit 4 clear after the lock test, which otherwise
    bypasses the core PLL;
 4. choose PLLs by those flags, let a domain kept off its own PLL borrow domain
-   2's, and keep a shared PLL running while a domain uses it.
+   2's, and keep a shared PLL running while a domain uses it;
+5. set up the `0x137300` register of the memory script, which a typo left at
+   address 0;
+6. parse byte 0x0d of the ramcfg entry;
+7. a DDR3 path for `gf100_ram_calc`, described [above](#ddr3-from-the-vbios).
 
 On the GF108 here, with reclocking enabled for the test, the shader, domain 7
 and domain 8 come out at the 390 driver's clocks at every level, as the clock
 counters measure them; each patch builds on its own, and `checkpatch.pl
---strict` finds nothing beyond the sign-off. They do not yet enable reclocking
-on Fermi, which stays off upstream, and they leave memory clocks alone. The
+--strict` finds nothing beyond the sign-off and checks on names nouveau already
+uses. They do not enable reclocking on Fermi, which stays off upstream. The
 author line is a placeholder: whoever submits them signs them off under their
 own name, and the kernel's rules for AI-assisted work want the `Assisted-by`
 line they carry.
@@ -201,10 +252,9 @@ board (decoded with [nvbios.sh](../nvbios.sh)) already explains:
   a PLL at level 2 (shader, hub06, hub07, memory), `0x8000` ("force no PLL")
   on the ones it never does. Upstream `calc_clk` ignores both; the series
   above uses them.
-- **Memory timings.** The timing table (version 10) entries 4, 5 and 6 give the
-  `0x10f290`, `0x10f298` and `0x10f2a0` values of the 135, 324 and 800 MHz
-  scripts exactly; a few bits of `0x10f294` and `0x10f29c` come from somewhere
-  else, likely the ramcfg entry.
+- **Memory.** The timing table (version 10) entries 4, 5 and 6, the rammap and
+  the ramcfg entries give every value of the memory scripts; see
+  [DDR3 from the VBIOS](#ddr3-from-the-vbios).
 - **Domain 8 at level 2.** The source select of a divider (`0x137160` and
   on) picks, with `SRC = 2`, one of several inputs in bits 24 to 26: 0 is the
   100 MHz reference, 1 a 277 MHz one, and 7 the output of PLL `0x137040`,
@@ -237,10 +287,10 @@ without trouble.
 
 Still open:
 
-- Opcodes `0x34` and `0x3a` of the memory scripts.
-- A DDR3 path for `gf100_ram_calc` built from the VBIOS tables, after the DDR3
-  code nouveau has for GT215 (mode registers through `sddr3`, the memory PLL
-  from the VBIOS PLL limits), shaped like the recorded scripts.
+- Opcode `0x34` of the memory scripts, and what `0x13d834` and the `0x3a`
+  wait do.
+- Which ramcfg flag each high-speed register follows, and the meaning of those
+  bits.
 - Traces from other GF108 and GF119 boards, which the live ISO and
   [trace-clocks.sh](../trace-clocks.sh) can take; only what is decoded from them
   may be shared.
