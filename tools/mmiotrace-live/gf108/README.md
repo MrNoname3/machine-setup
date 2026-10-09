@@ -218,9 +218,15 @@ Measured with the GPU's clock counters ([clocks.sh](clocks.sh)), which count
 for 0x3fff periods of the 27 MHz crystal: the shader clock and domain 7 run at
 what the VBIOS asks for at every level, and the SPPLL reference at 1620 MHz. The
 counters are not in envytools' register database; the 390 driver's own use of
-them in the trace showed how they work. Input 2 of the select, chosen at
-level 1, stopped the domain and took the GPU off the bus until a reboot: an
-input whose source is off has no clock.
+them in the trace showed how they work.
+
+Inputs 2 to 6 of the select give no clock on this board: input 2 chosen at
+level 1, and inputs 3 to 6 at the highest level, with all three core PLLs
+running, each stopped the domain and took the GPU off the bus until a reboot.
+They are not the core PLLs, and nothing here needs them; `read_div` treats
+them as no clock. A PLL no domain selects or borrows can be switched off: the
+series does so at the lower levels, where the 390 driver keeps them running,
+without trouble.
 
 - **The PLLs' reference dividers.** Each PLL's reference passes a divider of
   the same `(src × 2) / (div + 2)` form as the domains' own: SPPLL1 1620 MHz
@@ -231,8 +237,6 @@ input whose source is off has no clock.
 
 Still open:
 
-- When the shared PLL `0x1370e0` may be switched off.
-- What inputs 2 to 6 of the select are.
 - Opcodes `0x34` and `0x3a` of the memory scripts.
 - A DDR3 path for `gf100_ram_calc` built from the VBIOS tables, after the DDR3
   code nouveau has for GT215 (mode registers through `sddr3`, the memory PLL
