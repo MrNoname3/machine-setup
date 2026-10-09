@@ -101,7 +101,7 @@
 - name: Install VS Code extensions
   ansible.builtin.command: "code --install-extension {{ item }}"
   become: false
-  loop: "{{ vscode_extensions }}"
+  loop: "{{ vscode_extensions | difference(vscode_extensions_absent) }}"
   when:
     - ansible_facts['os_family'] == "Debian"
     - item not in (vscode_installed.stdout_lines | default([]))
@@ -128,7 +128,7 @@
   ansible.builtin.command: >-
     flatpak run --command=code com.visualstudio.code --install-extension {{ item }}
   become: false
-  loop: "{{ vscode_extensions }}"
+  loop: "{{ vscode_extensions | difference(vscode_extensions_absent) }}"
   when:
     - ansible_facts['os_family'] != "Debian"
     - item not in (vscode_flatpak_installed.stdout_lines | default([]))

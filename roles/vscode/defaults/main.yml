@@ -13,7 +13,7 @@ vscode_extensions:
   - ms-vscode.remote-explorer
   - pioarduino.pioarduino-ide
 
-# Extensions removed where present. PlatformIO IDE and its fork pioarduino
-# cannot be installed side by side.
+# Extensions removed where present, and never installed even when listed above.
+# PlatformIO IDE and its fork pioarduino cannot be installed side by side.
 vscode_extensions_absent:
   - platformio.platformio-ide

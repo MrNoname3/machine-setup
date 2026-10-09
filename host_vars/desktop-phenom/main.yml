@@ -47,6 +47,11 @@ brave_local_state_prefs_extra:
   performance_tuning.high_efficiency_mode.state: 2           # on
   performance_tuning.high_efficiency_mode.aggressiveness: 0  # Moderate
 
+# Claude Code's native binary stops with an illegal instruction on this CPU.
+vscode_extensions_absent:
+  - platformio.platformio-ide
+  - anthropic.claude-code
+
 # Packages the base role installs.
 packages_present:
   - git
