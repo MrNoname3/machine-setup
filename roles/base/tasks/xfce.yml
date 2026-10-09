@@ -19,6 +19,7 @@
       - xfce4-screensaver
       - xdg-desktop-portal-xapp
       - redshift                 # Night Light (no Xfce counterpart)
+      - xcape                    # Super tap opens the menu (see below)
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
@@ -107,6 +108,38 @@
   loop_control:
     label: "<Super>{{ item.key }}"
 
+# xfsettingsd runs a lone-Super shortcut on key press, so the menu takes the
+# focus before Super+arrow arrives. xcape sends Ctrl+Esc for a Super tap only.
+- name: Drop the menu's Super press shortcut (Xfce)
+  community.general.xfconf:
+    channel: xfce4-keyboard-shortcuts
+    property: /commands/custom/Super_L
+    state: absent
+  become: false
+
+- name: Open the menu on Ctrl+Esc (Xfce)
+  community.general.xfconf:
+    channel: xfce4-keyboard-shortcuts
+    property: /commands/custom/<Primary>Escape
+    value_type: string
+    value: xfce4-popup-whiskermenu
+  become: false
+
+# Windows bigger than placement_ratio % of the screen are placed top-left
+# ("smart" placement) instead of by placement_mode.
+- name: Open every window centred (Xfce)
+  community.general.xfconf:
+    channel: xfwm4
+    property: "{{ item.property }}"
+    value_type: "{{ item.type }}"
+    value: "{{ item.value }}"
+  become: false
+  loop:
+    - { property: /general/placement_mode, type: string, value: center }
+    - { property: /general/placement_ratio, type: int, value: "100" }
+  loop_control:
+    label: "{{ item.property }}"
+
 # Without a restored state of its own, the session keeps the NumLock the
 # login screen switched on.
 - name: Keep the login screen's NumLock in the session (Xfce)
@@ -170,6 +203,19 @@
       Type=Application
       Name=Night Light
       Exec=redshift -P -r -l 0:0 -t 5200:5200
+      NoDisplay=true
+      X-GNOME-Autostart-enabled=true
+  become: false
+
+- name: Autostart xcape (a Super tap sends Ctrl+Esc)
+  ansible.builtin.copy:
+    dest: "/home/{{ primary_user }}/.config/autostart/xcape-super-menu.desktop"
+    mode: "0644"
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name=Super key menu
+      Exec=xcape -e "Super_L=Control_L|Escape"
       NoDisplay=true
       X-GNOME-Autostart-enabled=true
   become: false
