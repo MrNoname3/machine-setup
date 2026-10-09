@@ -148,9 +148,9 @@
 
     - name: Require the launcher's exec line to be where the flags go
       ansible.builtin.assert:
-        that: brave_launcher_original.content | default('') | b64decode is search(brave_launcher_exec)
+        that: brave_launcher_exec in (brave_launcher_original.content | default('') | b64decode)
         fail_msg: >-
-          {{ brave_launcher }}.distrib has no line matching {{ brave_launcher_exec }};
+          {{ brave_launcher }}.distrib has no {{ brave_launcher_exec }} line;
           the package changed its launcher, so the flags cannot be added.
         quiet: true
       when: not ansible_check_mode
@@ -160,12 +160,12 @@
         dest: "{{ brave_launcher }}"
         content: >-
           {{ brave_launcher_original.content | b64decode
-             | regex_replace(brave_launcher_exec,
-                             '\\1 ' ~ (brave_flags | map('quote') | join(' ')) ~ ' "$@"') }}
+             | replace(brave_launcher_exec,
+                       '"$HERE/brave" ' ~ (brave_flags | map('quote') | join(' ')) ~ ' "$@"') }}
         mode: "0755"
       when: not ansible_check_mode
   vars:
-    brave_launcher_exec: '(?m)^(\s*"\$HERE/brave") "\$@"'
+    brave_launcher_exec: '"$HERE/brave" "$@"'
 
 - name: Restore the package's Brave launcher
   ansible.builtin.shell: |
