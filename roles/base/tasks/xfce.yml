@@ -23,6 +23,16 @@
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
+# xfce4-screensaver locks the session; Mint's light-locker would lock it at
+# the same time, through the login screen on another VT.
+- name: Remove light-locker (Xfce)
+  ansible.builtin.apt:
+    name:
+      - light-locker
+      - light-locker-settings
+    state: absent
+  when: ansible_facts['os_family'] == "Debian"
+
 # Mint ships these hidden already; they are set so a changed default does not
 # bring them back.
 - name: Hide the standard + removable-volume icons from the Xfce desktop
