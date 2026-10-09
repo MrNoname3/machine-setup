@@ -31,6 +31,7 @@
       - light-locker
       - light-locker-settings
     state: absent
+    purge: true                  # its autostart entry is a conffile
   when: ansible_facts['os_family'] == "Debian"
 
 # Mint ships these hidden already; they are set so a changed default does not
