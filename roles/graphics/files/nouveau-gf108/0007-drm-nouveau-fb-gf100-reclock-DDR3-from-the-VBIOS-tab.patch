@@ -1,0 +1,527 @@
+From 51c82d6f270421baf31be61dca0d4e1063213623 Mon Sep 17 00:00:00 2001
+From: Your_Name <you@example.org>
+Date: Fri, 9 Oct 2026 11:24:19 +0200
+Subject: [PATCH 7/7] drm/nouveau/fb/gf100: reclock DDR3 from the VBIOS tables
+
+gf100_ram_calc only knew one GDDR5 board's register values, so Fermi
+boards with DDR3 could not change their memory clock. Add a DDR3 path
+that follows the NVIDIA driver's sequence and takes its values from the
+VBIOS: timings from the v1.0 timing entry, mode registers from
+nvkm_sddr3_calc, delay settings from the ramcfg entry, and the memory
+PLL from its limits, preferring an exact clock over a higher VCO. The
+bits that differ only between the high-speed and the low-speed entries
+follow ramcfg_10_02_04; the meaning of most of them is unknown.
+
+Assisted-by: Claude:claude-opus-5-5
+---
+ nvkm/subdev/fb/ramgf100.c | 380 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 380 insertions(+)
+
+diff --git a/nvkm/subdev/fb/ramgf100.c b/nvkm/subdev/fb/ramgf100.c
+index 699a3bb..4788e63 100644
+--- a/nvkm/subdev/fb/ramgf100.c
++++ b/nvkm/subdev/fb/ramgf100.c
+@@ -47,6 +47,7 @@ struct gf100_ramfuc {
+ 
+ 	struct ramfuc_reg r_0x137390;
+ 
++	struct ramfuc_reg r_0x10f224;
+ 	struct ramfuc_reg r_0x10f290;
+ 	struct ramfuc_reg r_0x10f294;
+ 	struct ramfuc_reg r_0x10f298;
+@@ -54,6 +55,9 @@ struct gf100_ramfuc {
+ 	struct ramfuc_reg r_0x10f2a0;
+ 
+ 	struct ramfuc_reg r_0x10f300;
++	struct ramfuc_reg r_0x10f304;
++	struct ramfuc_reg r_0x10f320;
++	struct ramfuc_reg r_0x10f324;
+ 	struct ramfuc_reg r_0x10f338;
+ 	struct ramfuc_reg r_0x10f340;
+ 	struct ramfuc_reg r_0x10f344;
+@@ -63,18 +67,24 @@ struct gf100_ramfuc {
+ 	struct ramfuc_reg r_0x10f914;
+ 
+ 	struct ramfuc_reg r_0x100b0c;
++	struct ramfuc_reg r_0x100c00;
+ 	struct ramfuc_reg r_0x10f050;
+ 	struct ramfuc_reg r_0x10f090;
+ 	struct ramfuc_reg r_0x10f200;
+ 	struct ramfuc_reg r_0x10f210;
+ 	struct ramfuc_reg r_0x10f310;
+ 	struct ramfuc_reg r_0x10f314;
++	struct ramfuc_reg r_0x10f604;
+ 	struct ramfuc_reg r_0x10f610;
+ 	struct ramfuc_reg r_0x10f614;
++	struct ramfuc_reg r_0x10f658;
++	struct ramfuc_reg r_0x10f660;
+ 	struct ramfuc_reg r_0x10f800;
+ 	struct ramfuc_reg r_0x10f808;
+ 	struct ramfuc_reg r_0x10f824;
+ 	struct ramfuc_reg r_0x10f830;
++	struct ramfuc_reg r_0x10f870;
++	struct ramfuc_reg r_0x10f874;
+ 	struct ramfuc_reg r_0x10f988;
+ 	struct ramfuc_reg r_0x10f98c;
+ 	struct ramfuc_reg r_0x10f990;
+@@ -83,9 +93,12 @@ struct gf100_ramfuc {
+ 	struct ramfuc_reg r_0x10f9b4;
+ 	struct ramfuc_reg r_0x10fb04;
+ 	struct ramfuc_reg r_0x10fb08;
++	struct ramfuc_reg r_0x132018;
+ 	struct ramfuc_reg r_0x137300;
+ 	struct ramfuc_reg r_0x137310;
+ 	struct ramfuc_reg r_0x137360;
++	struct ramfuc_reg r_0x137370;
++	struct ramfuc_reg r_0x137380;
+ 	struct ramfuc_reg r_0x1373ec;
+ 	struct ramfuc_reg r_0x1373f0;
+ 	struct ramfuc_reg r_0x1373f8;
+@@ -93,6 +106,7 @@ struct gf100_ramfuc {
+ 	struct ramfuc_reg r_0x61c140;
+ 	struct ramfuc_reg r_0x611200;
+ 
++	struct ramfuc_reg r_0x13d834;
+ 	struct ramfuc_reg r_0x13d8f4;
+ };
+ 
+@@ -101,6 +115,7 @@ struct gf100_ram {
+ 	struct gf100_ramfuc fuc;
+ 	struct nvbios_pll refpll;
+ 	struct nvbios_pll mempll;
++	u32 sync;
+ };
+ 
+ static void
+@@ -123,6 +138,354 @@ gf100_ram_train(struct gf100_ramfuc *fuc, u32 magic)
+ 	}
+ }
+ 
++/*
++ * Writes to 0x10f600-0x10f8ff are counted; a sync writes 0x13d834 and waits
++ * 10us for each of them, where the NVIDIA driver passes the count to the PMU.
++ */
++static void
++gf100_ram_ddr3_wr32(struct gf100_ram *ram, struct ramfuc_reg *reg, u32 data)
++{
++	ramfuc_wr32(&ram->fuc.base, reg, data);
++	if (reg->addr >= 0x10f600 && reg->addr < 0x10f900)
++		ram->sync++;
++}
++
++static bool
++gf100_ram_ddr3_mask(struct gf100_ram *ram, struct ramfuc_reg *reg,
++		    u32 mask, u32 data)
++{
++	u32 temp = ramfuc_rd32(&ram->fuc.base, reg);
++
++	data |= temp & ~mask;
++	if (data == temp && !reg->force)
++		return false;
++
++	reg->force = false;
++	gf100_ram_ddr3_wr32(ram, reg, data);
++	return true;
++}
++
++static void
++gf100_ram_ddr3_sync(struct gf100_ram *ram)
++{
++	struct gf100_ramfuc *fuc = &ram->fuc;
++
++	ram_wr32(fuc, 0x13d834, 0x00000000);
++	if (ram->sync)
++		ram_nsec(fuc, ram->sync * 10000);
++	ram->sync = 0;
++}
++
++#define ddr3_wr32(r, a, d)    gf100_ram_ddr3_wr32((r), &(r)->fuc.r_##a, (d))
++#define ddr3_mask(r, a, m, d) gf100_ram_ddr3_mask((r), &(r)->fuc.r_##a, (m), (d))
++
++/* Smallest error first, then the highest VCO: 324 MHz is exact at 1620 MHz. */
++static int
++gf100_ram_ddr3_pll(const struct nvbios_pll *info, u32 freq, u32 *coef)
++{
++	u32 best = ~0, err, vco;
++	int p, m, n;
++
++	p = min_t(int, info->vco1.max_freq / freq, info->max_p);
++	for (; p >= max_t(int, info->min_p, 1); p--) {
++		for (m = info->vco1.min_m; m <= info->vco1.max_m; m++) {
++			if (info->refclk / m < info->vco1.min_inputfreq ||
++			    info->refclk / m > info->vco1.max_inputfreq)
++				continue;
++
++			n = DIV_ROUND_CLOSEST(freq * p * m, info->refclk);
++			if (n < info->vco1.min_n || n > info->vco1.max_n)
++				continue;
++
++			vco = info->refclk * n / m;
++			if (vco < info->vco1.min_freq || vco > info->vco1.max_freq)
++				continue;
++
++			err = abs((int)freq - (int)(vco / p));
++			if (err < best) {
++				best = err;
++				*coef = p << 16 | n << 8 | m;
++			}
++		}
++	}
++
++	return best == ~0 ? -ERANGE : 0;
++}
++
++/* 512 clocks of DLL lock time, in whole microseconds */
++static u32
++gf100_ram_ddr3_tdllk(u32 freq)
++{
++	return DIV_ROUND_UP(DIV_ROUND_UP(512 * 1000000, freq), 1000) * 1000;
++}
++
++static void
++gf100_ram_ddr3_lock(struct gf100_ram *ram, u32 coef)
++{
++	struct gf100_ramfuc *fuc = &ram->fuc;
++
++	ddr3_wr32(ram, 0x137320, ram_rd32(fuc, 0x137320));
++	ddr3_wr32(ram, 0x137330, ram_rd32(fuc, 0x137330));
++	ddr3_wr32(ram, 0x132004, coef);
++	ddr3_mask(ram, 0x132000, 0x00000001, 0x00000001);
++	ram_wait(fuc, 0x137390, 0x00000002, 0x00000002, 64000);
++}
++
++static void
++gf100_ram_ddr3_dll_reset(struct gf100_ram *ram)
++{
++	ram_nuke(&ram->fuc, 0x10f300);
++	ddr3_mask(ram, 0x10f300, 0x00000100, 0x00000100);
++	ram_nsec(&ram->fuc, 1000);
++	ddr3_mask(ram, 0x10f300, 0x00000100, 0x00000000);
++	ram_nsec(&ram->fuc, 1000);
++}
++
++/*
++ * The sequence of the NVIDIA driver. The bits it switches between the
++ * high-speed and the low-speed entries follow ramcfg_10_02_04, which clears
++ * for the high-speed one; 0x1373ec bit 17 tells which one is running.
++ */
++static int
++gf100_ram_calc_ddr3(struct gf100_ram *ram, u32 freq)
++{
++	struct gf100_ramfuc *fuc = &ram->fuc;
++	struct nvkm_subdev *subdev = &ram->base.fb->subdev;
++	struct nvkm_bios *bios = subdev->device->bios;
++	struct nvkm_ram_data *next = &ram->base.target;
++	struct nvbios_ramcfg *cfg = &next->bios;
++	bool from_pll, hs_from, hs, sync;
++	u32 data, coef, r132018, tdllk;
++	u8 ver, hdr, cnt, len;
++	int ret;
++
++	data = nvbios_rammapEm(bios, freq / 1000, &ver, &hdr, &cnt, &len, cfg);
++	if (!data || ver != 0x10 || hdr < 0x0e) {
++		nvkm_error(subdev, "invalid/missing rammap entry\n");
++		return -EINVAL;
++	}
++
++	data = nvbios_rammapSp(bios, data, ver, hdr, cnt, len,
++			       nvbios_ramcfg_index(subdev), &ver, &hdr, cfg);
++	if (!data || ver != 0x10 || hdr < 0x0e) {
++		nvkm_error(subdev, "invalid/missing ramcfg entry\n");
++		return -EINVAL;
++	}
++
++	data = nvbios_timingEp(bios, cfg->ramcfg_timing,
++			       &ver, &hdr, &cnt, &len, cfg);
++	if (!data || ver != 0x10 || hdr < 0x19) {
++		nvkm_error(subdev, "invalid/missing timing entry\n");
++		return -EINVAL;
++	}
++
++	ret = gf100_ram_ddr3_pll(&ram->mempll, freq, &coef);
++	if (ret) {
++		nvkm_error(subdev, "unable to calc mempll\n");
++		return ret;
++	}
++
++	ret = ram_init(fuc, ram->base.fb);
++	if (ret)
++		return ret;
++
++	next->freq = freq;
++	ram->base.next = next;
++	ram->base.mr[0] = ram_rd32(fuc, 0x10f300);
++	ram->base.mr[1] = ram_rd32(fuc, 0x10f304);
++	ram->base.mr[2] = ram_rd32(fuc, 0x10f320);
++	ret = nvkm_sddr3_calc(&ram->base);
++	if (ret) {
++		nvkm_error(subdev, "unable to calc mode registers\n");
++		return ret;
++	}
++
++	from_pll = ram_rd32(fuc, 0x132000) & 0x00000001;
++	hs_from = ram_rd32(fuc, 0x1373ec) & 0x00020000;
++	hs = !cfg->ramcfg_10_02_04;
++	r132018 = hs ? 0x00005000 : 0x10001000;
++	tdllk = gf100_ram_ddr3_tdllk(freq);
++	ram->sync = 0;
++
++	if (!from_pll) {
++		ddr3_mask(ram, 0x132000, 0x00010002, 0x00000000);
++		gf100_ram_ddr3_lock(ram, coef);
++		ddr3_mask(ram, 0x132018, 0x1000f000, r132018);
++	} else {
++		ddr3_wr32(ram, 0x137300, ram_rd32(fuc, 0x137300));
++	}
++	ddr3_wr32(ram, 0x137370, 0x00000001);
++	ddr3_wr32(ram, 0x137380, 0x00000001);
++	if (hs_from || hs) {
++		sync  = ddr3_mask(ram, 0x10f808, 0x40000000, 0x40000000);
++		sync |= ddr3_mask(ram, 0x10f824, 0x00000780 |
++				  (!from_pll && hs ? 0x00006000 : 0), 0);
++		if (sync)
++			gf100_ram_ddr3_sync(ram);
++	}
++
++	ddr3_wr32(ram, 0x100b0c, 0x00080012);
++	ram_wait_vblank(fuc);
++	ddr3_wr32(ram, 0x611200, 0x00003300);
++	ram_block(fuc);
++
++	ddr3_mask(ram, 0x10f200, 0x00000800, 0x00000000);
++	if (hs && ddr3_mask(ram, 0x10f808, 0x04000000, 0x04000000))
++		gf100_ram_ddr3_sync(ram);
++	if (cfg->ramcfg_DLLoff && !(ram_rd32(fuc, 0x10f304) & 0x00000001)) {
++		ddr3_wr32(ram, 0x10f314, 0x00000001); /* PRECHARGE */
++		ddr3_mask(ram, 0x10f304, 0x00000001, 0x00000001);
++		ram_nsec(fuc, 1000);
++	}
++	if (hs)
++		ddr3_mask(ram, 0x1373ec, 0x00030000, 0x00020000);
++	/* refreshes during the switch already run at the new clock */
++	if (cfg->timing_10_RFC > ((ram_rd32(fuc, 0x10f290) & 0x0000ff00) >> 8))
++		ddr3_mask(ram, 0x10f290, 0x0000ff00, cfg->timing_10_RFC << 8);
++	ddr3_wr32(ram, 0x10f314, 0x00000001); /* PRECHARGE */
++	ddr3_wr32(ram, 0x10f210, 0x00000000); /* REFRESH_AUTO = 0 */
++	ddr3_wr32(ram, 0x10f310, 0x00000001); /* REFRESH */
++	ddr3_wr32(ram, 0x10f310, 0x00000001); /* REFRESH */
++	ram_nsec(fuc, 1000);
++	ddr3_wr32(ram, 0x10f090, 0x00000060);
++	ddr3_wr32(ram, 0x10f090, 0xc000007e);
++
++	if (from_pll) {
++		ddr3_mask(ram, 0x137360, 0x00000001, 0x00000001);
++		if (!hs && ddr3_mask(ram, 0x10f830, 0x00000006, 0x00000006))
++			gf100_ram_ddr3_sync(ram);
++		ddr3_wr32(ram, 0x137370, 0x00000000);
++		ddr3_wr32(ram, 0x137380, 0x00000000);
++		ddr3_mask(ram, 0x132018, 0x0000c000, 0x00000000);
++		ddr3_mask(ram, 0x132000, 0x00000001, 0x00000000);
++		gf100_ram_ddr3_lock(ram, coef);
++	}
++
++	sync = ddr3_mask(ram, 0x10f874, 0x04000000, hs ? 0 : 0x04000000);
++	if (cfg->rammap_10_04_08) {
++		ddr3_wr32(ram, 0x10f658, cfg->ramcfg_10_06 << 16 |
++					 cfg->ramcfg_10_05 << 8 |
++					 cfg->ramcfg_10_05);
++		sync = true;
++	}
++	if (hs)
++		sync |= ddr3_mask(ram, 0x10f824, 0x00006000, 0x00000000);
++	if ((ram_rd32(fuc, 0x132018) & 0x1000f000) != r132018) {
++		if (sync)
++			gf100_ram_ddr3_sync(ram);
++		sync = false;
++		ddr3_mask(ram, 0x132018, 0x1000f000, r132018);
++	}
++	if (hs && !hs_from)
++		ram_nsec(fuc, 20000);
++	if (cfg->rammap_10_04_08) {
++		ddr3_wr32(ram, 0x10f660, cfg->ramcfg_10_08 << 8 |
++					 cfg->ramcfg_10_07);
++		sync = true;
++	}
++	data = cfg->rammap_10_04_08 ? 0x00000000 : 0x00002000;
++	ddr3_mask(ram, 0x10f910, 0xffffffff, data);
++	ddr3_mask(ram, 0x10f914, 0xffffffff, data);
++	if (!cfg->rammap_10_04_08) {
++		ddr3_wr32(ram, 0x10f658, 0x00000000);
++		sync = true;
++	}
++	if (!hs)
++		sync |= ddr3_mask(ram, 0x10f824, 0x00006000, 0x00006000);
++	else
++		sync |= ddr3_mask(ram, 0x10f830, 0x00000006, 0x00000000);
++	if (sync)
++		gf100_ram_ddr3_sync(ram);
++
++	ddr3_wr32(ram, 0x137370, 0x00000001);
++	ddr3_wr32(ram, 0x137380, 0x00000001);
++	ddr3_mask(ram, 0x137360, 0x00000001, 0x00000000);
++	ddr3_wr32(ram, 0x10f090, 0x4000007f);
++	ddr3_wr32(ram, 0x10f210, 0x80000000); /* REFRESH_AUTO = 1 */
++	ram_nsec(fuc, tdllk);
++
++	if (!cfg->ramcfg_DLLoff) {
++		if (ddr3_mask(ram, 0x10f304, 0xffffffff, ram->base.mr[1]))
++			ram_nsec(fuc, 1000);
++		gf100_ram_ddr3_dll_reset(ram);
++	}
++	if (ddr3_mask(ram, 0x10f320, 0x00000fff, ram->base.mr[2] & 0xfff))
++		ram_nsec(fuc, 1000);
++	if (ddr3_mask(ram, 0x10f304, 0xffffffff, ram->base.mr[1]))
++		ram_nsec(fuc, 1000);
++	ddr3_wr32(ram, 0x10f300, ram->base.mr[0]);
++	ram_nsec(fuc, 1000);
++
++	/* in DLL-off mode the DRAM returns read data a clock early */
++	data = cfg->timing_10_CL - cfg->ramcfg_DLLoff;
++	ddr3_mask(ram, 0x10f224, 0x001f0000, cfg->timing_10_18 << 16);
++	ddr3_mask(ram, 0x10f290, 0xffffffff, cfg->timing_10_RP << 24 |
++					     (cfg->timing_10_RAS & 0x7f) << 17 |
++					     cfg->timing_10_RFC << 8 |
++					     cfg->timing_10_RC);
++	ddr3_mask(ram, 0x10f294, 0x00ffffff, cfg->timing_10_RCDWR << 20 |
++					     cfg->timing_10_RCDRD << 14 |
++					     cfg->timing_10_CWL << 7 | data);
++	ddr3_mask(ram, 0x10f298, 0x007f1f00, cfg->timing_10_WR << 16 |
++					     cfg->timing_10_WTR << 8);
++	ddr3_mask(ram, 0x10f29c, 0x0000ffff, cfg->timing_10_20 << 9 |
++					     cfg->timing_10_21 << 5 |
++					     cfg->timing_10_13);
++	ddr3_mask(ram, 0x10f2a0, 0x000f8000, cfg->timing_10_RRD << 15);
++
++	sync  = ddr3_mask(ram, 0x10f200, 0x00001000,
++			  !cfg->ramcfg_10_02_08 << 12);
++	sync |= ddr3_mask(ram, 0x10f604, 0xf1000000,
++			  (cfg->ramcfg_10_02_20 ? 0xf0000000 : 0) |
++			  (hs ? 0x01000000 : 0));
++	data = cfg->timing_10_24 << 28;
++	sync |= ddr3_mask(ram, 0x10f614, 0xf0000100,
++			  data | cfg->ramcfg_10_02_01 << 8);
++	sync |= ddr3_mask(ram, 0x10f610, 0xf0000100,
++			  data | cfg->ramcfg_10_02_02 << 8);
++	if (!hs)
++		data = cfg->ramcfg_10_02_10 ? 0x08000004 : 0x00000024;
++	else
++		data = cfg->ramcfg_10_02_10 ? 0x1e900000 : 0x16900000;
++	sync |= ddr3_mask(ram, 0x10f808, 0x1e900024, data);
++	if (sync)
++		gf100_ram_ddr3_sync(ram);
++
++	sync = false;
++	if (!hs)
++		sync |= ddr3_mask(ram, 0x1373ec, 0x00030000, 0x00000000);
++	sync |= ddr3_mask(ram, 0x1373f8, 0x00000001, hs ? 0 : 1);
++	ddr3_wr32(ram, 0x10f870, 0x11111111 * cfg->ramcfg_10_0d);
++	if (sync)
++		gf100_ram_ddr3_sync(ram);
++	ddr3_mask(ram, 0x100c00, 0x08000000, hs ? 0 : 0x08000000);
++
++	if (!cfg->ramcfg_DLLoff) {
++		gf100_ram_ddr3_dll_reset(ram);
++		ram_nsec(fuc, tdllk);
++	} else {
++		ram_nsec(fuc, tdllk + 1000);
++	}
++
++	if (hs_from && !hs) {
++		static const u32 seq[] = { 0x3cb, 0x6cb, 0x1cb, 0x3ca, 0x6ca, 0x1ca };
++		int i;
++
++		for (i = 0; i < ARRAY_SIZE(seq); i++)
++			ddr3_wr32(ram, 0x10f324, seq[i]);
++	}
++	ddr3_mask(ram, 0x10f830, 0x01000000, 0x01000000);
++	ddr3_mask(ram, 0x10f830, 0x01000000, 0x00000000);
++
++	ram_unblock(fuc);
++	gf100_ram_ddr3_sync(ram);
++	ddr3_wr32(ram, 0x100b0c, 0x00080028);
++	ddr3_wr32(ram, 0x611200, 0x00003330);
++	if (cfg->rammap_10_04_02)
++		ddr3_mask(ram, 0x10f200, 0x00000800, 0x00000800);
++	return 0;
++}
++
+ int
+ gf100_ram_calc(struct nvkm_ram *base, u32 freq)
+ {
+@@ -143,6 +506,9 @@ gf100_ram_calc(struct nvkm_ram *base, u32 freq)
+ 	int N1, M1, P;
+ 	int ret;
+ 
++	if (ram->base.type == NVKM_RAM_TYPE_DDR3)
++		return gf100_ram_calc_ddr3(ram, freq);
++
+ 	/* lookup memory config data relevant to the target frequency */
+ 	rammap.data = nvbios_rammapEm(bios, freq / 1000, &ver, &rammap.size,
+ 				      &cnt, &ramcfg.size, &cfg);
+@@ -603,6 +969,7 @@ gf100_ram_new_(const struct nvkm_ram_func *func,
+ 
+ 	ram->fuc.r_0x137390 = ramfuc_reg(0x137390);
+ 
++	ram->fuc.r_0x10f224 = ramfuc_reg(0x10f224);
+ 	ram->fuc.r_0x10f290 = ramfuc_reg(0x10f290);
+ 	ram->fuc.r_0x10f294 = ramfuc_reg(0x10f294);
+ 	ram->fuc.r_0x10f298 = ramfuc_reg(0x10f298);
+@@ -610,6 +977,9 @@ gf100_ram_new_(const struct nvkm_ram_func *func,
+ 	ram->fuc.r_0x10f2a0 = ramfuc_reg(0x10f2a0);
+ 
+ 	ram->fuc.r_0x10f300 = ramfuc_reg(0x10f300);
++	ram->fuc.r_0x10f304 = ramfuc_reg(0x10f304);
++	ram->fuc.r_0x10f320 = ramfuc_reg(0x10f320);
++	ram->fuc.r_0x10f324 = ramfuc_reg(0x10f324);
+ 	ram->fuc.r_0x10f338 = ramfuc_reg(0x10f338);
+ 	ram->fuc.r_0x10f340 = ramfuc_reg(0x10f340);
+ 	ram->fuc.r_0x10f344 = ramfuc_reg(0x10f344);
+@@ -619,18 +989,24 @@ gf100_ram_new_(const struct nvkm_ram_func *func,
+ 	ram->fuc.r_0x10f914 = ramfuc_reg(0x10f914);
+ 
+ 	ram->fuc.r_0x100b0c = ramfuc_reg(0x100b0c);
++	ram->fuc.r_0x100c00 = ramfuc_reg(0x100c00);
+ 	ram->fuc.r_0x10f050 = ramfuc_reg(0x10f050);
+ 	ram->fuc.r_0x10f090 = ramfuc_reg(0x10f090);
+ 	ram->fuc.r_0x10f200 = ramfuc_reg(0x10f200);
+ 	ram->fuc.r_0x10f210 = ramfuc_reg(0x10f210);
+ 	ram->fuc.r_0x10f310 = ramfuc_reg(0x10f310);
+ 	ram->fuc.r_0x10f314 = ramfuc_reg(0x10f314);
++	ram->fuc.r_0x10f604 = ramfuc_reg(0x10f604);
+ 	ram->fuc.r_0x10f610 = ramfuc_reg(0x10f610);
+ 	ram->fuc.r_0x10f614 = ramfuc_reg(0x10f614);
++	ram->fuc.r_0x10f658 = ramfuc_reg(0x10f658);
++	ram->fuc.r_0x10f660 = ramfuc_reg(0x10f660);
+ 	ram->fuc.r_0x10f800 = ramfuc_reg(0x10f800);
+ 	ram->fuc.r_0x10f808 = ramfuc_reg(0x10f808);
+ 	ram->fuc.r_0x10f824 = ramfuc_reg(0x10f824);
+ 	ram->fuc.r_0x10f830 = ramfuc_reg(0x10f830);
++	ram->fuc.r_0x10f870 = ramfuc_reg(0x10f870);
++	ram->fuc.r_0x10f874 = ramfuc_reg(0x10f874);
+ 	ram->fuc.r_0x10f988 = ramfuc_reg(0x10f988);
+ 	ram->fuc.r_0x10f98c = ramfuc_reg(0x10f98c);
+ 	ram->fuc.r_0x10f990 = ramfuc_reg(0x10f990);
+@@ -639,9 +1015,12 @@ gf100_ram_new_(const struct nvkm_ram_func *func,
+ 	ram->fuc.r_0x10f9b4 = ramfuc_reg(0x10f9b4);
+ 	ram->fuc.r_0x10fb04 = ramfuc_reg(0x10fb04);
+ 	ram->fuc.r_0x10fb08 = ramfuc_reg(0x10fb08);
++	ram->fuc.r_0x132018 = ramfuc_reg(0x132018);
+ 	ram->fuc.r_0x137300 = ramfuc_reg(0x137300);
+ 	ram->fuc.r_0x137310 = ramfuc_reg(0x137310);
+ 	ram->fuc.r_0x137360 = ramfuc_reg(0x137360);
++	ram->fuc.r_0x137370 = ramfuc_reg(0x137370);
++	ram->fuc.r_0x137380 = ramfuc_reg(0x137380);
+ 	ram->fuc.r_0x1373ec = ramfuc_reg(0x1373ec);
+ 	ram->fuc.r_0x1373f0 = ramfuc_reg(0x1373f0);
+ 	ram->fuc.r_0x1373f8 = ramfuc_reg(0x1373f8);
+@@ -649,6 +1028,7 @@ gf100_ram_new_(const struct nvkm_ram_func *func,
+ 	ram->fuc.r_0x61c140 = ramfuc_reg(0x61c140);
+ 	ram->fuc.r_0x611200 = ramfuc_reg(0x611200);
+ 
++	ram->fuc.r_0x13d834 = ramfuc_reg(0x13d834);
+ 	ram->fuc.r_0x13d8f4 = ramfuc_reg(0x13d8f4);
+ 	return 0;
+ }
+-- 
+2.55.0
+

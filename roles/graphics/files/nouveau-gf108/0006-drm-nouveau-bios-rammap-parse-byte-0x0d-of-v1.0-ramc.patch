@@ -1,0 +1,43 @@
+From 385b1e1caa517948da1591360ac2cba31529781f Mon Sep 17 00:00:00 2001
+From: Your_Name <you@example.org>
+Date: Fri, 9 Oct 2026 11:24:06 +0200
+Subject: [PATCH 6/7] drm/nouveau/bios/rammap: parse byte 0x0d of v1.0 ramcfg
+ entries
+
+Byte 0x0d of a version 0x10 ramcfg entry holds the nibble the NVIDIA
+driver repeats across 0x10f870, the value ramcfg_11_03_0f holds on
+Kepler. Parse it, as zero on entries too short to have it.
+
+Assisted-by: Claude:claude-opus-5-5
+---
+ include/nvkm/subdev/bios/ramcfg.h | 1 +
+ nvkm/subdev/bios/rammap.c         | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/include/nvkm/subdev/bios/ramcfg.h b/include/nvkm/subdev/bios/ramcfg.h
+index 153edf8..fcbb3b4 100644
+--- a/include/nvkm/subdev/bios/ramcfg.h
++++ b/include/nvkm/subdev/bios/ramcfg.h
+@@ -73,6 +73,7 @@ struct nvbios_ramcfg {
+ 			unsigned ramcfg_10_08:8;
+ 			unsigned ramcfg_10_09_0f:4;
+ 			unsigned ramcfg_10_09_f0:4;
++			unsigned ramcfg_10_0d:8;
+ 		};
+ 		struct {
+ 			unsigned ramcfg_11_01_01:1;
+diff --git a/nvkm/subdev/bios/rammap.c b/nvkm/subdev/bios/rammap.c
+index b57c370..a7e843d 100644
+--- a/nvkm/subdev/bios/rammap.c
++++ b/nvkm/subdev/bios/rammap.c
+@@ -213,6 +213,7 @@ nvbios_rammapSp(struct nvkm_bios *bios, u32 data,
+ 		p->ramcfg_10_08    = (nvbios_rd08(bios, data + 0x08) & 0xff) >> 0;
+ 		p->ramcfg_10_09_0f = (nvbios_rd08(bios, data + 0x09) & 0x0f) >> 0;
+ 		p->ramcfg_10_09_f0 = (nvbios_rd08(bios, data + 0x09) & 0xf0) >> 4;
++		p->ramcfg_10_0d    = *hdr > 0x0d ? nvbios_rd08(bios, data + 0x0d) : 0;
+ 		break;
+ 	case 0x11:
+ 		p->ramcfg_timing   =  nvbios_rd08(bios, data + 0x00);
+-- 
+2.55.0
+
