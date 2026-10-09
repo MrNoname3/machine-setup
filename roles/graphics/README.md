@@ -1,11 +1,40 @@
 # graphics — GPU fixes and tuning
 
-Two unrelated halves, split by OS family:
+Unrelated parts, split by host:
 
 - **Mint laptop** — NVIDIA GT 520M + Intel HD 3000 Optimus: suppress a phantom
   VGA output. Unchanged; see the notes at the bottom of `tasks/main.yml`.
+- **Mint desktop with an NVIDIA card** — the proprietary driver
+  (`graphics_nvidia_branch`) and, with `graphics_nvidia_vaapi`, hardware video
+  decoding for Chromium browsers; see [VA-API on the proprietary
+  driver](#va-api-on-the-proprietary-driver).
 - **Bazzite desktop** — Radeon RX 9070 XT (Navi 48, RDNA4): undervolt and power
-  profiles. Everything below is about that half.
+  profiles. Everything after that section is about that part.
+
+## VA-API on the proprietary driver
+
+Chromium-based browsers decode video in hardware only through VA-API, which the
+proprietary driver does not provide. `nvidia-vaapi-driver` implements it on top
+of NVDEC; its direct backend works with Chromium from version
+`graphics_nvidia_vaapi_version` on. Ubuntu 24.04 ships an older version, and
+Debian's newer packages need a newer GStreamer, so until the archive catches up
+the role builds `graphics_nvidia_vaapi_source` (a Debian source package, pinned
+by its `.dsc` checksum) in a throwaway Ubuntu container and installs it as
+`<version>~local1`.
+
+- **When the archive catches up**, the role installs the archive's package
+  instead and says that the local build can be removed.
+- **A newer upstream version**: point `graphics_nvidia_vaapi_source` at its
+  Debian source on snapshot.debian.org (the `.dsc` checksum included); the role
+  builds it on the next run.
+- **NVIDIA driver updates** can break the direct backend, which uses the kernel
+  module's internal interface. The role checks with `vainfo` on every run and
+  fails when VA-API no longer goes through `nvidia-vaapi-driver`.
+
+The browser needs flags as well (`brave_flags` in the host's vars), and ANGLE
+has to run on EGL (`--use-angle=gl-egl`): on GLX the decoded frames never reach
+the page. The card cannot decode AV1, so YouTube is steered to H.264 with the
+enhanced-h264ify extension.
 
 ---
 

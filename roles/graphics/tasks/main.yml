@@ -5,7 +5,8 @@
 #   Mint laptop     -- NVIDIA GT 520M (Fermi) + Intel HD 3000 Optimus: kill the
 #                      phantom VGA display.
 #   Mint desktop    -- the proprietary NVIDIA driver, where graphics_nvidia_branch
-#                      is set.
+#                      is set, and VA-API video decoding for Chromium browsers
+#                      on top of it (nvidia-vaapi.yml).
 #   Bazzite desktop -- Radeon RX 9070 XT (Navi 48 / RDNA4): undervolt and power
 #                      profiles. See README.md for how the numbers were measured.
 #
@@ -48,6 +49,13 @@
   when:
     - ansible_facts['os_family'] == "Debian"
     - graphics_nvidia_branch | length > 0
+
+- name: Hardware video decoding for Chromium browsers (nvidia-vaapi-driver)
+  ansible.builtin.include_tasks: nvidia-vaapi.yml
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - graphics_nvidia_branch | length > 0
+    - graphics_nvidia_vaapi | bool
 
 # --- Bazzite desktop: amdgpu tuning ----------------------------------------
 - name: Configure AMD GPU tuning profiles

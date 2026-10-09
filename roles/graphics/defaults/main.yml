@@ -7,6 +7,24 @@ graphics_disable_vga: false
 # Empty leaves the GPU to the open drivers.
 graphics_nvidia_branch: ""
 
+# Install nvidia-vaapi-driver on such a host, for hardware video decoding in
+# Chromium-based browsers (see tasks/nvidia-vaapi.yml).
+graphics_nvidia_vaapi: false
+
+# The oldest nvidia-vaapi-driver whose direct backend works with Chromium. The
+# archive's package is used once it reaches this version, otherwise the role
+# builds graphics_nvidia_vaapi_source.
+graphics_nvidia_vaapi_version: "0.0.18"
+graphics_nvidia_vaapi_source:
+  version: 0.0.18-1
+  url: https://snapshot.debian.org/archive/debian/20260914T202600Z/pool/main/n/nvidia-vaapi-driver
+  dsc: nvidia-vaapi-driver_0.0.18-1.dsc
+  sha256: 95493127dab161ca6c0c9490cfa05fba6a2ecf216ca07612f87f17a75bb86613
+
+# The Ubuntu release the host's Mint is based on, which the build runs in.
+graphics_nvidia_vaapi_build_image: docker.io/library/ubuntu:24.04
+graphics_nvidia_vaapi_cache: /var/cache/nvidia-vaapi-driver
+
 # AMD GPU tuning (Bazzite / amdgpu). Empty default = the role does no GPU tuning
 # unless the host defines profiles; see host_vars/desktop-bazzite/main.yml.
 #

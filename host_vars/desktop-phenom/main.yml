@@ -41,6 +41,20 @@ ssh_authorized_key_file: phenom.pub
 # The GT 1030 (Pascal) is supported by the 580 branch, not by the open kernel
 # modules.
 graphics_nvidia_branch: "580"
+graphics_nvidia_vaapi: true
+
+# Brave decodes video on the GT 1030 through VA-API (graphics_nvidia_vaapi).
+# ANGLE has to run on EGL: on GLX the decoded frames never reach the page.
+brave_flags:
+  - "--enable-features=AcceleratedVideoDecodeLinuxGL,VaapiOnNvidiaGPUs"
+  - "--ignore-gpu-blocklist"
+  - "--use-gl=angle"
+  - "--use-angle=gl-egl"
+brave_policies_extra:
+  # enhanced-h264ify: YouTube sends H.264, which the GT 1030 decodes, instead
+  # of AV1, which neither the card nor this CPU can decode in time.
+  ExtensionInstallForcelist:
+    - omkfmpieigblcllmkgbflkikinpkodlk
 
 # Brave's Memory Saver on, at its "Moderate" savings level.
 brave_local_state_prefs_extra:

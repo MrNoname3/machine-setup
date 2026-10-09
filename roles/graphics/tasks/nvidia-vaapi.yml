@@ -1,0 +1,117 @@
+---
+# nvidia-vaapi-driver: VA-API on top of NVDEC, the only way Chromium-based
+# browsers decode video in hardware on the proprietary driver. The archive's
+# package is used once it reaches graphics_nvidia_vaapi_version; until then the
+# role builds that version from Debian's source in a throwaway container.
+
+- name: Look up the archive's nvidia-vaapi-driver versions
+  ansible.builtin.command: apt-cache madison nvidia-vaapi-driver
+  register: nvidia_vaapi_madison
+  changed_when: false
+  check_mode: false
+
+- name: Decide between the archive's package and a local build
+  ansible.builtin.set_fact:
+    nvidia_vaapi_archive_ok: >-
+      {{ nvidia_vaapi_madison.stdout_lines
+         | map('split', '|') | map(attribute=1) | map('trim')
+         | map('regex_replace', '-[^-]*$', '')
+         | select('version', graphics_nvidia_vaapi_version, '>=')
+         | list | length > 0 }}
+
+- name: Install nvidia-vaapi-driver from the archive
+  ansible.builtin.apt:
+    name: nvidia-vaapi-driver
+    state: latest  # noqa: package-latest -- replaces the local build
+  when: nvidia_vaapi_archive_ok | bool
+
+- name: Report that the local nvidia-vaapi-driver build is no longer needed
+  ansible.builtin.debug:
+    msg: >-
+      The archive now ships nvidia-vaapi-driver {{ graphics_nvidia_vaapi_version }}
+      or later, so the role installed that. The local build
+      (roles/graphics/tasks/nvidia-vaapi.yml, build-nvidia-vaapi-driver.sh and
+      the graphics_nvidia_vaapi_source variable) can be removed.
+  when: nvidia_vaapi_archive_ok | bool
+
+- name: Build and install nvidia-vaapi-driver from Debian's source
+  when: not (nvidia_vaapi_archive_ok | bool)
+  vars:
+    nvidia_vaapi_deb: >-
+      {{ graphics_nvidia_vaapi_cache }}/nvidia-vaapi-driver_{{
+         graphics_nvidia_vaapi_source.version }}~local1_amd64.deb
+  block:
+    - name: Install Podman for the build container
+      ansible.builtin.apt:
+        name: podman
+        state: present
+
+    - name: Ensure the build directory exists
+      ansible.builtin.file:
+        path: "{{ graphics_nvidia_vaapi_cache }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy the build script
+      ansible.builtin.copy:
+        src: build-nvidia-vaapi-driver.sh
+        dest: "{{ graphics_nvidia_vaapi_cache }}/build.sh"
+        mode: "0755"
+
+    - name: Build nvidia-vaapi-driver in a container (once per version)
+      ansible.builtin.command:
+        argv:
+          - podman
+          - run
+          - --rm
+          - --volume={{ graphics_nvidia_vaapi_cache }}:/out
+          - "{{ graphics_nvidia_vaapi_build_image }}"
+          - bash
+          - /out/build.sh
+          - "{{ graphics_nvidia_vaapi_source.url }}"
+          - "{{ graphics_nvidia_vaapi_source.dsc }}"
+          - "{{ graphics_nvidia_vaapi_source.sha256 }}"
+        creates: "{{ nvidia_vaapi_deb }}"
+
+    - name: Install the locally built nvidia-vaapi-driver
+      ansible.builtin.apt:
+        deb: "{{ nvidia_vaapi_deb }}"
+
+# The direct backend talks to the NVIDIA kernel module through its internal
+# interface, so a driver update can break it; this catches that.
+- name: Install vainfo
+  ansible.builtin.apt:
+    name: vainfo
+    state: present
+
+- name: Find the NVIDIA render node
+  ansible.builtin.shell: |
+    for node in /sys/class/drm/renderD*; do
+      [ "$(basename "$(readlink -f "$node/device/driver")")" = nvidia ] && echo "/dev/dri/${node##*/}" && break
+    done
+  register: nvidia_vaapi_node
+  changed_when: false
+  check_mode: false
+
+- name: Query VA-API on the NVIDIA GPU
+  ansible.builtin.command:
+    argv: [vainfo, --display, drm, --device, "{{ nvidia_vaapi_node.stdout }}"]
+  register: nvidia_vaapi_vainfo
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: nvidia_vaapi_node.stdout | length > 0
+
+- name: Require VA-API to decode through nvidia-vaapi-driver
+  ansible.builtin.assert:
+    that:
+      - nvidia_vaapi_node.stdout | length > 0
+      - "'VA-API NVDEC driver' in nvidia_vaapi_vainfo.stdout"
+      - "'VAProfileH264High' in nvidia_vaapi_vainfo.stdout"
+    fail_msg: >-
+      VA-API does not decode through nvidia-vaapi-driver
+      ({{ nvidia_vaapi_vainfo.stdout_lines | default([]) | select('search', 'Driver version|error|failed') | join('; ')
+          | default('no NVIDIA render node', true) }}). After an NVIDIA driver
+      update this usually means a newer nvidia-vaapi-driver is needed.
+    quiet: true
+  when: not ansible_check_mode
