@@ -64,6 +64,34 @@
         group: root
         mode: preserve
 
+    - name: Find the patches installed earlier
+      ansible.builtin.find:
+        paths: /usr/local/share/nouveau-gf108
+        patterns: "0*.patch"
+      register: nouveau_gf108_installed
+
+    # prepare.sh applies every 0*.patch it finds beside itself.
+    - name: Remove patches the role no longer ships
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ nouveau_gf108_installed.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      when: >-
+        item.path | basename not in
+        lookup('ansible.builtin.fileglob', 'nouveau-gf108/0*.patch', wantlist=True) | map('basename')
+
+    - name: Read the patch set's digest
+      ansible.builtin.shell: >-
+        set -o pipefail &&
+        cat /usr/local/share/nouveau-gf108/0*.patch | sha256sum | cut -c1-8
+      args:
+        executable: /bin/bash
+      register: nouveau_gf108_digest
+      changed_when: false
+      check_mode: false
+
     - name: Read the running kernel's source version
       ansible.builtin.command: >-
         dpkg-query -W -f='${source:Version}' linux-modules-{{ ansible_facts['kernel'] }}
@@ -73,7 +101,36 @@
 
     - name: Name the DKMS module version
       ansible.builtin.set_fact:
-        nouveau_gf108_dkms: "nouveau-gf108/{{ nouveau_gf108_srcver.stdout | replace('~', '-') }}"
+        nouveau_gf108_base: "nouveau-gf108/{{ nouveau_gf108_srcver.stdout | replace('~', '-') }}"
+        nouveau_gf108_dkms: >-
+          nouveau-gf108/{{ nouveau_gf108_srcver.stdout | replace('~', '-') }}-{{ nouveau_gf108_digest.stdout }}
+
+    - name: List the versions DKMS has
+      ansible.builtin.command: dkms status nouveau-gf108
+      register: nouveau_gf108_versions
+      changed_when: false
+      check_mode: false
+
+    # The same kernel source with another patch set; other series keep theirs.
+    - name: Pick the builds of other patch sets
+      ansible.builtin.set_fact:
+        nouveau_gf108_stale: >-
+          {{ nouveau_gf108_versions.stdout_lines
+             | map('regex_replace', '^(nouveau-gf108/[^,:]+).*$', '\\1') | unique
+             | select('match', '^' ~ (nouveau_gf108_base | regex_escape) ~ '(-[0-9a-f]{8})?$')
+             | reject('equalto', nouveau_gf108_dkms) | list }}
+
+    - name: Remove the builds of other patch sets
+      ansible.builtin.command: dkms remove {{ item }} --all
+      loop: "{{ nouveau_gf108_stale }}"
+      changed_when: true
+      notify: Update initramfs
+
+    - name: Remove the source trees of other patch sets
+      ansible.builtin.file:
+        path: "/usr/src/{{ item | replace('/', '-') }}"
+        state: absent
+      loop: "{{ nouveau_gf108_stale }}"
 
     - name: Prepare the DKMS source tree
       ansible.builtin.command: >-

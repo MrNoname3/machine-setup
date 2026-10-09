@@ -1,0 +1,84 @@
+From d068463d195d7bbd1356fc79eb5e806d6c617c73 Mon Sep 17 00:00:00 2001
+From: MrNoname3 <26522650+MrNoname3@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 11:35:05 +0200
+Subject: [PATCH] drm/nouveau/clk/gf100: reclock the GF108
+
+Enable reclocking on the GF108, whose clocks and DDR3 the series
+computes from the VBIOS, and when going up, change core clocks and
+voltage before the memory clock, as the NVIDIA driver does. A local
+patch for the graphics role, not part of the upstream series.
+---
+ include/nvkm/subdev/clk.h | 2 ++
+ nvkm/subdev/clk/base.c    | 9 +++++++++
+ nvkm/subdev/clk/gf100.c   | 5 ++++-
+ 3 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/include/nvkm/subdev/clk.h b/include/nvkm/subdev/clk.h
+index 527a3cc..063c696 100644
+--- a/include/nvkm/subdev/clk.h
++++ b/include/nvkm/subdev/clk.h
+@@ -105,6 +105,8 @@ struct nvkm_clk {
+ 	u8  temp;
+ 
+ 	bool allow_reclock;
++	/* Going up, change core clocks and voltage before memory clocks. */
++	bool cstate_first_up;
+ #define NVKM_CLK_BOOST_NONE 0x0
+ #define NVKM_CLK_BOOST_BIOS 0x1
+ #define NVKM_CLK_BOOST_FULL 0x2
+diff --git a/nvkm/subdev/clk/base.c b/nvkm/subdev/clk/base.c
+index b39719b..8ab32b5 100644
+--- a/nvkm/subdev/clk/base.c
++++ b/nvkm/subdev/clk/base.c
+@@ -271,6 +271,7 @@ nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
+ 	struct nvkm_pci *pci = subdev->device->pci;
+ 	struct nvkm_pstate *pstate;
+ 	int ret, idx = 0;
++	bool cstate_first = clk->cstate_first_up && pstatei > clk->pstate;
+ 
+ 	list_for_each_entry(pstate, &clk->states, head) {
+ 		if (idx++ == pstatei)
+@@ -282,6 +283,12 @@ nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
+ 
+ 	nvkm_pcie_set_link(pci, pstate->pcie_speed, pstate->pcie_width);
+ 
++	if (cstate_first) {
++		ret = nvkm_cstate_prog(clk, pstate, NVKM_CLK_CSTATE_HIGHEST);
++		if (ret)
++			return ret;
++	}
++
+ 	if (fb && fb->ram && fb->ram->func->calc) {
+ 		struct nvkm_ram *ram = fb->ram;
+ 		int khz = pstate->base.domain[nv_clk_src_mem];
+@@ -293,6 +300,8 @@ nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
+ 		ram->func->tidy(ram);
+ 	}
+ 
++	if (cstate_first)
++		return 0;
+ 	return nvkm_cstate_prog(clk, pstate, NVKM_CLK_CSTATE_HIGHEST);
+ }
+ 
+diff --git a/nvkm/subdev/clk/gf100.c b/nvkm/subdev/clk/gf100.c
+index a1ac77e..195665d 100644
+--- a/nvkm/subdev/clk/gf100.c
++++ b/nvkm/subdev/clk/gf100.c
+@@ -563,10 +563,13 @@ gf100_clk_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+ 	      struct nvkm_clk **pclk)
+ {
+ 	struct gf100_clk *clk;
++	/* the GF108 reclocks with the VBIOS-driven clock and DDR3 code */
++	bool reclock = device->chipset == 0xc1;
+ 
+ 	if (!(clk = kzalloc_obj(*clk)))
+ 		return -ENOMEM;
+ 	*pclk = &clk->base;
++	clk->base.cstate_first_up = reclock;
+ 
+-	return nvkm_clk_ctor(&gf100_clk, device, type, inst, false, &clk->base);
++	return nvkm_clk_ctor(&gf100_clk, device, type, inst, reclock, &clk->base);
+ }
+-- 
+2.55.0
+

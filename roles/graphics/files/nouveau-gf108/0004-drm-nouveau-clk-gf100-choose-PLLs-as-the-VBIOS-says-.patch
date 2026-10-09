@@ -1,0 +1,205 @@
+From 89fad395847946a87698c7fad9d9b2eebd1d1e6f Mon Sep 17 00:00:00 2001
+From: Your_Name <you@example.org>
+Date: Thu, 8 Oct 2026 23:02:03 +0200
+Subject: [PATCH 4/4] drm/nouveau/clk/gf100: choose PLLs as the VBIOS says, and
+ share them safely
+
+calc_clk() used a PLL only where dividers fell short, and gave the
+domains above 7 the shared PLL 0x1370e0 at domain 7's target frequency,
+whether domain 7 ran from that PLL or not. prog_2 then switched the PLL
+off with domain 7 on a divider, and the domains still selecting it lost
+their clock: a GF108 hung at its highest level.
+
+Follow the VBIOS flags instead: a domain marked for a PLL gets one, a
+domain kept off a PLL of its own runs from dividers or, above domain 6,
+from domain 2's PLL through input 7 of its source select, whichever is
+closer. Domains above 6 now get their source written as well, with the
+slower of the old and new dividers held while it changes; a borrowed
+source is set only once the PLLs run, and no PLL is switched off while
+another domain still uses it. Domains without flags keep the old choice.
+
+On a GF108 (GeForce GT 520M) the three performance levels now come out
+at the shader, domain 7 and domain 8 clocks the NVIDIA driver sets, as
+the GPU's clock counters measure them.
+
+Assisted-by: Claude:claude-opus-5-5
+---
+ nvkm/subdev/clk/gf100.c | 104 +++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 92 insertions(+), 12 deletions(-)
+
+diff --git a/nvkm/subdev/clk/gf100.c b/nvkm/subdev/clk/gf100.c
+index acd0a2e..a1ac77e 100644
+--- a/nvkm/subdev/clk/gf100.c
++++ b/nvkm/subdev/clk/gf100.c
+@@ -36,6 +36,8 @@ struct gf100_clk_info {
+ 	u32 dsrc;
+ 	u32 ddiv;
+ 	u32 coef;
++	u32 pll;	/* output of the domain's own PLL, when calc_pll found one */
++	bool borrow;	/* runs from domain 2's PLL through its source select */
+ };
+ 
+ struct gf100_clk {
+@@ -286,9 +288,11 @@ static int
+ calc_clk(struct gf100_clk *clk, struct nvkm_cstate *cstate, int idx, int dom)
+ {
+ 	struct gf100_clk_info *info = &clk->eng[idx];
++	const struct gf100_clk_info *dom2 = &clk->eng[2];
+ 	u32 freq = cstate->domain[dom];
+-	u32 src0, div0, div1D, div1P = 0;
+-	u32 clk0, clk1 = 0;
++	u8 flags = cstate->domain_flags[dom];
++	u32 src0, div0, div1D, div1P = 0, div2 = 0;
++	u32 clk0, clk1 = 0, clk2 = 0;
+ 
+ 	/* invalid clock domain */
+ 	if (!freq)
+@@ -298,17 +302,46 @@ calc_clk(struct gf100_clk *clk, struct nvkm_cstate *cstate, int idx, int dom)
+ 	clk0 = calc_src(clk, idx, freq, &src0, &div0);
+ 	clk0 = calc_div(clk, idx, clk0, freq, &div1D);
+ 
+-	/* see if we can get any closer using PLLs */
+-	if (clk0 != freq && (0x00004387 & (1 << idx))) {
+-		if (idx <= 7)
+-			clk1 = calc_pll(clk, idx, freq, &info->coef);
+-		else
+-			clk1 = cstate->domain[nv_clk_src_hubk06];
+-		clk1 = calc_div(clk, idx, clk1, freq, &div1P);
++	/* a PLL where the VBIOS asks for one, or where it leaves the choice
++	 * open and the dividers fall short; domains above 7 share domain 7's
++	 */
++	if (!(flags & NVKM_CSTATE_DOM_NO_PLL) &&
++	    ((flags & NVKM_CSTATE_DOM_PLL) || clk0 != freq) &&
++	    (0x00004387 & (1 << idx))) {
++		if (idx <= 7) {
++			info->pll = calc_pll(clk, idx, freq, &info->coef);
++			clk1 = info->pll;
++		} else if (clk->eng[7].ssel) {
++			clk1 = clk->eng[7].pll;
++		}
++		if (clk1)
++			clk1 = calc_div(clk, idx, clk1, freq, &div1P);
+ 	}
+ 
+-	/* select the method which gets closest to target freq */
+-	if (abs((int)freq - clk0) <= abs((int)freq - clk1)) {
++	/* a domain the VBIOS keeps off a PLL of its own may still run from
++	 * domain 2's, through input 7 of its source select
++	 */
++	if ((flags & NVKM_CSTATE_DOM_NO_PLL) && idx >= 7 && dom2->ssel)
++		clk2 = calc_div(clk, idx, dom2->pll, freq, &div2);
++
++	if (clk2 && abs((int)freq - clk2) < abs((int)freq - clk0)) {
++		info->dsrc = 0x07000002;
++		if (div2) {
++			info->mdiv |= 0x80000000;
++			info->mdiv |= div2;
++		}
++		info->ssel = 0;
++		info->coef = 0;
++		info->borrow = true;
++		info->freq = clk2;
++		return 0;
++	}
++
++	/* select the method which gets closest to target freq, or the PLL
++	 * the VBIOS asks for
++	 */
++	if (!clk1 || (!(flags & NVKM_CSTATE_DOM_PLL) &&
++		      abs((int)freq - clk0) <= abs((int)freq - clk1))) {
+ 		info->dsrc = src0;
+ 		if (div0) {
+ 			info->ddiv |= 0x80000000;
+@@ -352,14 +385,36 @@ gf100_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
+ 	return 0;
+ }
+ 
++/* Domains above 6 divide only after their source: the slower of the old and
++ * new divider holds while the source changes.
++ */
++static void
++gf100_clk_prog_src(struct gf100_clk *clk, int idx)
++{
++	struct gf100_clk_info *info = &clk->eng[idx];
++	struct nvkm_device *device = clk->base.subdev.device;
++	const u32 dsrc = 0x137160 + (idx * 0x04);
++	const u32 mdiv = 0x137250 + (idx * 0x04);
++
++	if (nvkm_rd32(device, dsrc) == info->dsrc)
++		return;
++	if ((nvkm_rd32(device, mdiv) & 0x3f) < (info->mdiv & 0x3f))
++		nvkm_mask(device, mdiv, 0x0000003f, info->mdiv);
++	nvkm_wr32(device, dsrc, info->dsrc);
++}
++
+ static void
+ gf100_clk_prog_0(struct gf100_clk *clk, int idx)
+ {
+ 	struct gf100_clk_info *info = &clk->eng[idx];
+ 	struct nvkm_device *device = clk->base.subdev.device;
+-	if (idx < 7 && !info->ssel) {
++	if (info->ssel || info->borrow)
++		return;
++	if (idx < 7) {
+ 		nvkm_mask(device, 0x1371d0 + (idx * 0x04), 0x80003f3f, info->ddiv);
+ 		nvkm_wr32(device, 0x137160 + (idx * 0x04), info->dsrc);
++	} else {
++		gf100_clk_prog_src(clk, idx);
+ 	}
+ }
+ 
+@@ -374,12 +429,29 @@ gf100_clk_prog_1(struct gf100_clk *clk, int idx)
+ 	);
+ }
+ 
++/* Whether another domain runs from domain idx's PLL after this change. */
++static bool
++gf100_clk_pll_shared(struct gf100_clk *clk, int idx)
++{
++	int i;
++
++	for (i = 0; i < ARRAY_SIZE(clk->eng); i++) {
++		if (idx == 7 && i > 7 && clk->eng[i].ssel)
++			return true;
++		if (idx == 2 && clk->eng[i].borrow)
++			return true;
++	}
++	return false;
++}
++
+ static void
+ gf100_clk_prog_2(struct gf100_clk *clk, int idx)
+ {
+ 	struct gf100_clk_info *info = &clk->eng[idx];
+ 	struct nvkm_device *device = clk->base.subdev.device;
+ 	const u32 addr = 0x137000 + (idx * 0x20);
++	if (!info->coef && gf100_clk_pll_shared(clk, idx))
++		return;
+ 	if (idx <= 7) {
+ 		nvkm_mask(device, addr + 0x00, 0x00000004, 0x00000000);
+ 		nvkm_mask(device, addr + 0x00, 0x00000001, 0x00000000);
+@@ -400,6 +472,13 @@ gf100_clk_prog_2(struct gf100_clk *clk, int idx)
+ 	}
+ }
+ 
++static void
++gf100_clk_prog_borrow(struct gf100_clk *clk, int idx)
++{
++	if (clk->eng[idx].borrow)
++		gf100_clk_prog_src(clk, idx);
++}
++
+ static void
+ gf100_clk_prog_3(struct gf100_clk *clk, int idx)
+ {
+@@ -433,6 +512,7 @@ gf100_clk_prog(struct nvkm_clk *base)
+ 		{ gf100_clk_prog_0 }, /* div programming */
+ 		{ gf100_clk_prog_1 }, /* select div mode */
+ 		{ gf100_clk_prog_2 }, /* (maybe) program pll */
++		{ gf100_clk_prog_borrow }, /* (maybe) borrow domain 2's pll */
+ 		{ gf100_clk_prog_3 }, /* (maybe) select pll mode */
+ 		{ gf100_clk_prog_4 }, /* final divider */
+ 	};
+-- 
+2.55.0
+

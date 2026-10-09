@@ -13,19 +13,21 @@ that do the same for the GF108 in the Acer Aspire 5750G (PCI subsystem
 
 ## The patches
 
-[0001](../../../roles/graphics/files/nouveau-gf108/0001-clk-gf100-reclock-the-gf108-in-the-aspire-5750g.patch)
-and
-[0002](../../../roles/graphics/files/nouveau-gf108/0002-fb-gf100-ddr3-scripts-for-the-gf108-in-the-aspire-5750g.patch),
-applied with `patch -p1` inside `drivers/gpu/drm/nouveau`, are kept with the
-graphics role that installs them; [5.15/](5.15/) has them for Ubuntu's 5.15
-kernel, which the live system runs. Both act on that one board only; every
-other GF100-family GPU keeps reclocking disabled, as upstream has it.
+The graphics role builds nouveau with the patches in
+[roles/graphics/files/nouveau-gf108](../../../roles/graphics/files/nouveau-gf108),
+applied with `patch -p1` inside `drivers/gpu/drm/nouveau` of kernel 7.0:
 
-- 0001 enables reclocking and programs the clock block to the 390 driver's
-  state for each level. Going up, core clocks and voltage change before memory,
-  as the 390 driver orders it.
-- 0002 changes memory clocks by running the 390 driver's DDR3 scripts through
-  nouveau's PMU script engine (memx).
+- 0001–0007, the [upstream series](#upstream-series), compute the core
+  clocks and the DDR3 settings from the VBIOS;
+- 0008, kept out of that series, enables reclocking on the GF108 (chipset
+  `C1`) and, going up, changes core clocks and voltage before memory, as the
+  390 driver orders it.
+
+Every other GF100-family GPU keeps reclocking disabled, as upstream has it.
+[5.15/](5.15/) holds the earlier, board-specific pair for Ubuntu's 5.15 kernel,
+which the live system runs: they program the 390 driver's recorded clock
+registers and replay its four DDR3 scripts, on the Aspire 5750G (subsystem
+`1025:0505`) only.
 
 On the installed system the graphics role builds them through DKMS:
 [prepare.sh](../../../roles/graphics/files/nouveau-gf108/prepare.sh) takes

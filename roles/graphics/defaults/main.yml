@@ -29,8 +29,8 @@ amdgpu_enable_overdrive: true
 
 # GT 520M reclocking (Mint laptop): nouveau rebuilt through DKMS with the patches
 # in files/nouveau-gf108 (how they were made: tools/mmiotrace-live/gf108). They
-# reclock only the GF108 they were recorded on; every other GPU keeps stock
-# behaviour even with this on.
+# compute clocks and DDR3 settings from the VBIOS and enable reclocking on the
+# GF108 only; every other GPU keeps stock behaviour even with this on.
 nouveau_gf108_reclock: false
 
 # The pstate nouveau sets when it loads and after every runtime resume, as its

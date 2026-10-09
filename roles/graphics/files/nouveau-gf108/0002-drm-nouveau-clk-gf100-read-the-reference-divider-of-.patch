@@ -1,0 +1,58 @@
+From 76553821e7c1f1f85dd0f526f530e74c3a545178 Mon Sep 17 00:00:00 2001
+From: Your_Name <you@example.org>
+Date: Thu, 8 Oct 2026 23:02:03 +0200
+Subject: [PATCH 2/4] drm/nouveau/clk/gf100: read the reference divider of PLL
+ 7 and select input 2
+
+read_div() skipped the divider in front of a source for every domain
+above 2, though domain 7 has one (0x13715c for its PLL's reference,
+0x1371ec for its own divider). On a GF108 that divides SPPLL1's
+1620 MHz down to the 405 MHz the VBIOS gives as the PLL's reference;
+skipped, the 1070 MHz domain 7 runs at read as 4281 MHz.
+
+A source select of 2 is not always the 100 MHz reference: bits 24-26
+pick among several inputs. Measured on a GF108 with the GPU's clock
+counters, 0 is 100 MHz, 1 is 277 MHz and 7 is the output of PLL
+0x137040 (domain 2's), which the NVIDIA driver feeds domain 8 from at
+the highest performance level.
+
+Assisted-by: Claude:claude-opus-5-5
+---
+ nvkm/subdev/clk/gf100.c | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/nvkm/subdev/clk/gf100.c b/nvkm/subdev/clk/gf100.c
+index 163c1b2..90045b1 100644
+--- a/nvkm/subdev/clk/gf100.c
++++ b/nvkm/subdev/clk/gf100.c
+@@ -107,12 +107,24 @@ read_div(struct gf100_clk *clk, int doff, u32 dsrc, u32 dctl)
+ 			return device->crystal;
+ 		return 108000;
+ 	case 2:
+-		return 100000;
++		/* the source select's second input, in bits 24-26 */
++		switch ((ssrc & 0x07000000) >> 24) {
++		case 0:
++			return 100000;
++		case 1:
++			return 277000;
++		case 7:
++			return read_pll(clk, 0x137040);
++		default:
++			return 0;
++		}
+ 	case 3:
+ 		sclk = read_vco(clk, dsrc + (doff * 4));
+ 
+-		/* Memclk has doff of 0 despite its alt. location */
+-		if (doff <= 2) {
++		/* Memclk has doff of 0 despite its alt. location; of the
++		 * other domains, 0 to 2 and 7 have this divider.
++		 */
++		if (doff <= 2 || doff == 7) {
+ 			sctl = nvkm_rd32(device, dctl + (doff * 4));
+ 
+ 			if (sctl & 0x80000000) {
+-- 
+2.55.0
+

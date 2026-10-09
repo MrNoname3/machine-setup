@@ -1,0 +1,39 @@
+From 1da20eabf99615a9a88c249108d64edfc831cc3f Mon Sep 17 00:00:00 2001
+From: Your_Name <you@example.org>
+Date: Thu, 8 Oct 2026 23:02:03 +0200
+Subject: [PATCH 3/4] drm/nouveau/clk/gf100: leave bit 4 of the PLL control
+ clear after locking
+
+After the lock test, prog_2 set bit 4 of the PLL control again. On a
+GF108 that leaves the core PLL (0x137000) bypassed: the shader clock
+drops to the 27 MHz crystal while the PLL reports itself locked to
+1341 MHz, and clearing the bit brings the clock back. The NVIDIA driver
+never sets it.
+
+Assisted-by: Claude:claude-opus-5-5
+---
+ nvkm/subdev/clk/gf100.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/nvkm/subdev/clk/gf100.c b/nvkm/subdev/clk/gf100.c
+index 90045b1..acd0a2e 100644
+--- a/nvkm/subdev/clk/gf100.c
++++ b/nvkm/subdev/clk/gf100.c
+@@ -387,13 +387,12 @@ gf100_clk_prog_2(struct gf100_clk *clk, int idx)
+ 			nvkm_wr32(device, addr + 0x04, info->coef);
+ 			nvkm_mask(device, addr + 0x00, 0x00000001, 0x00000001);
+ 
+-			/* Test PLL lock */
++			/* Test PLL lock; bit 4 set again would bypass the PLL */
+ 			nvkm_mask(device, addr + 0x00, 0x00000010, 0x00000000);
+ 			nvkm_msec(device, 2000,
+ 				if (nvkm_rd32(device, addr + 0x00) & 0x00020000)
+ 					break;
+ 			);
+-			nvkm_mask(device, addr + 0x00, 0x00000010, 0x00000010);
+ 
+ 			/* Enable sync mode */
+ 			nvkm_mask(device, addr + 0x00, 0x00000004, 0x00000004);
+-- 
+2.55.0
+

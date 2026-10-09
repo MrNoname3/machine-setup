@@ -5,7 +5,9 @@
 # Builds the DKMS source tree for nouveau with the GF108 patches: the nouveau
 # directory of the Ubuntu source package the kernel's modules were built from,
 # with the patches beside this script applied. Prints the tree's directory,
-# <dkms-source-root>/nouveau-gf108-<version>; an existing one is kept.
+# <dkms-source-root>/nouveau-gf108-<version>; an existing one is kept. The
+# version is the source package's, then the first 8 hex digits of the patches'
+# SHA-256, so a changed patch set builds a new tree.
 #
 # The source is fetched from the Ubuntu archive and checked along its signed
 # chain: InRelease against the archive keyring, Sources against InRelease, the
@@ -44,7 +46,8 @@ fi
 [ -n "$CODENAME" ] || die "cannot tell the Ubuntu release"
 
 # A DKMS version may not contain '~'.
-DEST=$ROOT/nouveau-gf108-${SRCVER//\~/-}
+DKMSVER=${SRCVER//\~/-}-$(cat "$HERE"/0*.patch | sha256sum | cut -c1-8)
+DEST=$ROOT/nouveau-gf108-$DKMSVER
 if [ -f "$DEST/dkms.conf" ]; then
   echo "$DEST"
   exit 0
@@ -109,7 +112,7 @@ for p in "$HERE"/0*.patch; do
   (cd "$DEST.part" && patch -p1 -s --no-backup-if-mismatch <"$p") || die "does not apply: ${p##*/}"
 done
 series=$(echo "$SRCVER" | cut -d. -f1-2)
-sed -e "s/@VERSION@/${SRCVER//\~/-}/" -e "s/@SERIES@/${series//./\\\\.}/" \
+sed -e "s/@VERSION@/$DKMSVER/" -e "s/@SERIES@/${series//./\\\\.}/" \
   "$HERE/dkms.conf.in" >"$DEST.part/dkms.conf"
 mv "$DEST.part" "$DEST"
 echo "$DEST"
