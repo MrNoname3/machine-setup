@@ -108,9 +108,15 @@ its arguments, which 0002 turns into memx commands:
 | `00`, `01`, `15` | value; address; mask, timeout | wait for `(reg & mask) == value` | `WAIT` |
 | `20` | 1 or 0 | block, unblock the GPU's memory traffic | `ENTER`, `LEAVE` |
 | `14` | head, timeout | wait for a display head | `VBLANK` |
-| `3a` | count | follows a write to `0x13d834`; the count is the writes to `0x10f600`–`0x10f8ff` since the last one | a delay, 10 µs per write |
-| `34` | `0x0a`, `0x0b` | brackets the blocked part; not identified | dropped |
+| `3a` | count | waits count × 250 ns of PTIMER (the factor is set by opcode `39`); follows a write to `0x13d834`, and the count is the writes to `0x10f600`–`0x10f8ff` since the last one | a delay, 10 µs per write |
+| `34` | slot | stores PTIMER's low word in a timestamp slot: `0x0a` and `0x0b` time the blocked part | dropped |
 | `16` | – | end | – |
+
+The meanings come from the PMU's own interpreter, read out of the running
+firmware (see [Reading a falcon's firmware](../README.md#reading-a-falcons-firmware)):
+a jump table in data memory sends each opcode to its handler, and `3a` reaches
+a second-level one, which multiplies its argument by a factor in data memory.
+The firmware reads register 0 before every `2e` delay.
 
 The scripts are identical each time they run, and DDR3-specific: mode register
 writes through `0x10f300`/`0x10f320`, timings in `0x10f224` and
@@ -290,8 +296,7 @@ without trouble.
 
 Still open:
 
-- Opcode `0x34` of the memory scripts, and what `0x13d834` and the `0x3a`
-  wait do.
+- What `0x13d834` does, which every `0x3a` wait follows.
 - Which ramcfg flag each high-speed register follows, and the meaning of those
   bits.
 - Traces from other GF108 and GF119 boards, which the live ISO and
