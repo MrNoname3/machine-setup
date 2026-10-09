@@ -143,6 +143,41 @@ pinned commit, as root in a throwaway container; nouveau exposes the GPU's
 VBIOS as `/sys/kernel/debug/dri/<n>/vbios.rom`. A VBIOS is the board maker's
 firmware, so it stays out of the repository.
 
+## Reading a falcon's firmware
+
+The GPU's falcon microcontrollers, among them the PMU at `0x10a000`, run code
+the driver loads at runtime, and on Fermi nothing hides it from the host. What
+a trace shows of them is only what the driver uploads; what a command does is
+in their code. The way that worked, on the live system while the proprietary
+driver runs (keep an X server on the GPU: when idle, the driver switches the
+PMU off in `0x200`, and its registers then read zero):
+
+1. **Dump it.** [falcon-dump.sh](falcon-dump.sh) reads code memory, the virtual
+   page each physical code page holds, and data memory through the falcon's
+   IO windows. [falcon-image.py](falcon-image.py) lays the code out by virtual
+   address and merges several dumps.
+2. **Fill in the overlays.** A falcon with code paging keeps a resident core
+   and loads the rest page by page, from an image in its own GPU address space,
+   so a dump holds only part of it. The falcon's `CHANNEL_CUR` (`+0x050`) names
+   its instance block, and [gpuvm.py](gpuvm.py) walks the Fermi page tables
+   from there, reading VRAM through the PRAMIN window ([pramin.c](pramin.c))
+   and system memory through `/proc/kcore` ([kcore.py](kcore.py)). Find the
+   image by a page the dump already has; the PMU's held every virtual code page
+   at a fixed offset from its start.
+3. **Disassemble.** [envydis.sh](envydis.sh) runs envytools' `envydis`, `-m
+   falcon -V fuc3` for Fermi. A command interpreter shows as a jump table in
+   data memory: `ld b16 $rA D[table + $rB * 2]`, then `bra $rA`.
+
+What came out of the PMU this way is in [gf108/](gf108/README.md#memory-clocks).
+
+- The code and data are the GPU maker's firmware: keep them in `work/` and
+  publish only what they do.
+- Code page 0, the start-up code, is gone from the image once the falcon runs;
+  take it from a dump.
+- `kcore.py find` finds its own pattern in its own memory too; read a hit back
+  before trusting it.
+- `0xa5a5` filling data memory is the stack's fill pattern, not a table.
+
 ## Pitfalls
 
 - **Something else loads the driver.** The X server on the integrated GPU
