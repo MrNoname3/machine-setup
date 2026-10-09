@@ -1,7 +1,7 @@
-From d068463d195d7bbd1356fc79eb5e806d6c617c73 Mon Sep 17 00:00:00 2001
+From 37a78a0473f6d58083665ea1df97b73681bff0f8 Mon Sep 17 00:00:00 2001
 From: MrNoname3 <26522650+MrNoname3@users.noreply.github.com>
 Date: Fri, 9 Oct 2026 11:35:05 +0200
-Subject: [PATCH] drm/nouveau/clk/gf100: reclock the GF108
+Subject: [PATCH 8/8] drm/nouveau/clk/gf100: reclock the GF108
 
 Enable reclocking on the GF108, whose clocks and DDR3 the series
 computes from the VBIOS, and when going up, change core clocks and

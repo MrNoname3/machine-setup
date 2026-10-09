@@ -108,7 +108,7 @@ its arguments, which 0002 turns into memx commands:
 | `00`, `01`, `15` | value; address; mask, timeout | wait for `(reg & mask) == value` | `WAIT` |
 | `20` | 1 or 0 | block, unblock the GPU's memory traffic | `ENTER`, `LEAVE` |
 | `14` | head, timeout | wait for a display head | `VBLANK` |
-| `3a` | count | waits count × 250 ns of PTIMER (the factor is set by opcode `39`); follows a write to `0x13d834`, and the count is the writes to `0x10f600`–`0x10f8ff` since the last one | a delay, 10 µs per write |
+| `3a` | count | waits count × 250 ns of PTIMER (the factor is set by opcode `39`); follows a write to `0x13d834`, and the count is the writes to `0x10f600`–`0x10f8ff` since the last one | a delay of 250 ns per write, as there |
 | `34` | slot | stores PTIMER's low word in a timestamp slot: `0x0a` and `0x0b` time the blocked part | dropped |
 | `16` | – | end | – |
 
