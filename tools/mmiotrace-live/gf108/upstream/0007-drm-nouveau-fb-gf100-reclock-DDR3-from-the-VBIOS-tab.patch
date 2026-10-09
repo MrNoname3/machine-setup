@@ -1,7 +1,7 @@
-From 51c82d6f270421baf31be61dca0d4e1063213623 Mon Sep 17 00:00:00 2001
+From ef5d0c20afe5f1bb58a0de363dee1e754f1d0951 Mon Sep 17 00:00:00 2001
 From: Your_Name <you@example.org>
 Date: Fri, 9 Oct 2026 11:24:19 +0200
-Subject: [PATCH 7/7] drm/nouveau/fb/gf100: reclock DDR3 from the VBIOS tables
+Subject: [PATCH 7/8] drm/nouveau/fb/gf100: reclock DDR3 from the VBIOS tables
 
 gf100_ram_calc only knew one GDDR5 board's register values, so Fermi
 boards with DDR3 could not change their memory clock. Add a DDR3 path
@@ -18,7 +18,7 @@ Assisted-by: Claude:claude-opus-5-5
  1 file changed, 380 insertions(+)
 
 diff --git a/nvkm/subdev/fb/ramgf100.c b/nvkm/subdev/fb/ramgf100.c
-index 699a3bb..4788e63 100644
+index 699a3bb..c072f5d 100644
 --- a/nvkm/subdev/fb/ramgf100.c
 +++ b/nvkm/subdev/fb/ramgf100.c
 @@ -47,6 +47,7 @@ struct gf100_ramfuc {
@@ -99,7 +99,7 @@ index 699a3bb..4788e63 100644
  
 +/*
 + * Writes to 0x10f600-0x10f8ff are counted; a sync writes 0x13d834 and waits
-+ * 10us for each of them, where the NVIDIA driver passes the count to the PMU.
++ * 250ns for each of them, as the NVIDIA driver's PMU scripts do.
 + */
 +static void
 +gf100_ram_ddr3_wr32(struct gf100_ram *ram, struct ramfuc_reg *reg, u32 data)
@@ -131,7 +131,7 @@ index 699a3bb..4788e63 100644
 +
 +	ram_wr32(fuc, 0x13d834, 0x00000000);
 +	if (ram->sync)
-+		ram_nsec(fuc, ram->sync * 10000);
++		ram_nsec(fuc, ram->sync * 250);
 +	ram->sync = 0;
 +}
 +

@@ -449,12 +449,12 @@ def memx_ops(lines):
 
 
 def as_memx(ops):
-    """The model's ops as memx sees them: a sync is a delay of 10us per write."""
+    """The model's ops as memx sees them: a sync is a delay of 250ns per write."""
     out = []
     for op in ops:
         if op[0] == 'sync':
             if op[1]:
-                out.append(('nsec', op[1] * 10000))
+                out.append(('nsec', op[1] * 250))
         else:
             out.append(op)
     return out
