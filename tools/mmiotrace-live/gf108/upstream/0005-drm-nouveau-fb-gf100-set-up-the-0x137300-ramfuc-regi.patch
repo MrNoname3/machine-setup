@@ -1,0 +1,31 @@
+From cc1427c246f5ed56956f8c8027e2dc8cf7beb767 Mon Sep 17 00:00:00 2001
+From: Your_Name <you@example.org>
+Date: Fri, 9 Oct 2026 11:24:06 +0200
+Subject: [PATCH 5/7] drm/nouveau/fb/gf100: set up the 0x137300 ramfuc register
+
+The constructor assigned r_0x137310 twice, the first time with the
+address of 0x137300, so r_0x137300 kept address 0. Reading it returned
+PMC_BOOT_0 instead of the memory clock source, and writing it did
+nothing.
+
+Assisted-by: Claude:claude-opus-5-5
+---
+ nvkm/subdev/fb/ramgf100.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/nvkm/subdev/fb/ramgf100.c b/nvkm/subdev/fb/ramgf100.c
+index b6b8398..699a3bb 100644
+--- a/nvkm/subdev/fb/ramgf100.c
++++ b/nvkm/subdev/fb/ramgf100.c
+@@ -639,7 +639,7 @@ gf100_ram_new_(const struct nvkm_ram_func *func,
+ 	ram->fuc.r_0x10f9b4 = ramfuc_reg(0x10f9b4);
+ 	ram->fuc.r_0x10fb04 = ramfuc_reg(0x10fb04);
+ 	ram->fuc.r_0x10fb08 = ramfuc_reg(0x10fb08);
+-	ram->fuc.r_0x137310 = ramfuc_reg(0x137300);
++	ram->fuc.r_0x137300 = ramfuc_reg(0x137300);
+ 	ram->fuc.r_0x137310 = ramfuc_reg(0x137310);
+ 	ram->fuc.r_0x137360 = ramfuc_reg(0x137360);
+ 	ram->fuc.r_0x1373ec = ramfuc_reg(0x1373ec);
+-- 
+2.55.0
+
