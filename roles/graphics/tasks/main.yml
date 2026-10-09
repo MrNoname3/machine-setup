@@ -116,7 +116,7 @@
       ansible.builtin.set_fact:
         nouveau_gf108_stale: >-
           {{ nouveau_gf108_versions.stdout_lines
-             | map('regex_replace', '^(nouveau-gf108/[^,:]+).*$', '\\1') | unique
+             | map('regex_replace', '[,:].*$', '') | unique
              | select('match', '^' ~ (nouveau_gf108_base | regex_escape) ~ '(-[0-9a-f]{8})?$')
              | reject('equalto', nouveau_gf108_dkms) | list }}
 
