@@ -180,12 +180,14 @@ the test, every change between 135, 324 and 800 MHz, including 800 → 135 and
 `glmark2` scores 2088 at `0f`, as with the board-specific patch.
 
 Upstream nouveau reads a DDR3 board's memory clock wrong: from the 324 MHz
-divider at `0x137300` unless `0x1373f0` names the PLL, which only the GDDR5
-path sets, and the PLL's reference from the `0x132020` PLL, which DDR3 leaves
-off. Bit 0 of `0x137360` is the selector here: the 390 driver sets it while the
-memory PLL changes and clears it once the PLL has locked, and in that state
-`nvidia-settings` reports 793 MHz. With the PLL's reference from the `0x137320`
-divider (405 MHz), patch 0008 reads the same 793 MHz.
+divider at `0x137300` unless `0x1373f0` names the PLL, which only the GDDR5 path
+sets, and the PLL's reference from the `0x132020` PLL, which DDR3 does not use
+and which faults on every read on this board, so a read can return a fault value
+that looks like a running PLL. Bit 0 of `0x137360` is the selector here: the 390
+driver sets it while the memory PLL changes and clears it once the PLL has
+locked, and in that state `nvidia-settings` reports 793 MHz. With the PLL's
+reference from the `0x137320` divider (405 MHz), patch 0008 reads the same 793
+MHz.
 
 ## From trace to patch
 
