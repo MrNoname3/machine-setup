@@ -17,9 +17,9 @@ The graphics role builds nouveau with the patches in
 [roles/graphics/files/nouveau-gf108](../../../roles/graphics/files/nouveau-gf108),
 applied with `patch -p1` inside `drivers/gpu/drm/nouveau` of kernel 7.0:
 
-- 0001–0007, the [upstream series](#upstream-series), compute the core
-  clocks and the DDR3 settings from the VBIOS;
-- 0008, kept out of that series, enables reclocking on the GF108 (chipset
+- 0001–0008, the [upstream series](#upstream-series), compute the core
+  clocks and the DDR3 settings from the VBIOS, and read the memory clock back;
+- 0009, kept out of that series, enables reclocking on the GF108 (chipset
   `C1`) and, going up, changes core clocks and voltage before memory, as the
   390 driver orders it.
 
@@ -177,10 +177,15 @@ and `0x10f2f8`, and bits of `0x10f808` and `0x10f824`, from the CPU, which
 On the live system, with the series built for 5.15 and reclocking enabled for
 the test, every change between 135, 324 and 800 MHz, including 800 → 135 and
 135 → 324, which the 390 driver never makes, passes `glmark2 --validate`;
-`glmark2` scores 2088 at `0f`, as with the board-specific patch. nouveau's
-pstate file still shows 324 MHz memory on the `AC` line at 800: it reads the
-memory clock from the PLL only when `0x1373f0` says so, which the GDDR5 path
-sets and this one does not.
+`glmark2` scores 2088 at `0f`, as with the board-specific patch.
+
+Upstream nouveau reads a DDR3 board's memory clock wrong: from the 324 MHz
+divider at `0x137300` unless `0x1373f0` names the PLL, which only the GDDR5
+path sets, and the PLL's reference from the `0x132020` PLL, which DDR3 leaves
+off. Bit 0 of `0x137360` is the selector here: the 390 driver sets it while the
+memory PLL changes and clears it once the PLL has locked, and in that state
+`nvidia-settings` reports 793 MHz. With the PLL's reference from the `0x137320`
+divider (405 MHz), patch 0008 reads the same 793 MHz.
 
 ## From trace to patch
 
@@ -222,7 +227,7 @@ subdev's allocation call changed.
 
 ## Upstream series
 
-[upstream/](upstream/) holds seven patches for nouveau as in kernel 7.0 that
+[upstream/](upstream/) holds eight patches for nouveau as in kernel 7.0 that
 make the clock and memory code compute what the board-specific patches
 hard-code, from the VBIOS, for any GF100-family GPU:
 
@@ -236,7 +241,8 @@ hard-code, from the VBIOS, for any GF100-family GPU:
 5. set up the `0x137300` register of the memory script, which a typo left at
    address 0;
 6. parse byte 0x0d of the ramcfg entry;
-7. a DDR3 path for `gf100_ram_calc`, described [above](#ddr3-from-the-vbios).
+7. a DDR3 path for `gf100_ram_calc`, described [above](#ddr3-from-the-vbios);
+8. read the memory clock of a DDR3 board from the PLL it runs from.
 
 On the GF108 here, with reclocking enabled for the test, the shader, domain 7
 and domain 8 come out at the 390 driver's clocks at every level, as the clock
