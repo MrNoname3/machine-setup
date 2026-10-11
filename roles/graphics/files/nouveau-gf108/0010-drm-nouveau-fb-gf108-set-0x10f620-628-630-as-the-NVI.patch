@@ -1,0 +1,53 @@
+From e7a7cf8bcd9b4deda61b083283f72407900bccdf Mon Sep 17 00:00:00 2001
+From: MrNoname3 <26522650+MrNoname3@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 23:09:14 +0200
+Subject: [PATCH 10/10] drm/nouveau/fb/gf108: set 0x10f620/628/630 as the
+ NVIDIA driver does
+
+At its highest level the NVIDIA driver runs a DDR3 GF108 with 0x10f620,
+0x10f628 and 0x10f630 at 0x11111111, where the VBIOS init tables leave
+0x33333333 on this board's strap, and with the VBIOS value reads from
+VRAM drop bits at 800 MHz. Write the driver's value on every init, which
+follows each devinit, so it holds before any reclock.
+---
+ nvkm/subdev/fb/ramgf108.c | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/nvkm/subdev/fb/ramgf108.c b/nvkm/subdev/fb/ramgf108.c
+index d97fa43..83048a4 100644
+--- a/nvkm/subdev/fb/ramgf108.c
++++ b/nvkm/subdev/fb/ramgf108.c
+@@ -41,13 +41,29 @@ gf108_ram_probe_fbp_amount(const struct nvkm_ram_func *func, u32 fbpao,
+ 	return size;
+ }
+ 
++/* the NVIDIA driver runs DDR3 with these at 0x11111111; at the 0x33333333 the
++ * VBIOS leaves, reads from VRAM lose bits at 800 MHz
++ */
++static int
++gf108_ram_init(struct nvkm_ram *ram)
++{
++	struct nvkm_device *device = ram->fb->subdev.device;
++
++	if (ram->type == NVKM_RAM_TYPE_DDR3) {
++		nvkm_wr32(device, 0x10f620, 0x11111111);
++		nvkm_wr32(device, 0x10f628, 0x11111111);
++		nvkm_wr32(device, 0x10f630, 0x11111111);
++	}
++	return gf100_ram_init(ram);
++}
++
+ static const struct nvkm_ram_func
+ gf108_ram = {
+ 	.upper = 0x0200000000ULL,
+ 	.probe_fbp = gf100_ram_probe_fbp,
+ 	.probe_fbp_amount = gf108_ram_probe_fbp_amount,
+ 	.probe_fbpa_amount = gf100_ram_probe_fbpa_amount,
+-	.init = gf100_ram_init,
++	.init = gf108_ram_init,
+ 	.calc = gf100_ram_calc,
+ 	.prog = gf100_ram_prog,
+ 	.tidy = gf100_ram_tidy,
+-- 
+2.55.0
+
