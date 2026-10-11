@@ -212,3 +212,17 @@ one first) if the stick goes missing.
 32-bit accesses, one command at a time or as a script on stdin; build it on the
 live system with `gcc -O2 -o /usr/local/sbin/nvreg nvreg.c`. What the traces
 showed about the GT 520M, and the scripts that replay it, are in [gf108/](gf108/).
+
+## Testing VRAM
+
+[vramtest.c](vramtest.c) writes a pattern over most of VRAM, waits and reads it
+back, so a memory setting that loses bits shows up as a count instead of as a
+GPU fault some minutes into a benchmark. It runs on nouveau through GBM, or,
+built with `-DVRAMTEST_X`, on the NVIDIA driver's X server: the same pattern on
+both drivers at the same clocks tells a bad board from a bad setting.
+
+A trace shows only what the CPU writes. What the driver's PMU programs is
+invisible in it, but not in the registers: dumping the memory controller with
+`nvreg r` under the running NVIDIA driver at each level, and diffing it against
+nouveau's at the same level, finds what a trace cannot.
+

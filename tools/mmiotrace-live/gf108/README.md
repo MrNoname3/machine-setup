@@ -21,7 +21,10 @@ applied with `patch -p1` inside `drivers/gpu/drm/nouveau` of kernel 7.0:
   clocks and the DDR3 settings from the VBIOS, and read the memory clock back;
 - 0009, kept out of that series, enables reclocking on the GF108 (chipset
   `C1`) and, going up, changes core clocks and voltage before memory, as the
-  390 driver orders it.
+  390 driver orders it;
+- 0010, also kept out, sets `0x10f620`, `0x10f628` and `0x10f630` on a DDR3
+  GF108 to the 390 driver's value, without which reads from VRAM lose bits at
+  800 MHz ([below](#vram-at-800-mhz)).
 
 Every other GF100-family GPU keeps reclocking disabled, as upstream has it.
 [5.15/](5.15/) holds the earlier, board-specific pair for Ubuntu's 5.15 kernel,
@@ -188,6 +191,34 @@ driver sets it while the memory PLL changes and clears it once the PLL has
 locked, and in that state `nvidia-settings` reports 793 MHz. With the PLL's
 reference from the `0x137320` divider (405 MHz), patch 0008 reads the same 793
 MHz.
+
+## VRAM at 800 MHz
+
+With 0001–0009 alone, `0f` passed `glmark2 --validate` but a longer load
+failed now and then: the GPU trapped on an illegal instruction encoding in a
+shader, sometimes followed by MMU faults and a hung channel. The cause was in
+VRAM: [vramtest](../vramtest.c) counted hundreds to tens of thousands of
+flipped bits per 768 MiB at 800 MHz, and none at 324 MHz. Nearly all were on
+bits 13 and 14 of a 32-bit word, one byte lane, always 1 read as 0, and two
+reads of the same data disagreed, so the reads were failing, not the stored
+data. The 390 driver, on the same board at the same clocks, read the same
+pattern back without an error.
+
+Diffing the memory controller under the 390 driver at its highest level
+against nouveau's `0f` left one difference that mattered: `0x10f620`,
+`0x10f628` and `0x10f630` (broadcast copies of partition 0's `0x110620`…) at
+`0x11111111` there, and at `0x33333333` under nouveau, which is what the VBIOS
+init tables write for this board's strap. The 390 driver writes them through
+its PMU, so the trace never showed it, and it keeps the value at the 324 MHz
+level too. Written by hand at `0f`, they take the error count to zero; patch
+0010 writes them on every fb init, since devinit, which runs again after each
+runtime suspend, puts the VBIOS value back. Which VBIOS field the 390 driver
+derives `0x1` from is not known, which is why 0010 stays out of the upstream
+series.
+
+The 390 driver also differs in `0x10f400`–`0x10f468`, which it rewrites from
+the CPU before each change, in the order Kepler's `gk104_ram_prog_0` writes its
+rammap fields; setting its values by hand did not change the error count.
 
 ## From trace to patch
 
