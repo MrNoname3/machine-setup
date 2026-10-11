@@ -1,24 +1,24 @@
-From e74d61a952ce1ca3e05d5dd4c2920bf94a551660 Mon Sep 17 00:00:00 2001
+From 3e99f2b851be99d7061ec69a1d1870031b4f0a73 Mon Sep 17 00:00:00 2001
 From: Your_Name <you@example.org>
 Date: Sun, 11 Oct 2026 19:35:16 +0200
 Subject: [PATCH 8/9] drm/nouveau/clk/gf100: read the memory clock of DDR3
  boards
 
 The memory clock read as the 0x137300 divider unless 0x1373f0 said
-otherwise, which only the GDDR5 path sets, and the memory PLL's reference
-as the 0x132020 PLL, which DDR3 boards leave off. On DDR3, bit 0 of
-0x137360 selects between the two: the DDR3 path, like the NVIDIA driver,
-sets it while the PLL changes and clears it once the PLL has locked. The
-PLL then runs from the 0x137320 divider. Read both that way, so the
-pstate file reports the memory clock that runs instead of the divider's.
+otherwise, which only the GDDR5 path sets. On DDR3, bit 0 of 0x137360
+selects between the two: the DDR3 path, like the NVIDIA driver, sets it
+while the PLL changes and clears it once the PLL has locked. The PLL runs
+from the 0x137320 divider, never from the 0x132020 reference PLL, which on
+the GF108 faults on every read. Read both that way, so the pstate file
+reports the memory clock that runs instead of the divider's.
 
 Assisted-by: Claude:claude-opus-5-5
 ---
- nvkm/subdev/clk/gf100.c | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ nvkm/subdev/clk/gf100.c | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
 
 diff --git a/nvkm/subdev/clk/gf100.c b/nvkm/subdev/clk/gf100.c
-index a1ac77e..0b7d313 100644
+index a1ac77e..45402f3 100644
 --- a/nvkm/subdev/clk/gf100.c
 +++ b/nvkm/subdev/clk/gf100.c
 @@ -27,6 +27,7 @@
@@ -29,33 +29,46 @@ index a1ac77e..0b7d313 100644
  #include <subdev/timer.h>
  
  struct gf100_clk_info {
-@@ -78,7 +79,13 @@ read_pll(struct gf100_clk *clk, u32 pll)
+@@ -57,6 +58,13 @@ read_vco(struct gf100_clk *clk, u32 dsrc)
+ 	return nvkm_clk_read(&clk->base, nv_clk_src_sppll1);
+ }
+ 
++static bool
++gf100_clk_ddr3(struct nvkm_device *device)
++{
++	return device->fb && device->fb->ram &&
++	       device->fb->ram->type == NVKM_RAM_TYPE_DDR3;
++}
++
+ static u32
+ read_pll(struct gf100_clk *clk, u32 pll)
+ {
+@@ -78,7 +86,13 @@ read_pll(struct gf100_clk *clk, u32 pll)
  		P = 1;
  		break;
  	case 0x132000:
 -		sclk = nvkm_clk_read(&clk->base, nv_clk_src_mpllsrc);
-+		/* with its reference PLL off, as on DDR3, the divider at
-+		 * 0x137320 feeds it
++		/* DDR3 feeds it from the divider at 0x137320, and reading the
++		 * unused reference PLL faults on the GF108
 +		 */
-+		if (nvkm_rd32(device, 0x132020) & 0x00000001)
-+			sclk = nvkm_clk_read(&clk->base, nv_clk_src_mpllsrc);
-+		else
++		if (gf100_clk_ddr3(device))
 +			sclk = nvkm_clk_read(&clk->base, nv_clk_src_mpllsrcref);
++		else
++			sclk = nvkm_clk_read(&clk->base, nv_clk_src_mpllsrc);
  		break;
  	case 0x132020:
  		sclk = nvkm_clk_read(&clk->base, nv_clk_src_mpllsrcref);
-@@ -196,6 +203,11 @@ gf100_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
+@@ -196,6 +210,10 @@ gf100_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
  	case nv_clk_src_mem:
  		if (nvkm_rd32(device, 0x1373f0) & 0x00000002)
  			return nvkm_clk_read(&clk->base, nv_clk_src_mpll);
 +		/* DDR3 runs from the memory PLL while bit 0 of 0x137360 is clear */
-+		if (device->fb && device->fb->ram &&
-+		    device->fb->ram->type == NVKM_RAM_TYPE_DDR3 &&
++		if (gf100_clk_ddr3(device) &&
 +		    !(nvkm_rd32(device, 0x137360) & 0x00000001))
 +			return nvkm_clk_read(&clk->base, nv_clk_src_mpll);
  		return nvkm_clk_read(&clk->base, nv_clk_src_mdiv);
  
  	case nv_clk_src_gpc:
 -- 
-2.43.0
+2.55.0
 
