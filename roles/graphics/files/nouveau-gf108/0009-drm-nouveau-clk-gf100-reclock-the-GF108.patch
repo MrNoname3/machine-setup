@@ -1,7 +1,7 @@
-From 37a78a0473f6d58083665ea1df97b73681bff0f8 Mon Sep 17 00:00:00 2001
+From 0e99bb40633b60b8a06a41d8ae317af46a3689c3 Mon Sep 17 00:00:00 2001
 From: MrNoname3 <26522650+MrNoname3@users.noreply.github.com>
 Date: Fri, 9 Oct 2026 11:35:05 +0200
-Subject: [PATCH 8/8] drm/nouveau/clk/gf100: reclock the GF108
+Subject: [PATCH 9/9] drm/nouveau/clk/gf100: reclock the GF108
 
 Enable reclocking on the GF108, whose clocks and DDR3 the series
 computes from the VBIOS, and when going up, change core clocks and
@@ -61,10 +61,10 @@ index b39719b..8ab32b5 100644
  }
  
 diff --git a/nvkm/subdev/clk/gf100.c b/nvkm/subdev/clk/gf100.c
-index a1ac77e..195665d 100644
+index 0b7d313..e077922 100644
 --- a/nvkm/subdev/clk/gf100.c
 +++ b/nvkm/subdev/clk/gf100.c
-@@ -563,10 +563,13 @@ gf100_clk_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+@@ -575,10 +575,13 @@ gf100_clk_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
  	      struct nvkm_clk **pclk)
  {
  	struct gf100_clk *clk;
@@ -80,5 +80,5 @@ index a1ac77e..195665d 100644
 +	return nvkm_clk_ctor(&gf100_clk, device, type, inst, reclock, &clk->base);
  }
 -- 
-2.55.0
+2.43.0
 
