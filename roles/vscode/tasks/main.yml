@@ -23,6 +23,16 @@
     creates: /usr/share/keyrings/microsoft-vscode.gpg
   when: ansible_facts['os_family'] == "Debian"
 
+# The package's postinst rewrites vscode.sources in its own form on every
+# upgrade unless debconf says the repository is managed elsewhere.
+- name: Keep the VS Code package from rewriting its apt source
+  ansible.builtin.debconf:
+    name: code
+    question: code/add-microsoft-repo
+    value: "false"
+    vtype: boolean
+  when: ansible_facts['os_family'] == "Debian"
+
 # deb822 .sources form (apt_repository is deprecated, removed in core 2.25).
 # The install task below refreshes the apt cache, so a changed repo file is
 # picked up without a separate update task.
