@@ -178,5 +178,5 @@
   loop:
     - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-enabled, value: "true" }
     - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-schedule-mode, value: "'always'" }
-    - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-temperature, value: "uint32 5200" }
+    - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-temperature, value: "uint32 5600" }
   when: ansible_facts['os_family'] == "Debian"

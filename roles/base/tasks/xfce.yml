@@ -65,6 +65,46 @@
   loop_control:
     label: "{{ item.property }}"
 
+# As Dolphin on the desktop: the full path in the title bar, no menu bar.
+- name: Show the full path in Thunar's title bar and hide its menu bar
+  community.general.xfconf:
+    channel: thunar
+    property: "{{ item.property }}"
+    value_type: bool
+    value: "{{ item.value }}"
+  become: false
+  loop:
+    - { property: /misc-full-path-in-window-title, value: "true" }
+    - { property: /last-menubar-visible, value: "false" }
+  loop_control:
+    label: "{{ item.property }}"
+
+# Thunar keeps a folder's own sort in the folder's GIO metadata.
+- name: Read the Downloads folder's sort (Thunar)
+  ansible.builtin.command:
+    argv:
+      - gio
+      - info
+      - --attributes=metadata::thunar-sort-column,metadata::thunar-sort-order
+      - "/home/{{ primary_user }}/Downloads"
+  register: thunar_downloads_sort
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  become: false
+
+- name: Sort the Downloads folder by date, newest first (Thunar)
+  ansible.builtin.command:
+    argv: [gio, set, "/home/{{ primary_user }}/Downloads", "metadata::{{ item.key }}", "{{ item.value }}"]
+  become: false
+  loop:
+    - { key: thunar-sort-column, value: THUNAR_COLUMN_DATE_MODIFIED }
+    - { key: thunar-sort-order, value: GTK_SORT_DESCENDING }
+  when:
+    - thunar_downloads_sort.rc == 0
+    - ("metadata::" ~ item.key ~ ": " ~ item.value) not in thunar_downloads_sort.stdout
+  changed_when: true
+
 # xfwm4 does not follow the GTK theme on its own. The portal key is the one
 # libadwaita apps read, as in the Cinnamon session.
 - name: Apply the dark desktop theme + icon/cursor themes (Xfce)
@@ -230,7 +270,7 @@
     value: bottom-right
   become: false
 
-# Night Light as in the Cinnamon session: a fixed 5200 K. With equal day and
+# Night Light as in the Cinnamon session: a fixed 5600 K. With equal day and
 # night temperatures the location given to redshift has no effect.
 - name: Ensure ~/.config/autostart exists
   ansible.builtin.file:
@@ -247,7 +287,7 @@
       [Desktop Entry]
       Type=Application
       Name=Night Light
-      Exec=redshift -P -r -l 0:0 -t 5200:5200
+      Exec=redshift -P -r -l 0:0 -t 5600:5600
       NoDisplay=true
       X-GNOME-Autostart-enabled=true
   become: false
