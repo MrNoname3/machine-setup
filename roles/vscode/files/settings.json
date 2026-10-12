@@ -1,5 +1,6 @@
 {
     "diffEditor.renderSideBySide": false,
+    "diffEditor.useInlineViewWhenSpaceIsLimited": false,
     "git.confirmSync": false,
     "chat.viewSessions.orientation": "stacked",
     "chat.disableAIFeatures": true,
