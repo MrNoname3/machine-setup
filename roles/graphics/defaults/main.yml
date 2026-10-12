@@ -27,6 +27,11 @@ amdgpu_ppfeaturemask: "0xfff7ffff"
 # while still shipping the profiles for later use).
 amdgpu_enable_overdrive: true
 
+# Mesa from the kisak-mesa "fresh" PPA instead of the Ubuntu base's (Mint
+# hosts). Turning it off removes the repository but keeps the packages it
+# installed; `sudo ppa-purge ppa:kisak/kisak-mesa` goes back to Ubuntu's.
+mesa_kisak_ppa: false
+
 # GT 520M reclocking (Mint laptop): nouveau rebuilt through DKMS with the patches
 # in files/nouveau-gf108 (how they were made: tools/mmiotrace-live/gf108). They
 # compute clocks and DDR3 settings from the VBIOS and enable reclocking on the

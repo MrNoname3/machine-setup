@@ -32,6 +32,71 @@
   notify: Update grub
   when: ansible_facts['os_family'] == "Debian"
 
+# --- Mint: Mesa from the kisak-mesa PPA -------------------------------------
+# Upgrades only the Mesa packages already installed, both architectures; later
+# PPA releases arrive with the system's regular updates.
+- name: Use Mesa from the kisak-mesa PPA
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - mesa_kisak_ppa | bool
+  block:
+    # Mint reports its own codename; the PPA is built for the Ubuntu base's.
+    - name: Read the Ubuntu base release
+      ansible.builtin.slurp:
+        src: /etc/os-release
+      register: graphics_os_release
+
+    - name: Ensure the apt keyrings directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Install the kisak-mesa signing key
+      ansible.builtin.copy:
+        src: kisak-mesa.asc
+        dest: /etc/apt/keyrings/kisak-mesa.asc
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Add the kisak-mesa apt repository (deb822)
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/kisak-mesa.sources
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          Types: deb
+          URIs: https://ppa.launchpadcontent.net/kisak/kisak-mesa/ubuntu
+          Suites: {{ graphics_os_release.content | b64decode | regex_search('^UBUNTU_CODENAME=(\\S+)', '\\1', multiline=True) | first }}
+          Components: main
+          Signed-By: /etc/apt/keyrings/kisak-mesa.asc
+
+    - name: List the installed Mesa packages
+      ansible.builtin.command:
+        argv: [dpkg-query, -W, '-f=${binary:Package} ${source:Package}\n']
+      register: graphics_dpkg_sources
+      changed_when: false
+
+    - name: Upgrade Mesa from the PPA
+      ansible.builtin.apt:
+        name: "{{ graphics_dpkg_sources.stdout_lines | select('search', ' mesa$') | map('split', ' ') | map('first') | list }}"
+        state: latest
+        only_upgrade: true
+        update_cache: true
+
+- name: Remove the kisak-mesa apt repository
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/kisak-mesa.sources
+    - /etc/apt/keyrings/kisak-mesa.asc
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - not (mesa_kisak_ppa | bool)
+
 # --- Mint laptop: GT 520M reclocking ---------------------------------------
 # nouveau ships Fermi reclocking disabled. The patched build comes from the
 # Ubuntu source of the running kernel (prepare.sh fetches and verifies it), and

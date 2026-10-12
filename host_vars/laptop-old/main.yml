@@ -233,6 +233,11 @@ container_docker_host_export: true
 nouveau_gf108_reclock: true
 nouveau_gf108_pstate: "0f"
 
+# Mesa 26.1+: before it, nvc0's 3D blit leaves the destination surface's sample
+# count uninitialised, and a garbage count overflows a packet header and kills
+# the GPU channel. Wine blits on every SwapBuffers.
+mesa_kisak_ppa: true
+
 # Remote LUKS unlock (dropbear) uses ip=dhcp; the address is pinned by a DHCP
 # reservation on the router (external dependency, not captured in this repo —
 # details in local.yml).

@@ -7,7 +7,9 @@ Two unrelated halves, split by OS family:
   through a DKMS-built nouveau (`files/nouveau-gf108`; how the patches were
   made, and what they do, is in `tools/mmiotrace-live/gf108`).
   `nouveau_gf108_pstate` picks the level nouveau sets at load and after each
-  runtime resume.
+  runtime resume. With `mesa_kisak_ppa` Mesa comes from the kisak-mesa "fresh"
+  PPA (signing key in `files/kisak-mesa.asc`, fingerprint
+  `EB8B81E14DA65431D7504EA8F63F0F2B90935439`).
 - **Bazzite desktop** — Radeon RX 9070 XT (Navi 48, RDNA4): undervolt and power
   profiles. Everything below is about that half.
 
