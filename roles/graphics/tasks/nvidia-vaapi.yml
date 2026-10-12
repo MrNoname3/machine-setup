@@ -1,81 +1,113 @@
 ---
 # nvidia-vaapi-driver: VA-API on top of NVDEC, the only way Chromium-based
-# browsers decode video in hardware on the proprietary driver. The archive's
-# package is used once it reaches graphics_nvidia_vaapi_version; until then the
-# role builds that version from Debian's source in a throwaway container.
+# browsers decode video in hardware on the proprietary driver. It comes from the
+# Ubuntu base's archive once that reaches graphics_nvidia_vaapi_version, and from
+# the graphics_nvidia_vaapi_ppa PPA until then.
 
-- name: Look up the archive's nvidia-vaapi-driver versions
+# The role's former local build: versioned <version>~local1, which outranks the
+# PPA's package of the same version.
+- name: Read the installed nvidia-vaapi-driver version
+  ansible.builtin.command: dpkg-query -W -f=${Version} nvidia-vaapi-driver
+  register: nvidia_vaapi_installed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Remove the locally built nvidia-vaapi-driver
+  ansible.builtin.apt:
+    name: nvidia-vaapi-driver
+    state: absent
+  when: "'~local' in nvidia_vaapi_installed.stdout"
+
+- name: Remove the local build's cache
+  ansible.builtin.file:
+    path: /var/cache/nvidia-vaapi-driver
+    state: absent
+
+- name: Look up the available nvidia-vaapi-driver versions
   ansible.builtin.command: apt-cache madison nvidia-vaapi-driver
   register: nvidia_vaapi_madison
   changed_when: false
   check_mode: false
 
-- name: Decide between the archive's package and a local build
+- name: Decide between the archive and the PPA
   ansible.builtin.set_fact:
     nvidia_vaapi_archive_ok: >-
       {{ nvidia_vaapi_madison.stdout_lines
+         | reject('search', graphics_nvidia_vaapi_ppa | regex_escape)
          | map('split', '|') | map(attribute=1) | map('trim')
          | map('regex_replace', '-[^-]*$', '')
          | select('version', graphics_nvidia_vaapi_version, '>=')
          | list | length > 0 }}
 
-- name: Install nvidia-vaapi-driver from the archive
-  ansible.builtin.apt:
-    name: nvidia-vaapi-driver
-    state: latest  # noqa: package-latest -- replaces the local build
-  when: nvidia_vaapi_archive_ok | bool
-
-- name: Report that the local nvidia-vaapi-driver build is no longer needed
-  ansible.builtin.debug:
-    msg: >-
-      The archive now ships nvidia-vaapi-driver {{ graphics_nvidia_vaapi_version }}
-      or later, so the role installed that. The local build
-      (roles/graphics/tasks/nvidia-vaapi.yml, build-nvidia-vaapi-driver.sh and
-      the graphics_nvidia_vaapi_source variable) can be removed.
-  when: nvidia_vaapi_archive_ok | bool
-
-- name: Build and install nvidia-vaapi-driver from Debian's source
+- name: Install nvidia-vaapi-driver from the PPA
   when: not (nvidia_vaapi_archive_ok | bool)
-  vars:
-    nvidia_vaapi_deb: >-
-      {{ graphics_nvidia_vaapi_cache }}/nvidia-vaapi-driver_{{
-         graphics_nvidia_vaapi_source.version }}~local1_amd64.deb
   block:
-    - name: Install Podman for the build container
-      ansible.builtin.apt:
-        name: podman
-        state: present
+    # Mint reports its own codename; the PPA is built for the Ubuntu base's.
+    - name: Read the Ubuntu base release
+      ansible.builtin.slurp:
+        src: /etc/os-release
+      register: nvidia_vaapi_os_release
 
-    - name: Ensure the build directory exists
+    - name: Ensure the apt keyrings directory exists
       ansible.builtin.file:
-        path: "{{ graphics_nvidia_vaapi_cache }}"
+        path: /etc/apt/keyrings
         state: directory
         mode: "0755"
 
-    - name: Copy the build script
+    - name: Install the nvidia-vaapi PPA signing key
       ansible.builtin.copy:
-        src: build-nvidia-vaapi-driver.sh
-        dest: "{{ graphics_nvidia_vaapi_cache }}/build.sh"
-        mode: "0755"
+        src: nvidia-vaapi-ppa.asc
+        dest: /etc/apt/keyrings/nvidia-vaapi-ppa.asc
+        owner: root
+        group: root
+        mode: "0644"
 
-    - name: Build nvidia-vaapi-driver in a container (once per version)
-      ansible.builtin.command:
-        argv:
-          - podman
-          - run
-          - --rm
-          - --volume={{ graphics_nvidia_vaapi_cache }}:/out
-          - "{{ graphics_nvidia_vaapi_build_image }}"
-          - bash
-          - /out/build.sh
-          - "{{ graphics_nvidia_vaapi_source.url }}"
-          - "{{ graphics_nvidia_vaapi_source.dsc }}"
-          - "{{ graphics_nvidia_vaapi_source.sha256 }}"
-        creates: "{{ nvidia_vaapi_deb }}"
+    - name: Add the nvidia-vaapi apt repository (deb822)
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/nvidia-vaapi-ppa.sources
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          Types: deb
+          URIs: {{ graphics_nvidia_vaapi_ppa }}
+          Suites: {{ nvidia_vaapi_os_release.content | b64decode | regex_findall('^UBUNTU_CODENAME=([a-z]+)$', multiline=True) | first }}
+          Components: main
+          Signed-By: /etc/apt/keyrings/nvidia-vaapi-ppa.asc
 
-    - name: Install the locally built nvidia-vaapi-driver
+    - name: Install nvidia-vaapi-driver from the PPA
       ansible.builtin.apt:
-        deb: "{{ nvidia_vaapi_deb }}"
+        name: nvidia-vaapi-driver
+        state: latest  # noqa: package-latest -- follows the PPA's releases
+        update_cache: true
+
+- name: Install nvidia-vaapi-driver from the archive
+  when: nvidia_vaapi_archive_ok | bool
+  block:
+    - name: Remove the nvidia-vaapi apt repository
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/apt/sources.list.d/nvidia-vaapi-ppa.sources
+        - /etc/apt/keyrings/nvidia-vaapi-ppa.asc
+
+    - name: Install nvidia-vaapi-driver from the archive
+      ansible.builtin.apt:
+        name: nvidia-vaapi-driver
+        state: latest  # noqa: package-latest -- replaces the PPA's package
+        update_cache: true
+
+    # Reported as a change, so no run ends with changed=0 until the role drops the PPA.
+    - name: Report that the nvidia-vaapi PPA is no longer needed
+      ansible.builtin.debug:
+        msg: >-
+          The archive now ships nvidia-vaapi-driver {{ graphics_nvidia_vaapi_version }}
+          or later, so the role installed that and removed the PPA. The PPA's
+          tasks (roles/graphics/tasks/nvidia-vaapi.yml), its key
+          (files/nvidia-vaapi-ppa.asc) and graphics_nvidia_vaapi_ppa can go.
+      changed_when: true
 
 # The direct backend talks to the NVIDIA kernel module through its internal
 # interface, so a driver update can break it; this catches that.
