@@ -43,6 +43,7 @@ machine-setup/
 │   └── sudo-askpass.sh          # sudo password from a dialog, for runs without a terminal
 ├── tools/                       # standalone tooling — not part of the playbook
 │   ├── gpu-tune/                # measure an AMD GPU undervolt (see its README)
+│   ├── gtasa-intro/             # GTA San Andreas's intro videos under Proton
 │   ├── mem-tune/                # measure memory latency, bandwidth, capacity
 │   ├── mmiotrace-live/          # Mint live ISO for tracing the NVIDIA 390 driver over SSH
 │   ├── rescue-usb/              # SystemRescue stick that is driven over SSH
