@@ -17,3 +17,7 @@ vscode_extensions:
 # PlatformIO IDE and its fork pioarduino cannot be installed side by side.
 vscode_extensions_absent:
   - platformio.platformio-ide
+
+# Run the Claude Code extension's native binary under qemu-user emulation, for
+# a CPU without the instructions it is built for (tasks/claude-x86emu.yml).
+vscode_claude_x86emu: false

@@ -1,0 +1,6 @@
+[Unit]
+Description=Put the Claude Code extension's binary behind x86-64 emulation
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/claude-x86emu-shim

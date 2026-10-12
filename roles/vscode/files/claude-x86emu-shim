@@ -1,0 +1,18 @@
+#!/bin/sh
+# Puts every installed Claude Code extension's native binary behind the
+# *.x86emu binfmt_misc handler: the binary becomes claude.x86emu, and claude a
+# script that starts it. Claude also starts its own binary by path (its
+# built-in grep and ripgrep), so the binary itself must carry the name.
+set -eu
+ext_dir=${1:-$HOME/.vscode/extensions}
+for bin in "$ext_dir"/anthropic.claude-code-*/resources/native-binar*/claude \
+           "$ext_dir"/anthropic.claude-code-*/resources/native-binar*/*/claude; do
+  [ -f "$bin" ] || continue
+  [ "$(head -c 4 "$bin" | tail -c 3)" = ELF ] || continue
+  mv "$bin" "$bin.x86emu"
+  printf '%s\n' '#!/bin/sh' \
+    '# The native build needs instructions this CPU lacks; *.x86emu runs under emulation (binfmt_misc).' \
+    'exec "$(dirname "$0")/claude.x86emu" "$@"' >"$bin"
+  chmod 0755 "$bin"
+  echo "shimmed $bin"
+done

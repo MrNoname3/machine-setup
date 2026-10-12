@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch for installed or updated VS Code extensions
+
+[Path]
+PathChanged=%h/.vscode/extensions
+PathChanged=%h/.vscode/extensions/extensions.json
+
+[Install]
+WantedBy=default.target

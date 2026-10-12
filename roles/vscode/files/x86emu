@@ -1,0 +1,6 @@
+#!/bin/sh
+# binfmt_misc interpreter for *.x86emu: runs the binary under x86-64 emulation
+# for instructions this CPU lacks. The P flag passes the original argv[0] as $2.
+bin=$1 argv0=$2
+shift 2
+exec qemu-x86_64 -cpu max -0 "$argv0" "$bin" "$@"
