@@ -175,9 +175,9 @@
     value: "false"
   become: false
 
-# The screensaver starts after 15 min and locks the screen at once; the
-# display powers off with it, and the machine suspends after 30 min.
-- name: Start the screensaver and lock the screen after 15 min (Xfce)
+# The screensaver starts after 10 min and locks the screen 5 min later, when
+# the display powers off; the machine suspends after 20 min.
+- name: Start the screensaver after 10 min and lock 5 min later (Xfce)
   community.general.xfconf:
     channel: xfce4-screensaver
     property: "{{ item.property }}"
@@ -187,10 +187,10 @@
   loop:
     - { property: /saver/mode, type: int, value: "2" }    # the one theme below
     - { property: /saver/idle-activation/enabled, type: bool, value: "true" }
-    - { property: /saver/idle-activation/delay, type: int, value: "15" }
+    - { property: /saver/idle-activation/delay, type: int, value: "10" }
     - { property: /lock/enabled, type: bool, value: "true" }
     - { property: /lock/saver-activation/enabled, type: bool, value: "true" }
-    - { property: /lock/saver-activation/delay, type: int, value: "0" }
+    - { property: /lock/saver-activation/delay, type: int, value: "5" }
   loop_control:
     label: "{{ item.property }}"
 
@@ -214,7 +214,7 @@
     - { property: dpms-enabled, type: bool, value: "true" }
     - { property: dpms-on-ac-sleep, type: uint, value: "15" }
     - { property: dpms-on-ac-off, type: uint, value: "15" }
-    - { property: inactivity-on-ac, type: uint, value: "30" }
+    - { property: inactivity-on-ac, type: uint, value: "20" }
     - { property: inactivity-sleep-mode-on-ac, type: uint, value: "1" }   # suspend
     - { property: power-button-action, type: uint, value: "4" }           # shut down
     - { property: sleep-button-action, type: uint, value: "1" }           # suspend

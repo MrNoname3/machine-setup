@@ -75,6 +75,15 @@
     label: "{{ item.key }}"
   notify: Restart upower
 
+- name: Set the locale categories in /etc/default/locale
+  ansible.builtin.lineinfile:
+    path: /etc/default/locale
+    regexp: "^{{ item.key }}="
+    line: '{{ item.key }}="{{ item.value }}"'
+  loop: "{{ base_locale | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
 - name: Linux Mint desktop defaults
   ansible.builtin.include_tasks: mint.yml
   when: base_desktop | length > 0

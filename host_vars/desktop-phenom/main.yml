@@ -43,6 +43,11 @@ ssh_authorized_key_file: phenom.pub
 graphics_nvidia_branch: "580"
 graphics_nvidia_vaapi: true
 
+# Dates and the calendar in Hungarian format, with weeks starting on Monday;
+# LC_TIME otherwise follows LANG, English (US).
+base_locale:
+  LC_TIME: hu_HU.UTF-8
+
 # Brave decodes video on the GT 1030 through VA-API (graphics_nvidia_vaapi).
 # ANGLE has to run on EGL: on GLX the decoded frames never reach the page.
 brave_flags:

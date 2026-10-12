@@ -16,6 +16,10 @@ base_mime_defaults: {}
 # host.
 base_upower_settings: {}
 
+# Locale categories ({variable: locale}) written to /etc/default/locale, such
+# as LC_TIME; they take effect at the next login. Set per host.
+base_locale: {}
+
 # Default video player (XDG MIME associations in the user's mimeapps.list).
 default_video_player: vlc.desktop
 video_mimetypes:
