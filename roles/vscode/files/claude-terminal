@@ -1,0 +1,17 @@
+#!/bin/sh
+# Claude Code in the terminal, from the newest installed VS Code extension: the
+# same binary as the standalone install, already behind x86-64 emulation as
+# claude.x86emu. The extension updates it, so Claude's own updater stays off;
+# it would replace this script with a native binary.
+set -eu
+export DISABLE_AUTOUPDATER=1
+dir=$(ls -d "$HOME"/.vscode/extensions/anthropic.claude-code-*/ 2>/dev/null | sort -V | tail -n 1)
+if [ -z "$dir" ]; then
+  echo "claude: the Claude Code VS Code extension is not installed" >&2
+  exit 1
+fi
+for bin in "$dir"resources/native-binar*/claude.x86emu "$dir"resources/native-binar*/*/claude.x86emu; do
+  [ -f "$bin" ] && exec "$bin" "$@"
+done
+echo "claude: $dir has no claude.x86emu yet; run /usr/local/libexec/claude-x86emu-shim" >&2
+exit 1

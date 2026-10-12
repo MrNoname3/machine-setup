@@ -99,13 +99,24 @@
 # entry's Icon is a path, so a path-referenced icon would not survive one update.
 # Installed into the user's hicolor theme, where the name resolves and Gear Lever
 # cannot reach it.
+- name: Ensure the user icon theme directory exists
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.local/share/icons/hicolor/256x256/apps"
+    state: directory
+    mode: "0755"
+  become: false
+  when: appimages | selectattr('desktop.Icon', 'defined') | list | length > 0
+
+# Only the icons the host's declared apps name, from files/icons/<Icon>.png.
 - name: Install AppImage icons into the user icon theme
   ansible.builtin.copy:
-    src: "{{ item }}"
-    dest: "/home/{{ primary_user }}/.local/share/icons/hicolor/256x256/apps/{{ item | basename }}"
+    src: "icons/{{ item.desktop.Icon }}.png"
+    dest: "/home/{{ primary_user }}/.local/share/icons/hicolor/256x256/apps/{{ item.desktop.Icon }}.png"
     mode: "0644"
   become: false
-  with_fileglob: icons/*.png
+  loop: "{{ appimages | selectattr('desktop.Icon', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
 
 # The repair is deliberately self-limiting. A stripped upstream desktop entry is
 # almost certainly a packaging accident that gets fixed in a later release, and an

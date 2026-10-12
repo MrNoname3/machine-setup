@@ -1,0 +1,83 @@
+---
+# Claude Code's native binary needs instructions (SSE4.2, AVX, ...) older CPUs
+# lack. qemu-user emulates them: files named *.x86emu run under
+# `qemu-x86_64 -cpu max` through binfmt_misc, and the extension's binary is
+# renamed to claude.x86emu behind a small script. A user path unit does the
+# rename again whenever VS Code installs or updates the extension.
+
+- name: Install qemu-user
+  ansible.builtin.apt:
+    name: qemu-user
+    state: present
+
+- name: Install the x86emu binfmt interpreter and the extension shim script
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/usr/local/libexec/{{ item }}"
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - x86emu
+    - claude-x86emu-shim
+
+- name: Register *.x86emu with binfmt_misc at boot
+  ansible.builtin.copy:
+    dest: /etc/binfmt.d/x86emu.conf
+    content: ":x86emu:E::x86emu::/usr/local/libexec/x86emu:P\n"
+    owner: root
+    group: root
+    mode: "0644"
+  register: x86emu_binfmt
+
+- name: Register *.x86emu with binfmt_misc now
+  ansible.builtin.systemd_service:
+    name: systemd-binfmt.service
+    state: restarted
+  when: x86emu_binfmt.changed  # noqa: no-handler
+
+- name: Ensure the user unit directory exists
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.config/systemd/user"
+    state: directory
+    mode: "0755"
+  become: false
+
+- name: Install the user units that shim new extension versions
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/home/{{ primary_user }}/.config/systemd/user/{{ item }}"
+    mode: "0644"
+  become: false
+  loop:
+    - claude-x86emu.service
+    - claude-x86emu.path
+
+- name: Watch the VS Code extensions for new Claude Code versions
+  ansible.builtin.systemd_service:
+    name: claude-x86emu.path
+    scope: user
+    enabled: true
+    state: started
+    daemon_reload: true
+  become: false
+
+- name: Shim the Claude Code versions installed now
+  ansible.builtin.command: /usr/local/libexec/claude-x86emu-shim
+  register: x86emu_shim
+  changed_when: x86emu_shim.stdout | length > 0
+  become: false
+
+- name: Ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.local/bin"
+    state: directory
+    mode: "0755"
+  become: false
+
+- name: Run the extension's Claude Code from the terminal as claude
+  ansible.builtin.copy:
+    src: claude-terminal
+    dest: "/home/{{ primary_user }}/.local/bin/claude"
+    mode: "0755"
+  become: false

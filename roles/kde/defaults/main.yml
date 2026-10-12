@@ -5,10 +5,10 @@
 # [Libinput][1234][5678][Name] are expressed by embedding the extra brackets in
 # the section string.
 kde_config_settings:
-  # Night Colour: always on, constant 5800 K (the Mint night-light's twin)
+  # Night Colour: always on, constant 5600 K (as the Mint hosts' night light)
   - { file: kwinrc, section: NightColor, option: Active, value: "true" }
   - { file: kwinrc, section: NightColor, option: Mode, value: "Constant" }
-  - { file: kwinrc, section: NightColor, option: NightTemperature, value: "5800" }
+  - { file: kwinrc, section: NightColor, option: NightTemperature, value: "5600" }
   # Overview effect: hot corner disabled (9 = no electric border)
   - { file: kwinrc, section: Effect-overview, option: BorderActivate, value: "9" }
   # Remember Window Positions kwin script (installed by this role)

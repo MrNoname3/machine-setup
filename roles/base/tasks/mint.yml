@@ -1,0 +1,105 @@
+---
+# Linux Mint defaults shared by its desktop editions: the login screen, the
+# default applications and Kate's theme.
+
+# NumLock on at the login screen (and it carries into the Cinnamon session,
+# since csd-keyboard's numlock-state is 'unknown' so it doesn't undo it). We use
+# slick-greeter's native activate-numlock option (the toggle in Mint's "Login
+# Window" settings). NOTE: it works by calling /usr/bin/numlockx on internally,
+# so the numlockx package is still required (kept in packages_present).
+- name: Enable NumLock at the login screen (slick-greeter native option)
+  community.general.ini_file:
+    path: /etc/lightdm/slick-greeter.conf
+    section: Greeter
+    option: activate-numlock
+    value: "true"
+    mode: "0644"
+    no_extra_spaces: true
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Drop the old numlockx greeter-setup-script override (superseded by activate-numlock)
+  community.general.ini_file:
+    path: /etc/lightdm/lightdm.conf
+    section: "Seat:*"
+    option: greeter-setup-script
+    state: absent
+    mode: "0644"
+    no_extra_spaces: true
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Set VLC as the default video player (user MIME associations)
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.config/mimeapps.list"
+    section: Default Applications
+    option: "{{ item }}"
+    value: "{{ default_video_player }}"
+    mode: "{{ user_config_mode }}"
+    no_extra_spaces: true
+  become: false
+  loop: "{{ video_mimetypes }}"
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Set Kate as the default text editor (user MIME associations)
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.config/mimeapps.list"
+    section: Default Applications
+    option: "{{ item }}"
+    value: "{{ default_text_editor }}"
+    mode: "{{ user_config_mode }}"
+    no_extra_spaces: true
+  become: false
+  loop: "{{ text_mimetypes }}"
+  when: ansible_facts['os_family'] == "Debian"
+
+# Kate: Qt does not follow the GTK theme, so Kate gets a window colour scheme and
+# an editor theme of its own in VS Code's Dark Modern colours, and the Breeze
+# widget style (the breeze package).
+- name: Ensure the Kate theme directories exist
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.local/share/{{ item }}"
+    state: directory
+    mode: "0755"
+  become: false
+  loop:
+    - color-schemes
+    - org.kde.syntax-highlighting/themes
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install the Dark Modern colour scheme and editor theme for Kate
+  ansible.builtin.copy:
+    src: "kate/{{ item.src }}"
+    dest: "/home/{{ primary_user }}/.local/share/{{ item.dest }}"
+    mode: "0644"
+  become: false
+  loop:
+    - { src: DarkModern.colors, dest: color-schemes/DarkModern.colors }
+    - { src: dark-modern.theme, dest: org.kde.syntax-highlighting/themes/dark-modern.theme }
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Use the Breeze widget style in KDE apps
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.config/kdeglobals"
+    section: KDE
+    option: widgetStyle
+    value: Breeze
+    mode: "{{ user_config_mode }}"
+    no_extra_spaces: true
+  become: false
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Select the Dark Modern colours in Kate
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.config/katerc"
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "{{ user_config_mode }}"
+    no_extra_spaces: true
+  become: false
+  loop:
+    - { section: UiSettings, option: ColorScheme, value: Dark Modern }
+    - { section: KTextEditor Renderer, option: Auto Color Theme Selection, value: "false" }
+    - { section: KTextEditor Renderer, option: Color Theme, value: Dark Modern }
+  loop_control:
+    label: "{{ item.option }}"
+  when: ansible_facts['os_family'] == "Debian"

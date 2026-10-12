@@ -137,10 +137,16 @@ DEFAULT=""
 case "$OS_FAMILY" in
   bazzite) DEFAULT=desktop-bazzite ;;
   debian)
-    # Mint is the laptop; plain Debian is the tablet image's system.
+    # Mint with Xfce is the Phenom desktop, other Mint the laptop; plain Debian
+    # is the tablet image's system.
     case "${ID:-}" in
       debian) DEFAULT=tablet-miix ;;
-      *)      DEFAULT=laptop-old ;;
+      *)
+        case "${XDG_CURRENT_DESKTOP:-}" in
+          *XFCE*) DEFAULT=desktop-phenom ;;
+          *)      DEFAULT=laptop-old ;;
+        esac
+        ;;
     esac
     ;;
 esac

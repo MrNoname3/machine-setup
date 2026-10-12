@@ -3,8 +3,9 @@
 packages_present: []
 packages_absent: []
 
-# Apply the Linux Mint / Cinnamon desktop defaults (tasks/cinnamon.yml).
-base_cinnamon: false
+# The Linux Mint desktop whose defaults to apply: cinnamon or xfce
+# (tasks/mint.yml, then tasks/<base_desktop>.yml). Empty applies none.
+base_desktop: ""
 
 # Default applications per MIME type ({type: desktop entry}), written to the
 # user's mimeapps.list; set per host.
@@ -14,6 +15,10 @@ base_mime_defaults: {}
 # as the battery levels of the warnings and of the critical action; set per
 # host.
 base_upower_settings: {}
+
+# Locale categories ({variable: locale}) written to /etc/default/locale, such
+# as LC_TIME; they take effect at the next login. Set per host.
+base_locale: {}
 
 # Default video player (XDG MIME associations in the user's mimeapps.list).
 default_video_player: vlc.desktop
