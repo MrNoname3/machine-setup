@@ -67,3 +67,17 @@
   register: x86emu_shim
   changed_when: x86emu_shim.stdout | length > 0
   become: false
+
+- name: Ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.local/bin"
+    state: directory
+    mode: "0755"
+  become: false
+
+- name: Run the extension's Claude Code from the terminal as claude
+  ansible.builtin.copy:
+    src: claude-terminal
+    dest: "/home/{{ primary_user }}/.local/bin/claude"
+    mode: "0755"
+  become: false
