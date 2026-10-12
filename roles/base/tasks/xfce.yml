@@ -102,7 +102,7 @@
     - { key: thunar-sort-order, value: GTK_SORT_DESCENDING }
   when:
     - thunar_downloads_sort.rc == 0
-    - ("metadata::" ~ item.key ~ ": " ~ item.value) not in thunar_downloads_sort.stdout
+    - "('metadata::' ~ item.key ~ ': ' ~ item.value) not in thunar_downloads_sort.stdout"
   changed_when: true
 
 # xfwm4 does not follow the GTK theme on its own. The portal key is the one
