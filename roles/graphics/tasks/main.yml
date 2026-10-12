@@ -69,7 +69,7 @@
         content: |
           Types: deb
           URIs: https://ppa.launchpadcontent.net/kisak/kisak-mesa/ubuntu
-          Suites: {{ graphics_os_release.content | b64decode | regex_search('^UBUNTU_CODENAME=(\\S+)', '\\1', multiline=True) | first }}
+          Suites: {{ graphics_os_release.content | b64decode | regex_findall('^UBUNTU_CODENAME=([a-z]+)$', multiline=True) | first }}
           Components: main
           Signed-By: /etc/apt/keyrings/kisak-mesa.asc
 
