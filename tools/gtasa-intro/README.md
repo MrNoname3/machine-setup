@@ -43,7 +43,9 @@ the same library. `revert` restores the original byte and Wine's merit.
 
 ## Skipping the videos on nouveau
 
-On nouveau, a key press that cuts a video short can kill the game's GPU channel
-(`ILLEGAL_MTHD` / `EMPTY_SUBC` in the kernel log, a black screen): the renderer
-thread and the game's render thread race in Mesa's nouveau driver. Let the
-videos run to the end there.
+With nouveau on Mesa older than 26.1, a key press that cuts a video short can
+kill the game's GPU channel (`ILLEGAL_MTHD` / `EMPTY_SUBC` in the kernel log, a
+black screen). The device reset that follows is where Wine's SwapBuffers blit
+meets an uninitialised sample count in nvc0's blitter (fixed in Mesa a6992c7b).
+On such a Mesa, let the videos run to the end; the `graphics` role's
+`mesa_kisak_ppa` brings a fixed one to Ubuntu-based hosts.
