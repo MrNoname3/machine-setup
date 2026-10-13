@@ -1,0 +1,57 @@
+---
+# zram role (Debian family): swap compressed in memory, used before the disk
+# swap (which stays, at a lower priority). An empty zram device takes no
+# memory; pages go there only under memory pressure. It needs root, so a run
+# without it skips the role with a notice.
+
+- name: Check whether this run has root
+  ansible.builtin.command: id -u
+  register: zram_uid
+  changed_when: false
+  check_mode: false
+
+- name: Note that zram was skipped (no root)
+  ansible.builtin.debug:
+    msg: >-
+      The zram role needs root, so it was skipped. Run it with:
+      ./scripts/apply.sh {{ inventory_hostname }} --tags zram -K
+  when: zram_uid.stdout != "0"
+
+- name: Set up swap on zram
+  when:
+    - zram_uid.stdout == "0"
+    - ansible_facts['os_family'] == "Debian"
+  block:
+    - name: Install zram-generator
+      ansible.builtin.apt:
+        name: systemd-zram-generator
+        state: present
+
+    - name: Configure the zram swap device
+      ansible.builtin.copy:
+        dest: /etc/systemd/zram-generator.conf
+        content: |
+          [zram0]
+          zram-size = {{ zram_size }}
+          compression-algorithm = {{ zram_compression }}
+          swap-priority = 100
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart zram
+
+    - name: Tune swapping for swap in memory
+      ansible.posix.sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        sysctl_file: /etc/sysctl.d/90-zram.conf
+        reload: true
+      loop: "{{ zram_sysctl | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Start the zram swap device
+      ansible.builtin.systemd_service:
+        name: systemd-zram-setup@zram0.service
+        state: started
+        daemon_reload: true
