@@ -7,11 +7,9 @@ set -e
 keep=$1
 comment="Before automatic upgrade"
 
-# The checks Mint's upgrade script makes before it does anything.
+# Mint's upgrade script does nothing without this flag; on battery the unit
+# does not start at all (ConditionACPower).
 [ -e /var/lib/linuxmint/mintupdate-automatic-upgrades-enabled ] || exit 0
-if [ -r /sys/class/power_supply/AC/online ] && [ "$(cat /sys/class/power_supply/AC/online)" != 1 ]; then
-  exit 0
-fi
 
 options=$(grep -v '^#' /etc/mintupdate-automatic-upgrades.conf 2>/dev/null || :)
 # shellcheck disable=SC2086  # one option per word, as Mint's script reads them

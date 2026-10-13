@@ -152,6 +152,8 @@
         content: |
           [Unit]
           OnFailure=system-updates-failed@%n.service
+          # Mint's script checks only a supply named AC; a laptop's may be ACAD.
+          ConditionACPower=true
 
           [Service]
           ExecStartPre=/usr/local/libexec/system-updates-snapshot {{ system_updates_upgrade_snapshots }}
