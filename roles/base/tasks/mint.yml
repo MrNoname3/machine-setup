@@ -103,3 +103,20 @@
   loop_control:
     label: "{{ item.option }}"
   when: ansible_facts['os_family'] == "Debian"
+
+- name: Read the user's input method
+  ansible.builtin.command: grep -x "run_im {{ base_input_method }}" "/home/{{ primary_user }}/.xinputrc"
+  register: base_input_method_current
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  become: false
+  when: base_input_method | length > 0
+
+- name: Set the user's input method (im-config)
+  ansible.builtin.command: im-config -n {{ base_input_method }}
+  become: false
+  changed_when: true
+  when:
+    - base_input_method | length > 0
+    - base_input_method_current.rc != 0

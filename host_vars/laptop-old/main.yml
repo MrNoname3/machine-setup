@@ -44,8 +44,13 @@ base_autostart_hidden:
   - mintreport
   - mintupdate
   - print-applet
+  - cinnamon-settings-daemon-wacom   # no Wacom tablet
 base_units_disabled:
   - motd-news.timer             # news for the terminal's login message
+
+# No input method framework: the Hungarian layout needs none, and ibus runs
+# seven processes for it.
+base_input_method: none
 
 # Mint's umask is 002, so the apps write their config files as 0664.
 user_config_mode: "0664"
@@ -138,6 +143,7 @@ packages_absent:
   - rsyslog                     # writes every journald message again to /var/log
   - plocate                     # the daily locate index
   - kerneloops                  # Ubuntu's kernel crash reporter
+  - papirus-icon-theme         # unused icon theme (Mint-Y-Sand is the one set)
   # Real Docker engine — only ever pulled as a docker-compose-v2 *Recommends*; we
   # run rootless Podman (podman compose uses docker-compose-v2's provider directly,
   # so the compose tooling stays). The containers role installs with

@@ -31,6 +31,10 @@ base_autostart_hidden: []
 # systemd units stopped and disabled; set per host.
 base_units_disabled: []
 
+# The user's input method framework in im-config's terms (ibus, fcitx5, none);
+# empty keeps what the user has. It applies from the next login.
+base_input_method: ""
+
 # Default video player (XDG MIME associations in the user's mimeapps.list).
 default_video_player: vlc.desktop
 video_mimetypes:
