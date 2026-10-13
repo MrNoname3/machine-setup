@@ -27,11 +27,6 @@
       {{ '/etc/smartd.conf' if ansible_facts['os_family'] == 'Debian' else '/etc/smartmontools/smartd.conf' }}
     disk_health_smartd_service: >-
       {{ 'smartmontools' if ansible_facts['os_family'] == 'Debian' else 'smartd' }}
-    # smartd addresses an NVMe drive by its controller (nvme0), the kernel
-    # lists its namespaces (nvme0n1).
-    disk_health_nvme_controllers: >-
-      {{ ansible_facts['devices'].keys() | select('match', '^nvme[0-9]+n[0-9]+$')
-         | map('regex_replace', 'n[0-9]+$', '') | unique | sort }}
   block:
     # The recommended mail transport is left out: warnings go to the desktop.
     - name: Install smartmontools and notify-send (Debian)
@@ -78,13 +73,31 @@
         group: root
         mode: "0644"
 
-    - name: Configure smartd
+    - name: Install the smartd configuration writer
       ansible.builtin.template:
-        src: smartd.conf.j2
-        dest: "{{ disk_health_smartd_conf }}"
+        src: disk-health-smartd-conf.j2
+        dest: /usr/local/libexec/disk-health-smartd-conf
+        owner: root
+        group: root
+        mode: "0755"
+      notify: Restart smartd
+
+    - name: Ensure the smartd unit's drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/{{ disk_health_smartd_service }}.service.d
+        state: directory
+        mode: "0755"
+
+    - name: Write smartd's configuration before every start
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/{{ disk_health_smartd_service }}.service.d/disk-health.conf
+        content: |
+          [Service]
+          ExecStartPre=/usr/local/libexec/disk-health-smartd-conf {{ disk_health_smartd_conf }}
         owner: root
         group: root
         mode: "0644"
+      register: disk_health_smartd_dropin
       notify: Restart smartd
 
     - name: Install the self-test, scrub and failure units
@@ -155,6 +168,7 @@
       when: >-
         disk_health_units is changed or disk_health_selftest_timers is changed
         or disk_health_scrub_timer is changed or disk_health_old_scrub_units is changed
+        or disk_health_smartd_dropin is changed
 
     - name: Run smartd
       ansible.builtin.systemd_service:

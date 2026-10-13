@@ -1,0 +1,25 @@
+#!/bin/sh
+# {{ ansible_managed }} (disk-health role)
+#
+# Usage: disk-health-smartd-conf <path> — writes smartd's configuration for the
+# drives present now. smartd's unit runs it before every start, and smartd only
+# looks for drives when it starts, so a newly fitted drive gets its settings at
+# the next boot.
+#
+# smartd allows a single DEVICESCAN line, so NVMe drives, which need other
+# settings, get a line each: overall health (critical warnings, spare, media
+# wear), the self-test log and an NVMe temperature limit. Their error log is
+# left out: harmless commands fill it. DEVICESCAN covers everything else with
+# all SMART checks, a warning whenever the reallocated sector count grows, and
+# no wake-up of a drive in standby just to poll it. Every warning goes to
+# disk-health-smartd, again every day while it lasts.
+conf=$1
+{
+  echo "# Written by disk-health-smartd-conf before every smartd start."
+  echo "DEFAULT -m <nomailer> -M daily -M exec /usr/local/libexec/disk-health-smartd"
+  for ctrl in /sys/class/nvme/nvme*; do
+    [ -e "$ctrl" ] || continue
+    echo "/dev/${ctrl##*/} -d nvme -H -l selftest -W 0,0,{{ disk_health_nvme_temp_crit }}"
+  done
+  echo "DEVICESCAN -a -o on -S on -R 5! -n standby,10,q -W 0,0,{{ disk_health_temp_crit }}"
+} > "$conf.new" && mv "$conf.new" "$conf"
