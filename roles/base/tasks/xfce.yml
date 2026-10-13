@@ -270,13 +270,21 @@
   loop_control:
     label: "{{ item.property }}"
 
-- name: Show notifications at the bottom right (Xfce)
+# Every notification also goes to the log behind the panel's bell. notifyd
+# reads its enum settings, such as /log-level, as their nick strings.
+- name: Show notifications at the bottom right and keep them in the log (Xfce)
   community.general.xfconf:
     channel: xfce4-notifyd
-    property: /notify-location
-    value_type: string
-    value: bottom-right
+    property: "{{ item.property }}"
+    value_type: "{{ item.type }}"
+    value: "{{ item.value }}"
   become: false
+  loop:
+    - { property: /notify-location, type: string, value: bottom-right }
+    - { property: /notification-log, type: bool, value: "true" }
+    - { property: /log-level, type: string, value: always }
+  loop_control:
+    label: "{{ item.property }}"
 
 # Night Light as in the Cinnamon session: a fixed 5600 K. With equal day and
 # night temperatures the location given to redshift has no effect.
