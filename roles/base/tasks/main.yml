@@ -136,6 +136,17 @@
     enabled: false
     state: stopped
   loop: "{{ base_units_disabled }}"
+  register: base_units_stopped
+
+# A unit whose stop command fails (podman-restart's, with nothing to stop)
+# would otherwise stay listed as failed.
+- name: Clear the failed state of the units just stopped
+  ansible.builtin.command: systemctl reset-failed {{ item.item }}
+  loop: "{{ base_units_stopped.results | selectattr('changed') | list }}"
+  loop_control:
+    label: "{{ item.item }}"
+  changed_when: false
+  failed_when: false
 
 - name: Linux Mint desktop defaults
   ansible.builtin.include_tasks: mint.yml

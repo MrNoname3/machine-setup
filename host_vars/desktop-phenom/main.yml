@@ -67,6 +67,7 @@ base_autostart_hidden:
   - mintupdate
 base_units_disabled:
   - motd-news.timer             # news for the terminal's login message
+  - podman-restart.service      # restarts root containers; there are none here
 
 # Brave decodes video on the GT 1030 through VA-API (graphics_nvidia_vaapi).
 # ANGLE has to run on EGL: on GLX the decoded frames never reach the page.
