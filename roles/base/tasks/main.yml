@@ -35,6 +35,30 @@
     - ansible_facts['os_family'] == "Debian"
     - packages_present | length > 0
 
+# Removing ecryptfs-utils takes its PAM module away, which an
+# ecryptfs-encrypted home needs to log in.
+- name: Find ecryptfs-encrypted homes
+  ansible.builtin.find:
+    paths: /home
+    patterns: .ecryptfs
+    file_type: any
+    hidden: true
+    recurse: true
+    depth: 2
+  register: base_ecryptfs_homes
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - "'ecryptfs-utils' in packages_absent"
+
+- name: Keep ecryptfs while a home uses it
+  ansible.builtin.assert:
+    that: base_ecryptfs_homes.matched == 0
+    fail_msg: >-
+      {{ base_ecryptfs_homes.files | map(attribute='path') | join(', ') }} is in
+      use, so ecryptfs-utils must stay: take it out of packages_absent.
+    quiet: true
+  when: base_ecryptfs_homes is not skipped
+
 - name: Remove packages (apt)
   ansible.builtin.apt:
     name: "{{ packages_absent }}"

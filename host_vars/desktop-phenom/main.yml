@@ -165,6 +165,10 @@ packages_absent:
   # (crun/conmon/netavark, not containerd).
   - docker.io
   - containerd
+  # ecryptfs's PAM module, loaded at every login and unlock; no home here is
+  # ecryptfs-encrypted (the disk is LUKS). Removing it takes it out of PAM.
+  - ecryptfs-utils
+  - libecryptfs1
 
 # Flatpak application set (system scope, Flathub).
 flatpak_apps:
