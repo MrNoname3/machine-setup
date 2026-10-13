@@ -32,6 +32,11 @@ roles_enabled:
 # Switching to cinnamon installs that session too; pick it at the login screen.
 base_desktop: xfce
 
+# The NVIDIA 580 driver leaves composited windows unpainted (NVIDIA bug
+# 5758240): Brave shows the desktop through its window, and the screen stays
+# black after the monitor wakes.
+base_xfce_compositing: false
+
 # Mint's umask is 002, so the apps write their config files as 0664.
 user_config_mode: "0664"
 

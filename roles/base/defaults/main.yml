@@ -7,6 +7,10 @@ packages_absent: []
 # (tasks/mint.yml, then tasks/<base_desktop>.yml). Empty applies none.
 base_desktop: ""
 
+# xfwm4's compositor (Xfce). Off on a host whose GPU driver mis-renders
+# composited windows.
+base_xfce_compositing: true
+
 # Default applications per MIME type ({type: desktop entry}), written to the
 # user's mimeapps.list; set per host.
 base_mime_defaults: {}
