@@ -210,6 +210,10 @@ container_docker_host_export: true
 # Away from home only the home subnet goes through the tunnel.
 wireguard_auto_connection: wg-home-split
 
+# Pushes to the Gitea authenticate with a token kept by git's own store helper.
+git_config_extra:
+  credential.helper: store
+
 # Remote LUKS unlock (dropbear) uses ip=dhcp: the initramfs gets its address
 # from the DHCP server of whichever network the machine is on.
 
