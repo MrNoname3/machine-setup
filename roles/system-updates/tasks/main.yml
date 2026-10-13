@@ -65,7 +65,9 @@
           schedule_hourly: "false"
           schedule_boot: "false"
           count_daily: "{{ system_updates_daily_snapshots | string }}"
-          exclude: "{{ system_updates_timeshift_current.exclude | default([]) | union(system_updates_snapshot_exclude) }}"
+          exclude: >-
+            {{ (system_updates_timeshift_current.exclude | default([]))
+               + (system_updates_snapshot_exclude | difference(system_updates_timeshift_current.exclude | default([]))) }}
       ansible.builtin.copy:
         dest: /etc/timeshift/timeshift.json
         content: "{{ system_updates_timeshift_current | combine(system_updates_timeshift_wanted) | to_nice_json(indent=2) }}\n"
