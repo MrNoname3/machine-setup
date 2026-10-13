@@ -38,7 +38,7 @@
         owner: root
         group: root
         mode: "0644"
-      notify: Restart zram
+      notify: Reload systemd for zram
 
     - name: Tune swapping for swap in memory
       ansible.posix.sysctl:

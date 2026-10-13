@@ -15,6 +15,7 @@ roles_enabled:
   - brave
   - phosh
   - firewall
+  - zram          # the image's zram swap, with the swap settings for it
   - etckeeper
 
 # The key the ssh-access role authorizes for primary_user (roles/ssh-access/files).
