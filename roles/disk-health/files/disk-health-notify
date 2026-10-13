@@ -3,6 +3,8 @@
 # /var/lib/disk-health/alerts and shows it in every graphical session now; the
 # login-time disk-health-alerts replays it for sessions that were not there.
 title=$1 message=$2
+# smartd runs its hook with a PATH that leaves out sbin, where Debian keeps runuser.
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 mkdir -p /var/lib/disk-health
 printf '%s\t%s\t%s\n' "$(date +%s)" "$title" "$(printf '%s' "$message" | tr '\t\n' '  ')" \
   >> /var/lib/disk-health/alerts
