@@ -135,8 +135,8 @@
   vars:
     brave_launcher_exec: '"$HERE/brave" "$@"'
     brave_launcher_exec_new: >-
-      {% for name, value in brave_env.items() %}{{ name }}={{ value | quote }} {% endfor %}"$HERE/brave"
-      {%- for flag in brave_flags %} {{ flag | quote }}{% endfor %} "$@"
+      {{ ((brave_env.keys() | zip(brave_env.values() | map('quote')) | map('join', '=') | list)
+          + ['"$HERE/brave"'] + (brave_flags | map('quote') | list) + ['"$@"']) | join(' ') }}
   block:
     - name: Divert the package's Brave launcher
       ansible.builtin.command: >-
