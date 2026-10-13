@@ -117,9 +117,10 @@
 
 # --- Extra launch flags (diverted launcher script) ------------------------
 # The package's launcher script reads no flags file. It is diverted to
-# <launcher>.distrib and a copy with the flags on its exec line takes its place,
-# regenerated from the diverted original on every run. The copy keeps the
-# original's name, which Brave records as CHROME_WRAPPER and relaunches through.
+# <launcher>.distrib and a copy with brave_env and the flags on its exec line
+# takes its place, regenerated from the diverted original on every run. The
+# copy keeps the original's name, which Brave records as CHROME_WRAPPER and
+# relaunches through.
 - name: Check whether the Brave launcher is diverted
   ansible.builtin.command: dpkg-divert --listpackage {{ brave_launcher }}
   register: brave_launcher_divert
@@ -130,9 +131,12 @@
 - name: Add the flags to the Brave launcher
   when:
     - ansible_facts['os_family'] == "Debian"
-    - brave_flags | length > 0
+    - (brave_flags | length > 0) or (brave_env | length > 0)
   vars:
     brave_launcher_exec: '"$HERE/brave" "$@"'
+    brave_launcher_exec_new: >-
+      {% for name, value in brave_env.items() %}{{ name }}={{ value | quote }} {% endfor %}"$HERE/brave"
+      {%- for flag in brave_flags %} {{ flag | quote }}{% endfor %} "$@"
   block:
     - name: Divert the package's Brave launcher
       ansible.builtin.command: >-
@@ -162,8 +166,7 @@
         dest: "{{ brave_launcher }}"
         content: >-
           {{ brave_launcher_original.content | b64decode
-             | replace(brave_launcher_exec,
-                       '"$HERE/brave" ' ~ (brave_flags | map('quote') | join(' ')) ~ ' "$@"') }}
+             | replace(brave_launcher_exec, brave_launcher_exec_new) }}
         mode: "0755"
       when: not ansible_check_mode
 
@@ -174,6 +177,7 @@
   when:
     - ansible_facts['os_family'] == "Debian"
     - brave_flags | length == 0
+    - brave_env | length == 0
     - brave_launcher_divert.stdout == 'LOCAL'
   changed_when: true
 

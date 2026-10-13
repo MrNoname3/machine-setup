@@ -117,6 +117,10 @@ brave_local_state_prefs_extra: {}
 # relaunch-after-update starts all go through it. Empty list = the package's own
 # script. Per-host — see host_vars.
 brave_flags: []
+
+# Environment variables for every launch ({name: value}), set on the same
+# exec line as brave_flags. Per-host — see host_vars.
+brave_env: {}
 brave_launcher: /opt/brave.com/brave/brave-browser
 
 # The desktop entries the official package installs in /usr/share/applications;

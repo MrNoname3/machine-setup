@@ -60,6 +60,10 @@ brave_flags:
   - "--ignore-gpu-blocklist"
   - "--use-gl=angle"
   - "--use-angle=gl-egl"
+# EGL on X11 through the driver's built-in support: the NVIDIA 580 driver's
+# egl-x11 library stops Brave's window from updating after a while.
+brave_env:
+  __EGL_EXTERNAL_PLATFORM_CONFIG_FILENAMES: /usr/share/egl/egl_external_platform.d/15_nvidia_gbm.json
 brave_policies_extra:
   # enhanced-h264ify: YouTube sends H.264, which the GT 1030 decodes, instead
   # of AV1, which neither the card nor this CPU can decode in time.
