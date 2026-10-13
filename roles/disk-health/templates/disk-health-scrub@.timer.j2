@@ -1,0 +1,11 @@
+# {{ ansible_managed }} (disk-health role)
+[Unit]
+Description=Btrfs scrub of filesystem %i ({{ disk_health_scrub }})
+
+[Timer]
+OnCalendar={{ disk_health_scrub }}
+Persistent=true
+RandomizedDelaySec=30min
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,17 @@
+#!/bin/sh
+# Usage: disk-health-selftest short|long — starts that SMART self-test on every
+# drive smartctl finds. The drives run the tests on their own; smartd reads the
+# results from their self-test logs and warns about a failed one.
+kind=$1
+case $kind in short|long) ;; *) echo "usage: $0 short|long" >&2; exit 2 ;; esac
+
+# --scan-open probes each drive for its real type (a SATA disk behind a SCSI
+# name is "sat"); a drive it cannot open comes back as a comment line.
+smartctl --scan-open | while read -r dev _ type _; do
+  case $dev in /dev/*) ;; *) continue ;; esac
+  if smartctl -d "$type" -t "$kind" "$dev" > /dev/null; then
+    echo "$dev: $kind self-test started"
+  else
+    echo "$dev: no $kind self-test (unsupported or busy)"
+  fi
+done

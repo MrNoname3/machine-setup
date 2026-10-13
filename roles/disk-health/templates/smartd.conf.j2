@@ -1,0 +1,14 @@
+# {{ ansible_managed }} (disk-health role)
+#
+# Every warning goes to disk-health-smartd, again every day while it lasts.
+DEFAULT -m <nomailer> -M daily -M exec /usr/local/libexec/disk-health-smartd
+
+# NVMe: overall health (critical warnings, spare, media wear), the self-test
+# log and temperature. The error log is left out: harmless commands fill it.
+{% for nvme in disk_health_nvme_controllers %}
+/dev/{{ nvme }} -d nvme -H -l selftest -W 0,0,{{ disk_health_nvme_temp_crit }}
+{% endfor %}
+
+# Everything else: all SMART checks, a warning whenever the reallocated sector
+# count grows, and no wake-up of a drive in standby just to poll it.
+DEVICESCAN -a -o on -S on -R 5! -n standby,10,q -W 0,0,{{ disk_health_temp_crit }}

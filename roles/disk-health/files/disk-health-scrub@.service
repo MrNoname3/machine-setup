@@ -1,0 +1,10 @@
+[Unit]
+Description=Btrfs scrub of filesystem %i
+OnFailure=disk-health-failed@%n.service
+
+[Service]
+Type=oneshot
+Nice=19
+IOSchedulingClass=idle
+# A filesystem that is not mounted (a locked data disk) is skipped.
+ExecStart=/bin/sh -c 'mnt=$$(findmnt -n -o TARGET -S UUID=%i | head -n 1); [ -n "$$mnt" ] || exit 0; exec btrfs scrub start -B "$$mnt"'

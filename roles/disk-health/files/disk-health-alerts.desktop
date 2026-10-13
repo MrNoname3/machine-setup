@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Disk health alerts
+Comment=Show the disk-health alerts raised since the last login
+Exec=/usr/local/bin/disk-health-alerts
+NoDisplay=true

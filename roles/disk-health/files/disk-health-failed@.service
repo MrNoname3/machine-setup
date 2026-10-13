@@ -1,0 +1,6 @@
+[Unit]
+Description=Report the failure of %i
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/disk-health-notify "Disk check failed: %i" "Details: journalctl -u %i"

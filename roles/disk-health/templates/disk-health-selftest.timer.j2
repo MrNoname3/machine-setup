@@ -1,0 +1,12 @@
+# {{ ansible_managed }} (disk-health role)
+[Unit]
+Description=SMART {{ item.kind }} self-test on every drive ({{ item.when }})
+
+[Timer]
+OnCalendar={{ item.when }}
+Persistent=true
+RandomizedDelaySec=15min
+Unit=disk-health-selftest@{{ item.kind }}.service
+
+[Install]
+WantedBy=timers.target

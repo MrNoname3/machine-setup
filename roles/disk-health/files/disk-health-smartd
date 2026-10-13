@@ -1,0 +1,4 @@
+#!/bin/sh
+# smartd's warning hook (-M exec): passes the warning smartd describes in its
+# SMARTD_* environment on to disk-health-notify.
+exec /usr/local/libexec/disk-health-notify "Disk problem: ${SMARTD_DEVICESTRING:-$SMARTD_DEVICE}" "$SMARTD_MESSAGE"

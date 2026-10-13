@@ -1,0 +1,17 @@
+#!/bin/sh
+# Usage: disk-health-notify <title> <message> — records a disk-health alert in
+# /var/lib/disk-health/alerts and shows it in every graphical session now; the
+# login-time disk-health-alerts replays it for sessions that were not there.
+title=$1 message=$2
+mkdir -p /var/lib/disk-health
+printf '%s\t%s\t%s\n' "$(date +%s)" "$title" "$(printf '%s' "$message" | tr '\t\n' '  ')" \
+  >> /var/lib/disk-health/alerts
+
+loginctl list-sessions --no-legend --no-pager 2>/dev/null | while read -r session uid user _; do
+  case $(loginctl show-session "$session" -p Type --value 2>/dev/null) in
+    x11|wayland)
+      DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        runuser -u "$user" -- notify-send -u critical -i drive-harddisk "$title" "$message" 2>/dev/null || :
+      ;;
+  esac
+done

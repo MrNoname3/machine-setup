@@ -27,6 +27,7 @@ roles_enabled:
   - wireguard
   - containers
   - journal        # cap the systemd journal
+  - disk-health    # SMART watch, self-tests, btrfs scrub
   - etckeeper
   - keyring
 

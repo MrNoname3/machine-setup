@@ -1,0 +1,23 @@
+#!/bin/sh
+# Runs at login (XDG autostart): shows the disk-health alerts recorded since this
+# user last saw them, so an alert raised while nobody was logged in still
+# reaches someone.
+alerts=/var/lib/disk-health/alerts
+seen_file=${XDG_STATE_HOME:-$HOME/.local/state}/disk-health/seen
+[ -r "$alerts" ] || exit 0
+
+seen=$(cat "$seen_file" 2>/dev/null || echo 0)
+new=$(awk -F '\t' -v seen="$seen" '$1 > seen' "$alerts")
+[ -n "$new" ] || exit 0
+
+# Give the session's notification daemon time to start.
+sleep 15
+count=$(printf '%s\n' "$new" | wc -l)
+last=$(printf '%s\n' "$new" | tail -n 1 | cut -f 2-3 | tr '\t' '\n')
+notify-send -u critical -i drive-harddisk "Disk health: $count alert(s) since your last login" \
+  "$last
+
+All of them: $alerts" || exit 0
+
+mkdir -p "$(dirname "$seen_file")"
+date +%s > "$seen_file"

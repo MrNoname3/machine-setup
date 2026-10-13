@@ -1,0 +1,6 @@
+[Unit]
+Description=Start a SMART %i self-test on every drive
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/disk-health-selftest %i

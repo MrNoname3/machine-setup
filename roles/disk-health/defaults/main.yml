@@ -1,0 +1,12 @@
+---
+# Temperature (°C) at which smartd warns: SATA/ATA drives (HDDs and SATA SSDs)
+# and NVMe drives, which run hotter by design.
+disk_health_temp_crit: 60
+disk_health_nvme_temp_crit: 75
+
+# When the SMART self-tests and the btrfs scrub run (systemd OnCalendar; the
+# long test mid-month, away from the scrub). The timers are persistent: a run
+# missed while the machine was off happens after the next boot.
+disk_health_selftest_short: weekly
+disk_health_selftest_long: "*-*-15"
+disk_health_scrub: monthly
