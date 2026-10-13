@@ -36,6 +36,17 @@ roles_enabled:
 # The base role's Mint desktop defaults (roles/base/tasks/mint.yml + cinnamon.yml).
 base_desktop: cinnamon
 
+# Tray applets with nothing to do here: no Evolution or other calendar client;
+# Cinnamon shows the print notifications itself; Update Manager's own
+# automation installs the updates (system-updates role).
+base_autostart_hidden:
+  - org.gnome.Evolution-alarm-notify
+  - mintreport
+  - mintupdate
+  - print-applet
+base_units_disabled:
+  - motd-news.timer             # news for the terminal's login message
+
 # Mint's umask is 002, so the apps write their config files as 0664.
 user_config_mode: "0664"
 
@@ -123,6 +134,10 @@ packages_absent:
   - cups-browsed                # network printer *browsing* — not needed with a USB printer (cups itself stays)
   - modemmanager                # no WWAN modem, and it grabs USB-serial ports (bad for embedded dev, like brltty)
   - touchegg                    # Cinnamon gestures are disabled and there is no touchegg config -> redundant
+  - fwupd                       # firmware updates — LVFS has none for this hardware
+  - rsyslog                     # writes every journald message again to /var/log
+  - plocate                     # the daily locate index
+  - kerneloops                  # Ubuntu's kernel crash reporter
   # Real Docker engine — only ever pulled as a docker-compose-v2 *Recommends*; we
   # run rootless Podman (podman compose uses docker-compose-v2's provider directly,
   # so the compose tooling stays). The containers role installs with
