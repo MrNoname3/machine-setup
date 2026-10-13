@@ -1,0 +1,10 @@
+#!/bin/sh
+# Scrubs every mounted btrfs filesystem in turn (one mounted at several places,
+# as subvolumes, counts once) and fails if any scrub fails or finds errors.
+status=0
+for uuid in $(findmnt -t btrfs -n -l -o UUID | sort -u); do
+  target=$(findmnt -n -l -o TARGET -S "UUID=$uuid" | head -n 1)
+  echo "scrubbing $target ($uuid)"
+  btrfs scrub start -B "$target" || status=1
+done
+exit $status

@@ -1,0 +1,9 @@
+[Unit]
+Description=Btrfs scrub of every mounted btrfs filesystem
+OnFailure=disk-health-failed@%n.service
+
+[Service]
+Type=oneshot
+Nice=19
+IOSchedulingClass=idle
+ExecStart=/usr/local/libexec/disk-health-scrub

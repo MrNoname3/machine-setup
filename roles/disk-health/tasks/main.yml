@@ -1,9 +1,10 @@
 ---
 # disk-health role: smartd watches every drive, systemd timers start the SMART
-# self-tests and scrub every btrfs filesystem, and a problem becomes a desktop
-# notification (replayed at the next login if nobody was logged in). It needs
-# root, so a run without it (the desktop's day-to-day `-e ansible_become=false`)
-# skips the role with a notice.
+# self-tests and scrub every mounted btrfs filesystem, and a problem becomes a
+# desktop notification (replayed at the next login if nobody was logged in).
+# The timers find the drives and filesystems when they run, so a new one is
+# covered without another playbook run. It needs root, so a run without it (the
+# desktop's day-to-day `-e ansible_become=false`) skips the role with a notice.
 
 - name: Check whether this run has root
   ansible.builtin.command: id -u
@@ -31,9 +32,6 @@
     disk_health_nvme_controllers: >-
       {{ ansible_facts['devices'].keys() | select('match', '^nvme[0-9]+n[0-9]+$')
          | map('regex_replace', 'n[0-9]+$', '') | unique | sort }}
-    disk_health_btrfs_uuids: >-
-      {{ ansible_facts['mounts'] | selectattr('fstype', 'equalto', 'btrfs')
-         | map(attribute='uuid') | reject('equalto', 'N/A') | unique | sort }}
   block:
     # The recommended mail transport is left out: warnings go to the desktop.
     - name: Install smartmontools and notify-send (Debian)
@@ -62,6 +60,7 @@
         - disk-health-notify
         - disk-health-smartd
         - disk-health-selftest
+        - disk-health-scrub
 
     - name: Install the login-time alert replay
       ansible.builtin.copy:
@@ -97,7 +96,7 @@
         mode: "0644"
       loop:
         - disk-health-selftest@.service
-        - disk-health-scrub@.service
+        - disk-health-scrub.service
         - disk-health-failed@.service
       register: disk_health_units
 
@@ -117,19 +116,45 @@
 
     - name: Install the scrub timer
       ansible.builtin.template:
-        src: disk-health-scrub@.timer.j2
-        dest: /etc/systemd/system/disk-health-scrub@.timer
+        src: disk-health-scrub.timer.j2
+        dest: /etc/systemd/system/disk-health-scrub.timer
         owner: root
         group: root
         mode: "0644"
       register: disk_health_scrub_timer
+
+    # Earlier runs scheduled one scrub per filesystem (disk-health-scrub@<uuid>).
+    - name: Find the per-filesystem scrub timers
+      ansible.builtin.find:
+        paths: /etc/systemd/system/timers.target.wants
+        patterns: disk-health-scrub@*.timer
+        file_type: link
+      register: disk_health_old_scrub_timers
+
+    - name: Stop and disable the per-filesystem scrub timers
+      ansible.builtin.systemd_service:
+        name: "{{ item.path | basename }}"
+        enabled: false
+        state: stopped
+      loop: "{{ disk_health_old_scrub_timers.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+
+    - name: Remove the per-filesystem scrub units
+      ansible.builtin.file:
+        path: /etc/systemd/system/{{ item }}
+        state: absent
+      loop:
+        - disk-health-scrub@.service
+        - disk-health-scrub@.timer
+      register: disk_health_old_scrub_units
 
     - name: Reload systemd after a unit change
       ansible.builtin.systemd_service:
         daemon_reload: true
       when: >-
         disk_health_units is changed or disk_health_selftest_timers is changed
-        or disk_health_scrub_timer is changed
+        or disk_health_scrub_timer is changed or disk_health_old_scrub_units is changed
 
     - name: Run smartd
       ansible.builtin.systemd_service:
@@ -144,9 +169,8 @@
         state: started
       loop: [short, long]
 
-    - name: Enable a scrub timer for every btrfs filesystem
+    - name: Enable the scrub timer
       ansible.builtin.systemd_service:
-        name: disk-health-scrub@{{ item }}.timer
+        name: disk-health-scrub.timer
         enabled: true
         state: started
-      loop: "{{ disk_health_btrfs_uuids }}"
