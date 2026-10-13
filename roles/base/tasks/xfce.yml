@@ -205,6 +205,16 @@
   loop_control:
     label: "{{ item.property }}"
 
+# The compositor's default GLX vsync can stall on the proprietary NVIDIA driver
+# when the monitor wakes, leaving a black screen with only the cursor.
+- name: Sync the compositor through the Present extension (Xfce)
+  community.general.xfconf:
+    channel: xfwm4
+    property: /general/vblank_mode
+    value_type: string
+    value: xpresent
+  become: false
+
 # Without a restored state of its own, the session keeps the NumLock the
 # login screen switched on.
 - name: Keep the login screen's NumLock in the session (Xfce)
