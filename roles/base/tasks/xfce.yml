@@ -286,6 +286,16 @@
   loop_control:
     label: "{{ item.property }}"
 
+# nm-applet reports every disconnect, including the one at each suspend and
+# resume; its tray icon still shows a lost connection, as Cinnamon's and KDE's
+# network applets do without a notification.
+- name: Show a lost connection in nm-applet's icon only (Xfce)
+  community.general.dconf:
+    key: /org/gnome/nm-applet/disable-disconnected-notifications
+    value: "true"
+    state: present
+  become: false
+
 # Night Light as in the Cinnamon session: a fixed 5600 K. With equal day and
 # night temperatures the location given to redshift has no effect.
 - name: Ensure ~/.config/autostart exists
