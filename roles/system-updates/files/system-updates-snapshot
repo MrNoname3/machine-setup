@@ -23,9 +23,12 @@ fi
 echo "$updates"
 
 # Timeshift's hourly check may be taking the daily snapshot right now, and
-# runs one at a time.
+# runs one at a time. A shutdown waits for the snapshot, as Mint's upgrade
+# script makes it wait for the upgrade.
 tries=3
-until timeshift --create --scripted --tags O --comments "$comment"; do
+until systemd-inhibit --what=shutdown --mode=block --who="Update Manager" \
+  --why="Taking a system snapshot before the automatic upgrade" \
+  timeshift --create --scripted --tags O --comments "$comment"; do
   tries=$((tries - 1))
   [ "$tries" -gt 0 ] || exit 1
   echo "snapshot failed, trying again in 5 minutes"
