@@ -131,6 +131,8 @@
   when:
     - ansible_facts['os_family'] == "Debian"
     - brave_flags | length > 0
+  vars:
+    brave_launcher_exec: '"$HERE/brave" "$@"'
   block:
     - name: Divert the package's Brave launcher
       ansible.builtin.command: >-
@@ -164,8 +166,6 @@
                        '"$HERE/brave" ' ~ (brave_flags | map('quote') | join(' ')) ~ ' "$@"') }}
         mode: "0755"
       when: not ansible_check_mode
-  vars:
-    brave_launcher_exec: '"$HERE/brave" "$@"'
 
 - name: Restore the package's Brave launcher
   ansible.builtin.shell: |
