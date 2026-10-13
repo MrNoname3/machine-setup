@@ -55,6 +55,18 @@ graphics_nvidia_vaapi: true
 base_locale:
   LC_TIME: hu_HU.UTF-8
 
+# Tray applets and services with nothing to do here: no Evolution or other
+# calendar client, no Bluetooth adapter, no printer; Update Manager's own
+# automation installs the updates (system-updates role).
+base_autostart_hidden:
+  - org.gnome.Evolution-alarm-notify
+  - mintreport
+  - blueman
+  - print-applet
+  - mintupdate
+base_units_disabled:
+  - motd-news.timer             # news for the terminal's login message
+
 # Brave decodes video on the GT 1030 through VA-API (graphics_nvidia_vaapi).
 # ANGLE has to run on EGL: on GLX the decoded frames never reach the page.
 brave_flags:
@@ -158,6 +170,10 @@ packages_absent:
   - cups-browsed                # network printer *browsing* — no printer here
   - modemmanager                # no WWAN modem, and it grabs USB-serial ports (bad for embedded dev, like brltty)
   - touchegg                    # Cinnamon gestures (the Cinnamon fallback session needs none)
+  - fwupd                       # firmware updates — LVFS has none for this hardware
+  - rsyslog                     # writes every journald message again to /var/log
+  - plocate                     # the daily locate index
+  - kerneloops                  # Ubuntu's kernel crash reporter
   # Real Docker engine — only ever pulled as a docker-compose-v2 *Recommends*; we
   # run rootless Podman (podman compose uses docker-compose-v2's provider directly,
   # so the compose tooling stays). The containers role installs with

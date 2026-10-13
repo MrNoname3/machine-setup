@@ -24,6 +24,13 @@ base_upower_settings: {}
 # as LC_TIME; they take effect at the next login. Set per host.
 base_locale: {}
 
+# XDG autostart entries (desktop file names without .desktop) the user's
+# session skips; set per host.
+base_autostart_hidden: []
+
+# systemd units stopped and disabled; set per host.
+base_units_disabled: []
+
 # Default video player (XDG MIME associations in the user's mimeapps.list).
 default_video_player: vlc.desktop
 video_mimetypes:
