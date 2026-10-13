@@ -88,10 +88,19 @@
         path: /etc/cron.d/timeshift-hourly
       register: system_updates_timeshift_cron
 
+    # timeshift --list exits with 1 while there is no snapshot yet.
     - name: Let Timeshift write its scheduler entry
       ansible.builtin.command: timeshift --list --scripted
       when: system_updates_timeshift_config is changed or not system_updates_timeshift_cron.stat.exists
+      register: system_updates_timeshift_list
       changed_when: true
+      failed_when: system_updates_timeshift_list.rc not in [0, 1]
+
+    - name: Check that Timeshift wrote its scheduler entry
+      ansible.builtin.stat:
+        path: /etc/cron.d/timeshift-hourly
+      register: system_updates_timeshift_cron_now
+      failed_when: not system_updates_timeshift_cron_now.stat.exists
 
     # mintupdate-cli --yes would otherwise take the package's version of every
     # configuration file changed here.
