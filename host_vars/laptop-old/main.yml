@@ -47,6 +47,7 @@ base_autostart_hidden:
   - cinnamon-settings-daemon-wacom   # no Wacom tablet
 base_units_disabled:
   - motd-news.timer             # news for the terminal's login message
+  - podman-restart.service      # restarts root containers; there are none here
 
 # No input method framework: the Hungarian layout needs none, and ibus runs
 # seven processes for it.
@@ -189,6 +190,13 @@ heroic_install_path: /mnt/data/Games/Heroic
 
 # The 500 GB HDD: LUKS2 with ext4, unlocked at boot by its keyfile (storage role;
 # bootstrap in roles/storage/README.md).
+#
+# Its heads (HGST HTS725050A7E630) have parked well past their rated
+# load/unload count. hdparm keeps the disk at APM 254 (no parking) on AC but
+# sets 128 when the machine boots on battery; this laptop runs on AC, its
+# battery being worn out. With a working battery, or the disk in another
+# laptop, keep it at 254 on battery too: `apm_battery = 254` for it in
+# /etc/hdparm.conf.
 storage_disks:
   - name: data
     device: PARTLABEL=data-crypt
