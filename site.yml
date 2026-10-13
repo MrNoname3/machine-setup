@@ -271,6 +271,10 @@
     - role: disk-health
       when: "'disk-health' in (roles_enabled | default([]))"
       tags: disk-health
+    # After disk-health, whose notifier reports a failed upgrade.
+    - role: system-updates
+      when: "'system-updates' in (roles_enabled | default([]))"
+      tags: system-updates
     # Every host, untagged: a run limited by --tags applies only part of the
     # repo, so it records nothing.
     - role: applied

@@ -1,0 +1,42 @@
+#!/bin/sh
+# Usage: system-updates-snapshot <count> — runs before Mint's automatic upgrade
+# (ExecStartPre): takes a Timeshift snapshot when there is something to
+# upgrade, and keeps the newest <count> of these snapshots. A failure stops
+# the upgrade.
+set -e
+keep=$1
+comment="Before automatic upgrade"
+
+# The checks Mint's upgrade script makes before it does anything.
+[ -e /var/lib/linuxmint/mintupdate-automatic-upgrades-enabled ] || exit 0
+if [ -r /sys/class/power_supply/AC/online ] && [ "$(cat /sys/class/power_supply/AC/online)" != 1 ]; then
+  exit 0
+fi
+
+options=$(grep -v '^#' /etc/mintupdate-automatic-upgrades.conf 2>/dev/null || :)
+# shellcheck disable=SC2086  # one option per word, as Mint's script reads them
+updates=$(/usr/bin/mintupdate-cli list --refresh-cache $options)
+if [ -z "$updates" ]; then
+  echo "nothing to upgrade, no snapshot"
+  exit 0
+fi
+echo "$updates"
+
+# Timeshift's hourly check may be taking the daily snapshot right now, and
+# runs one at a time.
+tries=3
+until timeshift --create --scripted --tags O --comments "$comment"; do
+  tries=$((tries - 1))
+  [ "$tries" -gt 0 ] || exit 1
+  echo "snapshot failed, trying again in 5 minutes"
+  sleep 300
+done
+
+# Timeshift never deletes an on-demand snapshot itself. Snapshot names are
+# their timestamps, so the glob lists them oldest first.
+grep -l "\"comments\" : \"$comment\"" /timeshift/snapshots/*/info.json 2>/dev/null \
+  | sed 's|^/timeshift/snapshots/||; s|/info.json$||' \
+  | head -n "-$keep" \
+  | while read -r name; do
+      timeshift --delete --scripted --snapshot "$name"
+    done

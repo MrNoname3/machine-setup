@@ -1,0 +1,10 @@
+#!/bin/sh
+# Runs after Mint's automatic upgrade (ExecStartPost). Mint's script reports
+# success whatever apt did, so a package left half-installed (a failed DKMS
+# build, say) or broken dependencies fail the unit here.
+audit=$(dpkg --audit)
+if [ -n "$audit" ]; then
+  echo "$audit"
+  exit 1
+fi
+apt-get check -q

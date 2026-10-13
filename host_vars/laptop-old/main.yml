@@ -28,6 +28,7 @@ roles_enabled:
   - containers
   - journal        # cap the systemd journal
   - disk-health    # SMART watch, self-tests, btrfs scrub
+  - system-updates # automatic upgrades, Timeshift snapshot before each
   - etckeeper
   - keyring
 

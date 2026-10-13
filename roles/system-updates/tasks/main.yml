@@ -1,0 +1,175 @@
+---
+# system-updates role (Linux Mint): Update Manager's automatic upgrades and
+# removals, with a Timeshift snapshot of the system before every upgrade that
+# has something to install, and a daily one. A failed snapshot stops the
+# upgrade, and a failed snapshot or upgrade becomes a desktop notification
+# through the disk-health role's notifier. It needs root, so a run without it
+# skips the role with a notice.
+
+- name: Check whether this run has root
+  ansible.builtin.command: id -u
+  register: system_updates_uid
+  changed_when: false
+  check_mode: false
+
+- name: Note that automatic upgrades were skipped (no root)
+  ansible.builtin.debug:
+    msg: >-
+      The system-updates role needs root, so it was skipped. Run it with:
+      ./scripts/apply.sh {{ inventory_hostname }} --tags system-updates -K
+  when: system_updates_uid.stdout != "0"
+
+- name: Set up automatic upgrades with snapshots
+  when: system_updates_uid.stdout == "0"
+  block:
+    - name: Require the disk-health role, whose notifier reports a failure
+      ansible.builtin.assert:
+        that: "'disk-health' in (roles_enabled | default([]))"
+        fail_msg: The system-updates role needs disk-health in roles_enabled.
+        quiet: true
+
+    - name: Install Timeshift
+      ansible.builtin.apt:
+        name: timeshift
+        state: present
+
+    # Timeshift keeps its snapshots on the device that holds this filesystem.
+    - name: Read the root filesystem's UUID
+      ansible.builtin.command: findmnt -n -o UUID /
+      register: system_updates_root_uuid
+      changed_when: false
+      check_mode: false
+
+    - name: Read Timeshift's configuration
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: system_updates_timeshift_conf
+      with_first_found:
+        - /etc/timeshift/timeshift.json
+        - /etc/timeshift/default.json
+
+    # Timeshift rewrites its file itself (snapshot counts, its own layout), so
+    # only the settings below are compared and merged in. Its values are strings.
+    - name: Configure Timeshift's daily snapshots
+      vars:
+        system_updates_timeshift_current: >-
+          {{ system_updates_timeshift_conf.results[0].content | b64decode | from_json }}
+        system_updates_timeshift_wanted:
+          backup_device_uuid: "{{ system_updates_root_uuid.stdout }}"
+          do_first_run: "false"
+          btrfs_mode: "false"
+          schedule_monthly: "false"
+          schedule_weekly: "false"
+          schedule_daily: "true"
+          schedule_hourly: "false"
+          schedule_boot: "false"
+          count_daily: "{{ system_updates_daily_snapshots | string }}"
+          exclude: "{{ system_updates_snapshot_exclude }}"
+      ansible.builtin.copy:
+        dest: /etc/timeshift/timeshift.json
+        content: "{{ system_updates_timeshift_current | combine(system_updates_timeshift_wanted) | to_nice_json(indent=2) }}\n"
+        owner: root
+        group: root
+        mode: "0644"
+      when: >-
+        system_updates_timeshift_wanted
+        != (system_updates_timeshift_current | dict2items
+            | selectattr('key', 'in', system_updates_timeshift_wanted.keys()) | items2dict)
+      register: system_updates_timeshift_config
+
+    # Timeshift writes its hourly check (/etc/cron.d/timeshift-hourly) itself
+    # when it reads a schedule; the check takes a snapshot only when one is due,
+    # so days the machine was off are made up at the next start.
+    - name: Check for Timeshift's scheduler entry
+      ansible.builtin.stat:
+        path: /etc/cron.d/timeshift-hourly
+      register: system_updates_timeshift_cron
+
+    - name: Let Timeshift write its scheduler entry
+      ansible.builtin.command: timeshift --list --scripted
+      when: system_updates_timeshift_config is changed or not system_updates_timeshift_cron.stat.exists
+      changed_when: true
+
+    # mintupdate-cli --yes would otherwise take the package's version of every
+    # configuration file changed here.
+    - name: Keep local configuration files on automatic upgrades
+      ansible.builtin.copy:
+        dest: /etc/mintupdate-automatic-upgrades.conf
+        content: |
+          # Options for mintupdate-cli on automatic upgrades, one per line.
+          --keep-configuration
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Ensure the script directory exists
+      ansible.builtin.file:
+        path: /usr/local/libexec
+        state: directory
+        mode: "0755"
+
+    - name: Install the snapshot and check scripts
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: /usr/local/libexec/{{ item }}
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - system-updates-snapshot
+        - system-updates-check
+
+    - name: Install the failure report unit
+      ansible.builtin.copy:
+        src: system-updates-failed@.service
+        dest: /etc/systemd/system/system-updates-failed@.service
+        owner: root
+        group: root
+        mode: "0644"
+      register: system_updates_failed_unit
+
+    - name: Ensure the upgrade unit's drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/mintupdate-automation-upgrade.service.d
+        state: directory
+        mode: "0755"
+
+    - name: Take a snapshot before every automatic upgrade and check after it
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/mintupdate-automation-upgrade.service.d/system-updates.conf
+        content: |
+          [Unit]
+          OnFailure=system-updates-failed@%n.service
+
+          [Service]
+          ExecStartPre=/usr/local/libexec/system-updates-snapshot {{ system_updates_upgrade_snapshots }}
+          ExecStartPost=/usr/local/libexec/system-updates-check
+        owner: root
+        group: root
+        mode: "0644"
+      register: system_updates_dropin
+
+    - name: Reload systemd after a unit change
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: system_updates_failed_unit is changed or system_updates_dropin is changed
+
+    # Update Manager's own switch (Preferences > Automation): a flag file plus
+    # the timer, so its window shows the same state.
+    - name: Check Update Manager's automation flags
+      ansible.builtin.stat:
+        path: /var/lib/linuxmint/mintupdate-automatic-{{ item.flag }}-enabled
+      loop:
+        - { automation: upgrade, flag: upgrades }
+        - { automation: autoremove, flag: removals }
+      loop_control:
+        label: "{{ item.automation }}"
+      register: system_updates_flags
+
+    - name: Turn on automatic upgrades and removals
+      ansible.builtin.command: mintupdate-automation {{ item.item.automation }} enable
+      loop: "{{ system_updates_flags.results }}"
+      loop_control:
+        label: "{{ item.item.automation }}"
+      when: not item.stat.exists
+      changed_when: true

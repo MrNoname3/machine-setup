@@ -1,0 +1,15 @@
+---
+# Timeshift's daily snapshots of the system (rsync mode, on the root
+# filesystem; home directories are left out by Timeshift itself): how many
+# are kept.
+system_updates_daily_snapshots: 5
+
+# Snapshots taken right before an automatic upgrade that had something to
+# install: how many are kept.
+system_updates_upgrade_snapshots: 3
+
+# rsync patterns Timeshift leaves out of its snapshots, on top of its own.
+# Flatpak apps do not depend on the system's packages and roll back on their
+# own (flatpak update --commit=).
+system_updates_snapshot_exclude:
+  - /var/lib/flatpak/***
