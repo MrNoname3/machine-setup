@@ -132,6 +132,10 @@
   when:
     - ansible_facts['os_family'] == "Debian"
     - nouveau_gf108_reclock | bool
+  vars:
+    nouveau_gf108_config: >-
+      {{ (['NvClkMode=0x' ~ nouveau_gf108_pstate] if nouveau_gf108_pstate | length > 0 else [])
+         + ([] if nouveau_copy_engines | bool else ['ce0=0', 'ce1=0']) }}
   block:
     - name: Install what the DKMS build needs
       ansible.builtin.apt:
@@ -248,23 +252,23 @@
       changed_when: true
       notify: Update initramfs
 
-    # nouveau reads the option at load, and applies the pstate again whenever the
-    # GPU comes back from runtime power-off.
-    - name: Set the pstate nouveau applies
+    # nouveau reads its config at load, and applies the pstate again whenever
+    # the GPU comes back from runtime power-off.
+    - name: Set the nouveau config options
       ansible.builtin.copy:
         dest: /etc/modprobe.d/nouveau-gf108.conf
-        content: "options nouveau config=NvClkMode=0x{{ nouveau_gf108_pstate }}\n"
+        content: "options nouveau config={{ nouveau_gf108_config | join(',') }}\n"
         owner: root
         group: root
         mode: "0644"
-      when: nouveau_gf108_pstate | length > 0
+      when: nouveau_gf108_config | length > 0
       notify: Update initramfs
 
-    - name: Leave the boot clocks when no pstate is chosen
+    - name: Leave nouveau's config at its defaults
       ansible.builtin.file:
         path: /etc/modprobe.d/nouveau-gf108.conf
         state: absent
-      when: nouveau_gf108_pstate | length == 0
+      when: nouveau_gf108_config | length == 0
       notify: Update initramfs
 
 # --- Bazzite desktop: amdgpu tuning ----------------------------------------

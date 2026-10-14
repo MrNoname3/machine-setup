@@ -61,3 +61,7 @@ nouveau_gf108_reclock: false
 # to keep the boot clocks until one is written to debugfs:
 #   echo 0f | sudo tee /sys/kernel/debug/dri/*/pstate
 nouveau_gf108_pstate: ""
+
+# false disables the GF108's copy engines, and nouveau moves buffers between
+# VRAM and system memory with the graphics engine's M2MF instead.
+nouveau_copy_engines: true

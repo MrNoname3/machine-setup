@@ -7,7 +7,8 @@ Unrelated parts, split by host:
   through a DKMS-built nouveau (`files/nouveau-gf108`; how the patches were
   made, and what they do, is in `tools/mmiotrace-live/gf108`).
   `nouveau_gf108_pstate` picks the level nouveau sets at load and after each
-  runtime resume. With `mesa_kisak_ppa` Mesa comes from the kisak-mesa "fresh"
+  runtime resume, and `nouveau_copy_engines: false` leaves buffer moves to the
+  graphics engine's M2MF. With `mesa_kisak_ppa` Mesa comes from the kisak-mesa "fresh"
   PPA (signing key in `files/kisak-mesa.asc`, fingerprint
   `EB8B81E14DA65431D7504EA8F63F0F2B90935439`).
 - **Mint desktop with an NVIDIA card** — the proprietary driver
