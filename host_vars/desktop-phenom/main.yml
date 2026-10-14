@@ -69,20 +69,12 @@ base_units_disabled:
   - motd-news.timer             # news for the terminal's login message
   - podman-restart.service      # restarts root containers; there are none here
 
-# Brave decodes video on the GT 1030 through VA-API (graphics_nvidia_vaapi).
-# ANGLE has to run on EGL: on GLX the decoded frames never reach the page.
-brave_flags:
-  - "--enable-features=AcceleratedVideoDecodeLinuxGL,VaapiOnNvidiaGPUs"
-  - "--ignore-gpu-blocklist"
-  - "--use-gl=angle"
-  - "--use-angle=gl-egl"
-# EGL on X11 through the driver's built-in support: the NVIDIA 580 driver's
-# egl-x11 library stops Brave's window from updating after a while.
-brave_env:
-  __EGL_EXTERNAL_PLATFORM_CONFIG_FILENAMES: /usr/share/egl/egl_external_platform.d/15_nvidia_gbm.json
+# Brave decodes video on the CPU. Through VA-API (graphics_nvidia_vaapi) ANGLE
+# has to run on EGL, and on EGL the NVIDIA 580 driver stops Brave's window from
+# updating; on GLX the decoded frames never reach the page.
 brave_policies_extra:
-  # enhanced-h264ify: YouTube sends H.264, which the GT 1030 decodes, instead
-  # of AV1, which neither the card nor this CPU can decode in time.
+  # enhanced-h264ify: YouTube sends H.264, the codec this CPU decodes most
+  # cheaply, instead of VP9 or AV1.
   ExtensionInstallForcelist:
     - omkfmpieigblcllmkgbflkikinpkodlk
 
