@@ -146,7 +146,7 @@
         state: directory
         mode: "0755"
 
-    - name: Take a snapshot before every automatic upgrade and check after it
+    - name: Take a snapshot before every automatic upgrade, check and clean up after it
       ansible.builtin.copy:
         dest: /etc/systemd/system/mintupdate-automation-upgrade.service.d/system-updates.conf
         content: |
@@ -158,6 +158,8 @@
           [Service]
           ExecStartPre=/usr/local/libexec/system-updates-snapshot {{ system_updates_upgrade_snapshots }}
           ExecStartPost=/usr/local/libexec/system-updates-check
+          # apt-get keeps every package it downloads; a rollback restores the snapshot instead.
+          ExecStartPost=/usr/bin/apt-get clean
         owner: root
         group: root
         mode: "0644"
