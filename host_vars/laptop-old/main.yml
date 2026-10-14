@@ -144,6 +144,7 @@ packages_absent:
   - rsyslog                     # writes every journald message again to /var/log
   - plocate                     # the daily locate index
   - kerneloops                  # Ubuntu's kernel crash reporter
+  - network-manager-config-connectivity-ubuntu  # NM's 5-minute internet check; Brave finds a captive portal itself
   - papirus-icon-theme         # unused icon theme (Mint-Y-Sand is the one set)
   - ibus                        # Cinnamon starts it whenever it is installed (base_input_method: none)
   # Real Docker engine — only ever pulled as a docker-compose-v2 *Recommends*; we
