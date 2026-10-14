@@ -120,7 +120,7 @@
         state: directory
         mode: "0755"
 
-    - name: Install the snapshot and check scripts
+    - name: Install the scripts run around the upgrade
       ansible.builtin.copy:
         src: "{{ item }}"
         dest: /usr/local/libexec/{{ item }}
@@ -130,6 +130,7 @@
       loop:
         - system-updates-snapshot
         - system-updates-check
+        - system-updates-kernels
 
     - name: Install the failure report unit
       ansible.builtin.copy:
@@ -158,6 +159,7 @@
           [Service]
           ExecStartPre=/usr/local/libexec/system-updates-snapshot {{ system_updates_upgrade_snapshots }}
           ExecStartPost=/usr/local/libexec/system-updates-check
+          ExecStartPost=/usr/local/libexec/system-updates-kernels
           # apt-get keeps every package it downloads; a rollback restores the snapshot instead.
           ExecStartPost=/usr/bin/apt-get clean
         owner: root

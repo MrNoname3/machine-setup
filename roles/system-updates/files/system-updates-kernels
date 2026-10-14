@@ -1,0 +1,10 @@
+#!/bin/sh
+# Runs after Mint's automatic upgrade (ExecStartPost). Update Manager installs
+# each new kernel by name, which marks it manual and out of apt-get autoremove's
+# reach; marked automatic, only the running, newest and one older kernel stay.
+set -e
+kernels=$(apt-mark showmanual | grep -E \
+  '^linux-(image|modules|modules-extra|headers|hwe-[0-9.]+-headers|main-modules-[a-z0-9]+)-[0-9]' || :)
+[ -z "$kernels" ] && exit 0
+# shellcheck disable=SC2086  # one package name per word
+apt-mark auto $kernels
