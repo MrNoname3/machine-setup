@@ -148,6 +148,41 @@
   changed_when: false
   failed_when: false
 
+# bluetoothd's SAP plugin offers the machine's SIM card to other Bluetooth
+# devices; with no SIM driver it fails at every start and logs the failure.
+# The drop-in keeps the packaged command line and adds -P sap; it takes effect
+# at the next start of bluetoothd, so connected devices are not dropped.
+- name: Read bluetoothd's command line
+  ansible.builtin.command: grep -m1 "^ExecStart=" /usr/lib/systemd/system/bluetooth.service
+  register: base_bluetoothd_exec
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Leave out bluetoothd's SIM Access plugin
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - base_bluetoothd_exec.rc == 0
+  block:
+    - name: Ensure the bluetooth unit's drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/bluetooth.service.d
+        state: directory
+        mode: "0755"
+
+    - name: Start bluetoothd without the SAP plugin
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/bluetooth.service.d/no-sap.conf
+        content: |
+          [Service]
+          ExecStart=
+          {{ base_bluetoothd_exec.stdout }} -P sap
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload systemd
+
 - name: Linux Mint desktop defaults
   ansible.builtin.include_tasks: mint.yml
   when: base_desktop | length > 0
