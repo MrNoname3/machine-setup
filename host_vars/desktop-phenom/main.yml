@@ -176,6 +176,7 @@ packages_absent:
   - rsyslog                     # writes every journald message again to /var/log
   - plocate                     # the daily locate index
   - kerneloops                  # Ubuntu's kernel crash reporter
+  - network-manager-config-connectivity-ubuntu  # NM's 5-minute internet check; a wired desktop has no captive portal
   # Real Docker engine — only ever pulled as a docker-compose-v2 *Recommends*; we
   # run rootless Podman (podman compose uses docker-compose-v2's provider directly,
   # so the compose tooling stays). The containers role installs with
