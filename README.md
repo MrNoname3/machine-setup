@@ -49,6 +49,7 @@ machine-setup/
 │   ├── mem-tune/                # measure memory latency, bandwidth, capacity
 │   ├── mmiotrace-live/          # Mint live ISO for tracing the NVIDIA 390 driver over SSH
 │   ├── rescue-usb/              # SystemRescue stick that is driven over SSH
+│   ├── resource-top/            # memory and CPU use per program
 │   └── tablet-image/            # Debian + Phosh disk image for Bay Trail tablets
 ├── work/                        # working files; in the repo, out of git (see AGENTS.md)
 ├── site.yml                     # maps each host to its enabled roles
