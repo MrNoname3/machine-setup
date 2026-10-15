@@ -82,6 +82,7 @@ machine-setup/
     ├── kde/             # Plasma desktop tweaks (Bazzite)
     ├── phosh/           # Phosh session settings in dconf (tablet)
     ├── graphics/        # phantom VGA (laptop), NVIDIA driver (Phenom), AMD undervolt (Bazzite)
+    ├── patched-debs/    # tools/patched-deb packages built on the host, installed and held
     ├── firewall/        # ufw
     ├── storage/         # data-disk crypttab/mount
     ├── wireguard/       # auto-VPN when away from home

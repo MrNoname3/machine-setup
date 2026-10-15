@@ -1,0 +1,144 @@
+---
+# One patched package: patched_deb.source rebuilt for patched_deb.binary.
+
+- name: Read the patches' version suffix for {{ patched_deb.source }}
+  ansible.builtin.command: "{{ patched_debs_tool }} --suffix {{ patched_deb.source }}"
+  register: patched_debs_suffix
+  changed_when: false
+  check_mode: false
+
+# madison lists the archive's versions, newest first, without the installed one.
+- name: Read the archive's versions of {{ patched_deb.binary }}
+  ansible.builtin.command: apt-cache madison {{ patched_deb.binary }}
+  register: patched_debs_madison
+  changed_when: false
+  check_mode: false
+
+- name: Read the installed version of {{ patched_deb.binary }}
+  ansible.builtin.command: dpkg-query -W -f=${Version} {{ patched_deb.binary }}
+  register: patched_debs_installed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Work out the version to keep installed
+  ansible.builtin.set_fact:
+    patched_debs_archive: "{{ patched_debs_madison.stdout_lines[0].split('|')[1] | trim }}"
+    patched_debs_want: >-
+      {{ (patched_debs_madison.stdout_lines[0].split('|')[1] | trim) ~ patched_debs_suffix.stdout }}
+
+- name: Build and install the patched {{ patched_deb.binary }}
+  when:
+    - patched_debs_installed.stdout != patched_debs_want
+    - not ansible_check_mode
+  block:
+    # Multi-Arch: same needs one version across architectures, and only the
+    # native one is rebuilt: the others, and what needs them, go through
+    # packages_absent, where apt removes them together.
+    - name: Read the installed architectures of {{ patched_deb.binary }}
+      ansible.builtin.shell: >-
+        set -o pipefail;
+        dpkg-query -W -f='${db:Status-Abbrev}${Architecture}\n' {{ patched_deb.binary | quote }}
+        | sed -n 's/^.i //p' | grep -vx "$(dpkg --print-architecture)" || true
+      args:
+        executable: /bin/bash
+      register: patched_debs_foreign
+      changed_when: false
+
+    - name: Require only the native architecture of {{ patched_deb.binary }}
+      ansible.builtin.assert:
+        that: patched_debs_foreign.stdout_lines | length == 0
+        fail_msg: >-
+          {{ patched_deb.binary }} is installed for {{ patched_debs_foreign.stdout_lines | join(', ') }}
+          too; list {{ patched_deb.binary }}:<arch> and what depends on it in packages_absent.
+        quiet: true
+
+    # deb-src entries for the archives that carry the newest version, for this
+    # build only.
+    - name: Add the source entries for {{ patched_deb.source }}
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/patched-debs-src.list
+        content: |
+          {% for line in patched_debs_madison.stdout_lines
+                 if (line.split('|')[1] | trim) == patched_debs_archive %}
+          {% set origin = (line.split('|')[2] | trim).split(' ') %}
+          deb-src {{ origin[0] }} {{ origin[1].split('/')[0] }} {{ origin[1].split('/')[1] }}
+          {% endfor %}
+        mode: "0644"
+
+    - name: Read the source index
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: List the packages installed before the build
+      ansible.builtin.shell: >-
+        set -o pipefail;
+        dpkg-query -W -f='${db:Status-Abbrev}${binary:Package}\n' | sed -n 's/^.i //p'
+      args:
+        executable: /bin/bash
+      register: patched_debs_before
+      changed_when: false
+
+    - name: Install the build tools and build dependencies
+      ansible.builtin.shell: |
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get install -y -q --no-install-recommends dpkg-dev fakeroot
+        apt-get build-dep -y -q {{ patched_deb.source | quote }}
+      changed_when: true
+
+    - name: Build the patched {{ patched_deb.binary }}
+      ansible.builtin.command: >-
+        {{ patched_debs_tool }} {{ patched_deb.source }} {{ patched_deb.binary }}
+        {{ patched_debs_dir }}
+      become: false
+      register: patched_debs_build
+      changed_when: true
+
+    - name: Release the hold on {{ patched_deb.binary }}
+      ansible.builtin.dpkg_selections:
+        name: "{{ patched_deb.binary }}"
+        selection: install
+
+    - name: Install the patched {{ patched_deb.binary }}
+      ansible.builtin.apt:
+        deb: "{{ patched_debs_build.stdout_lines[-1] }}"
+
+  always:
+    - name: List the packages installed after the build
+      ansible.builtin.shell: >-
+        set -o pipefail;
+        dpkg-query -W -f='${db:Status-Abbrev}${binary:Package}\n' | sed -n 's/^.i //p'
+      args:
+        executable: /bin/bash
+      register: patched_debs_after
+      changed_when: false
+
+    - name: Remove the build tools and build dependencies again
+      ansible.builtin.apt:
+        name: >-
+          {{ patched_debs_after.stdout_lines
+             | difference(patched_debs_before.stdout_lines | default(patched_debs_after.stdout_lines)) }}
+        state: absent
+        purge: true
+      when: >-
+        patched_debs_after.stdout_lines
+        | difference(patched_debs_before.stdout_lines | default(patched_debs_after.stdout_lines))
+        | length > 0
+
+    - name: Drop the source entries
+      ansible.builtin.file:
+        path: /etc/apt/sources.list.d/patched-debs-src.list
+        state: absent
+
+    - name: Read the indexes without the source entries
+      ansible.builtin.apt:
+        update_cache: true
+
+# Mint's and Debian's automatic upgrades would otherwise put the archive's
+# unpatched build back.
+- name: Hold the patched {{ patched_deb.binary }}
+  ansible.builtin.dpkg_selections:
+    name: "{{ patched_deb.binary }}"
+    selection: hold
+  when: not ansible_check_mode

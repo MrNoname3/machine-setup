@@ -1,0 +1,30 @@
+---
+# patched-debs role (Debian family): packages rebuilt on the host with this
+# repository's patches (tools/patched-deb), installed and held. It follows the
+# archive: once it carries a newer version, the next run rebuilds that one, so
+# the held package does not miss security updates. Build tools and build
+# dependencies are installed for the build only. It needs root, so a run
+# without it skips the role with a notice.
+
+- name: Check whether this run has root
+  ansible.builtin.command: id -u
+  register: patched_debs_uid
+  changed_when: false
+  check_mode: false
+
+- name: Note that patched-debs was skipped (no root)
+  ansible.builtin.debug:
+    msg: >-
+      The patched-debs role needs root, so it was skipped. Run it with:
+      ./scripts/apply.sh {{ inventory_hostname }} --tags patched-debs -K
+  when: patched_debs_uid.stdout != "0"
+
+- name: Keep each patched package built from the archive's newest version
+  ansible.builtin.include_tasks: package.yml
+  loop: "{{ patched_debs }}"
+  loop_control:
+    loop_var: patched_deb
+    label: "{{ patched_deb.binary }}"
+  when:
+    - patched_debs_uid.stdout == "0"
+    - ansible_facts['os_family'] == "Debian"

@@ -252,6 +252,9 @@
     - role: graphics
       when: "'graphics' in (roles_enabled | default([]))"
       tags: graphics
+    - role: patched-debs
+      when: "'patched-debs' in (roles_enabled | default([]))"
+      tags: patched-debs
     - role: kde
       when: "'kde' in (roles_enabled | default([]))"
     - role: phosh
