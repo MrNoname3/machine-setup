@@ -56,12 +56,13 @@ base_locale:
   LC_TIME: hu_HU.UTF-8
 
 # Tray applets and services with nothing to do here: no Evolution or other
-# calendar client, no printer, no Wacom tablet; Update Manager's own automation
-# installs the updates (system-updates role).
+# calendar client, no Bluetooth adapter, no printer, no Wacom tablet; Update
+# Manager's own automation installs the updates (system-updates role).
 base_autostart_hidden:
   - org.gnome.Evolution-alarm-notify
   - mintreport
   - mintupdate
+  - blueman
   - print-applet
   - cinnamon-settings-daemon-wacom
 base_units_disabled:
