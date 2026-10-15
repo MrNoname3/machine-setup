@@ -132,3 +132,20 @@
   when:
     - base_input_method | length > 0
     - base_input_method_current.rc != 0
+
+- name: Ensure the bookmark directory exists
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.config/{{ item }}"
+    state: directory
+    mode: "0755"
+  become: false
+  loop: [gtk-3.0]
+
+# Nemo's sidebar bookmarks, which GTK's file chooser shares.
+- name: Set the file manager's bookmarks
+  ansible.builtin.copy:
+    dest: "/home/{{ primary_user }}/.config/gtk-3.0/bookmarks"
+    content: "{{ base_gtk_bookmarks | join('\n') }}\n"
+    mode: "{{ user_config_mode | default('0644') }}"
+  become: false
+  when: base_gtk_bookmarks | length > 0

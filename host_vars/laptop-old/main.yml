@@ -77,6 +77,15 @@ base_panel_launchers:
 # applet aligns its lines right; thin and hair spaces centre the shorter one.
 base_panel_clock_format: "%H:%M\u2009\u2009\u200a%n%Y. %m. %d."
 
+# Nemo's sidebar bookmarks.
+base_gtk_bookmarks:
+  - "file:///home/{{ primary_user }}/Documents Documents"
+  - "file:///home/{{ primary_user }}/Music Music"
+  - "file:///home/{{ primary_user }}/Pictures Pictures"
+  - "file:///home/{{ primary_user }}/Videos Videos"
+  - "file:///home/{{ primary_user }}/Downloads Downloads"
+  - "file:///home/{{ primary_user }}/SynologyDrive Drive"
+
 # Mint's umask is 002, so the apps write their config files as 0664.
 user_config_mode: "0664"
 
