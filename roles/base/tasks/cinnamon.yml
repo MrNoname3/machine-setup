@@ -123,8 +123,8 @@
   loop:
     - { key: /org/cinnamon/settings-daemon/plugins/power/lid-close-ac-action, value: "'suspend'" }
     - { key: /org/cinnamon/settings-daemon/plugins/power/lid-close-battery-action, value: "'suspend'" }
-    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-display-ac, value: "{{ '0' if base_wayland | bool else '900' }}" }
-    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-display-battery, value: "{{ '0' if base_wayland | bool else '1800' }}" }
+    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-display-ac, value: "{{ '0' if base_wayland else '900' }}" }
+    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-display-battery, value: "{{ '0' if base_wayland else '1800' }}" }
     - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-ac-timeout, value: "1800" }
     - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-battery-timeout, value: "0" }
   vars:
