@@ -48,6 +48,7 @@ machine-setup/
 │   ├── gtasa-intro/             # GTA San Andreas's intro videos under Proton
 │   ├── mem-tune/                # measure memory latency, bandwidth, capacity
 │   ├── mmiotrace-live/          # Mint live ISO for tracing the NVIDIA 390 driver over SSH
+│   ├── patched-deb/             # Debian/Ubuntu packages rebuilt with our patches (iwd, i965)
 │   ├── rescue-usb/              # SystemRescue stick that is driven over SSH
 │   ├── resource-top/            # memory and CPU use per program
 │   └── tablet-image/            # Debian + Phosh disk image for Bay Trail tablets

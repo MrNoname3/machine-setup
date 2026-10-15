@@ -26,11 +26,12 @@ touch, rotation, sound, Wi-Fi, Bluetooth and both cameras work.
 Everything runs as root in a throwaway Debian 13 container with this repository
 mounted; nothing needs loop devices. The container needs `mmdebstrap
 e2fsprogs dosfstools mtools fdisk grub-efi-ia32-bin grub-efi-amd64-bin
-acpica-tools git gcc pkg-config libglib2.0-dev`, and `deb-src` entries for `build-deb.sh`.
+acpica-tools git gcc pkg-config libglib2.0-dev`, and `deb-src` entries for
+[tools/patched-deb](../patched-deb/).
 
 ```
-bash tools/tablet-image/build-deb.sh iwd iwd                  # once: patched iwd
-bash tools/tablet-image/build-deb.sh intel-vaapi-driver i965-va-driver  # and VA-API driver
+bash tools/patched-deb/build-deb.sh iwd iwd work/tablet/debs  # once: patched iwd
+bash tools/patched-deb/build-deb.sh intel-vaapi-driver i965-va-driver work/tablet/debs  # and VA-API driver
 TI_MACHINE=miix2-8 bash tools/tablet-image/build-atomisp.sh   # once: camera driver
 TI_USER=miix TI_HOSTNAME=tablet TI_MACHINE=miix2-8 TI_FIRMWARE=<dir> \
   bash tools/tablet-image/build.sh ~/path/to/key.pub
@@ -40,16 +41,9 @@ The results land in `work/tablet/` (`TI_OUT`); the header of each script lists
 its settings. Write `tablet-debian13-phosh.img` to the card or eMMC with `dd`,
 identifying the target by size and model.
 
-- **`build-deb.sh`** builds a Debian package with the
-  [patches/](patches/) named after its source package; build.sh installs it
-  and holds it there.
-  - [iwd](patches/iwd-psk-sha256-needs-mfp.patch): without it iwd picks
-    PSK-SHA256 on WPA2/WPA3 networks even when the Wi-Fi chip cannot do
-    management frame protection, and the chip never associates.
-  - [intel-vaapi-driver](patches/intel-vaapi-driver-export-unrendered-surface.patch):
-    the i965 driver could not export a surface before anything was decoded
-    into it, so Chromium-based browsers fell back to decoding video in
-    software.
+- **[tools/patched-deb](../patched-deb/)** rebuilds iwd and the i965 VA-API
+  driver with the patches the tablet needs; build.sh installs the packages it
+  finds in `$TI_OUT/debs` and holds them there.
 - **`build-atomisp.sh`** prepares the atomisp camera driver, which Debian does
   not ship, as a DKMS source: the staging driver of the kernel release the
   profile names, with the profile's `atomisp/*.patch` applied.
@@ -59,7 +53,7 @@ identifying the target by size and model.
 Bay Trail decodes H.264, MPEG-2 and VC-1 through VA-API (the i965 driver), not
 VP9, AV1 or HEVC, and encodes H.264. Firefox and Celluloid use it as the image
 sets them up. Chromium-based browsers need the patched driver from
-`build-deb.sh` and their VA-API features switched on, for example (the last
+[tools/patched-deb](../patched-deb/) and their VA-API features switched on, for example (the last
 one is encoding, which video calls use):
 
 ```
