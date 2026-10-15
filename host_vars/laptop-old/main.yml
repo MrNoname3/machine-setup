@@ -73,6 +73,10 @@ base_panel_launchers:
   - steam.desktop
   - net.lutris.Lutris.desktop:flatpak
 
+# The panel clock as on the Plasma desktop: the time above the date. The
+# applet aligns its lines right; thin and hair spaces centre the shorter one.
+base_panel_clock_format: "%H:%M\u2009\u2009\u200a%n%Y. %m. %d."
+
 # Mint's umask is 002, so the apps write their config files as 0664.
 user_config_mode: "0664"
 
