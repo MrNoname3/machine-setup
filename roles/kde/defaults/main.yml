@@ -136,3 +136,8 @@ kde_masked_user_units:
 # The uBlue greeting in new terminals; `ujust toggle-user-motd` flips the same
 # switch file.
 kde_user_motd: false
+
+# Launchers of the panels' task managers, left to right, in Plasma's notation
+# (applications:<desktop file>, preferred://filemanager). Empty leaves the
+# panels alone.
+kde_panel_launchers: []

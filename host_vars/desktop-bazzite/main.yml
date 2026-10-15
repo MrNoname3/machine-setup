@@ -40,6 +40,18 @@ ssh_keys_dir: "/home/{{ primary_user }}/SynologyDrive/OneDrive/IOT/SSH"
 # comparison cares.)
 synology_home: "/var/home/{{ primary_user }}"
 
+# The panel's task manager, left to right.
+kde_panel_launchers:
+  - applications:brave-browser.desktop
+  - preferred://filemanager
+  - applications:org.kde.konsole.desktop
+  - applications:brave-eigpmdhekjlgjgcppnanaanbdmnlnagl-Default.desktop   # Outlook
+  - applications:brave-ejhkdoiecgkmdpomoahkdihbcldkgjci-Default.desktop   # Element
+  - applications:brave-jneocipojkkahfcibhjaiilegofacenn-Default.desktop   # Duolingo
+  - applications:steam.desktop
+  - applications:net.lutris.Lutris.desktop
+  - applications:io.github.kolunmi.Bazaar.desktop
+
 # Web apps in windows of their own, pinned to the panel.
 brave_web_apps:
   - https://outlook.live.com/mail/

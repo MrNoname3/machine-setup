@@ -181,6 +181,35 @@
       failed_when: false # no running session (e.g. fresh install) is fine
       when: kde_im_result is changed or kde_cfg_result is changed
 
+    # Through Plasma's own scripting, since plasmashell rewrites its applet
+    # config file from memory.
+    - name: Set the task manager launchers
+      ansible.builtin.command:
+        argv:
+          - gdbus
+          - call
+          - --session
+          - --dest
+          - org.kde.plasmashell
+          - --object-path
+          - /PlasmaShell
+          - --method
+          - org.kde.PlasmaShell.evaluateScript
+          - >-
+            var want = {{ kde_panel_launchers | to_json }};
+            panels().forEach(function (p) { p.widgets().forEach(function (w) {
+              if (w.type != "org.kde.plasma.icontasks" && w.type != "org.kde.plasma.taskmanager") return;
+              w.currentConfigGroup = ["General"];
+              if (JSON.stringify(w.readConfig("launchers", [])) == JSON.stringify(want)) return;
+              w.writeConfig("launchers", want); w.reloadConfig(); print("CHANGED");
+            }); });
+      environment:
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts['user_uid'] }}/bus"
+      register: kde_launchers_result
+      changed_when: "'CHANGED' in kde_launchers_result.stdout"
+      failed_when: false # no running session (e.g. fresh install) is fine
+      when: kde_panel_launchers | length > 0
+
     - name: Set the default applications (user MIME associations)
       community.general.ini_file:
         path: "{{ kde_conf_dir }}/mimeapps.list"
