@@ -2,10 +2,10 @@
 
 [build-deb.sh](build-deb.sh) rebuilds a package from its distribution's source
 with the [patches/](patches/) named after the source package, and puts the
-binary package it is asked for into an output directory:
+binary packages it is asked for into an output directory:
 
 ```
-build-deb.sh <source-package> <binary-package> <out-dir>
+build-deb.sh <source-package> <binary-package>[,<binary-package>...] <out-dir>
 ```
 
 The version gets `+patched.<hash>` appended, the hash covering the patches.
@@ -29,5 +29,7 @@ one; `build-deb.sh --suffix <source-package>` prints the suffix.
 - **On the host itself, as a user**, from the
   [patched-debs](../../roles/patched-debs/) role: the role adds the `deb-src`
   entries and the build dependencies for the build, removes them again, and
-  installs and holds the package. It rebuilds once the archive carries a newer
-  version, so the held package keeps getting the distribution's updates.
+  installs and holds every binary package of the source the host has, since
+  they often require each other's exact version. It rebuilds once the archive
+  carries a newer version, so the held packages keep getting the distribution's
+  updates.

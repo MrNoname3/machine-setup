@@ -1,8 +1,10 @@
 ---
 # Packages to rebuild with this repository's patches and hold, as
 # {source: <source package>, binary: <binary package>}; each source needs
-# tools/patched-deb/patches/<source>-*.patch. An optional build_sources holds
-# deb822 entries of archives the build alone needs. Set per host.
+# tools/patched-deb/patches/<source>-*.patch. The binary's archive version
+# decides when to rebuild, and every binary package of the source installed
+# on the host is rebuilt and held. An optional build_sources holds deb822
+# entries of archives the build alone needs. Set per host.
 patched_debs: []
 
 # The build script, shared with tools/tablet-image.

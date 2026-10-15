@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# build-deb.sh <source-package> <binary-package> <out-dir>
+# build-deb.sh <source-package> <binary-package>[,<binary-package>...] <out-dir>
 # build-deb.sh --suffix <source-package>
 #
 # Rebuilds a Debian or Ubuntu source package with patches/<source-package>-*.patch
-# applied and copies <binary-package>'s .deb into <out-dir>. The version gets
+# applied and copies the named binary packages' .debs into <out-dir>. The version gets
 # "+patched.<hash>" appended, the hash covering the patches, so the same source
 # version with the same patches always builds the same version; --suffix
 # prints that "+patched.<hash>". The patches in use:
@@ -37,8 +37,9 @@ if [ "${1:-}" = --suffix ]; then
   suffix "$2"
   exit
 fi
-[ $# -eq 3 ] || die "usage: build-deb.sh <source-package> <binary-package> <out-dir>"
-SOURCE=$1 BINARY=$2 OUT=$(readlink -f "$3")
+[ $# -eq 3 ] || die "usage: build-deb.sh <source-package> <binary-package>[,...] <out-dir>"
+SOURCE=$1 OUT=$(readlink -f "$3")
+IFS=, read -ra BINARIES <<<"$2"
 SUFFIX=$(suffix "$SOURCE")
 PATCHES=("$SRC"/patches/"$SOURCE"-*.patch)
 
@@ -75,6 +76,8 @@ DEB_BUILD_OPTIONS="nocheck parallel=$(nproc)" dpkg-buildpackage -b -uc -us >"$WO
   { tail -20 "$WORK/build.log"; die "build failed"; }
 
 mkdir -p "$OUT"
-rm -f "$OUT/${BINARY}"_*.deb
-cp ../"${BINARY}"_*.deb "$OUT/"
-ls "$OUT/${BINARY}"_*.deb
+for b in "${BINARIES[@]}"; do
+  rm -f "$OUT/${b}"_*.deb
+  cp ../"${b}"_*.deb "$OUT/"
+  ls "$OUT/${b}"_*.deb
+done

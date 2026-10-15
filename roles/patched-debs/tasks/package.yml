@@ -21,13 +21,27 @@
   failed_when: false
   check_mode: false
 
+# Binary packages of one source often require each other's exact version, so
+# every one installed here is rebuilt, installed and held together.
+- name: List the installed binary packages built from {{ patched_deb.source }}
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    dpkg-query -W -f='${db:Status-Abbrev}|${Package}|${source:Package}\n'
+    | awk -F'|' -v src={{ patched_deb.source | quote }} '$1 ~ /^.i/ && $3 == src {print $2}' | sort -u
+  args:
+    executable: /bin/bash
+  register: patched_debs_binaries
+  changed_when: false
+  check_mode: false
+
 - name: Work out the version to keep installed
   ansible.builtin.set_fact:
     patched_debs_archive: "{{ patched_debs_madison.stdout_lines[0].split('|')[1] | trim }}"
     patched_debs_want: >-
       {{ (patched_debs_madison.stdout_lines[0].split('|')[1] | trim) ~ patched_debs_suffix.stdout }}
+    patched_debs_packages: "{{ patched_debs_binaries.stdout_lines | union([patched_deb.binary]) }}"
 
-- name: Build and install the patched {{ patched_deb.binary }}
+- name: Build and install the patched {{ patched_deb.source }}
   when:
     - patched_debs_installed.stdout != patched_debs_want
     - not ansible_check_mode
@@ -91,22 +105,30 @@
         apt-get build-dep -y -q {{ patched_deb.source | quote }}
       changed_when: true
 
-    - name: Build the patched {{ patched_deb.binary }}
+    - name: Build the patched {{ patched_deb.source }}
       ansible.builtin.command: >-
-        {{ patched_debs_tool }} {{ patched_deb.source }} {{ patched_deb.binary }}
+        {{ patched_debs_tool }} {{ patched_deb.source }} {{ patched_debs_packages | join(',') }}
         {{ patched_debs_dir }}
       become: false
       register: patched_debs_build
       changed_when: true
 
-    - name: Release the hold on {{ patched_deb.binary }}
+    - name: Release the hold on the packages of {{ patched_deb.source }}
       ansible.builtin.dpkg_selections:
-        name: "{{ patched_deb.binary }}"
+        name: "{{ item }}"
         selection: install
+      loop: "{{ patched_debs_packages }}"
 
-    - name: Install the patched {{ patched_deb.binary }}
-      ansible.builtin.apt:
-        deb: "{{ patched_debs_build.stdout_lines[-1] }}"
+    # The apt module installs one local .deb at a time, and these need each
+    # other's version.
+    - name: Install the patched packages of {{ patched_deb.source }}  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        argv: >-
+          {{ ['apt-get', 'install', '-y', '-q']
+             + (patched_debs_build.stdout_lines | select('search', '[.]deb$') | list) }}
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+      changed_when: true
 
   always:
     - name: List the packages installed after the build
@@ -142,8 +164,9 @@
 
 # Mint's and Debian's automatic upgrades would otherwise put the archive's
 # unpatched build back.
-- name: Hold the patched {{ patched_deb.binary }}
+- name: Hold the patched packages of {{ patched_deb.source }}
   ansible.builtin.dpkg_selections:
-    name: "{{ patched_deb.binary }}"
+    name: "{{ item }}"
     selection: hold
+  loop: "{{ patched_debs_packages }}"
   when: not ansible_check_mode
