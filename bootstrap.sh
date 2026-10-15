@@ -137,15 +137,16 @@ DEFAULT=""
 case "$OS_FAMILY" in
   bazzite) DEFAULT=desktop-bazzite ;;
   debian)
-    # Mint with Xfce is the Phenom desktop, other Mint the laptop; plain Debian
-    # is the tablet image's system.
+    # Mint on a Phenom CPU is the Phenom desktop, other Mint the laptop; plain
+    # Debian is the tablet image's system.
     case "${ID:-}" in
       debian) DEFAULT=tablet-miix ;;
       *)
-        case "${XDG_CURRENT_DESKTOP:-}" in
-          *XFCE*) DEFAULT=desktop-phenom ;;
-          *)      DEFAULT=laptop-old ;;
-        esac
+        if grep -q "Phenom" /proc/cpuinfo; then
+          DEFAULT=desktop-phenom
+        else
+          DEFAULT=laptop-old
+        fi
         ;;
     esac
     ;;

@@ -1,7 +1,7 @@
 ---
 # Per-host settings for desktop-phenom: an AMD Phenom X4 desktop (AM2+, DDR2,
-# legacy BIOS) with an NVIDIA GT 1030, running Linux Mint with Xfce on a LUKS-
-# encrypted SSD.
+# legacy BIOS) with an NVIDIA GT 1030, running Linux Mint with Cinnamon on a
+# LUKS-encrypted SSD.
 #
 # Machine-local values (ssh_port, wg_home_gateway_macs) live in local.yml next
 # to this file — untracked by git (see the pre_tasks in site.yml).
@@ -31,14 +31,13 @@ roles_enabled:
   - etckeeper
   - keyring
 
-# The base role's Mint desktop defaults (roles/base/tasks/mint.yml + xfce.yml).
-# Switching to cinnamon installs that session too; pick it at the login screen.
-base_desktop: xfce
+# The base role's Mint desktop defaults (roles/base/tasks/mint.yml + cinnamon.yml).
+base_desktop: cinnamon
 
-# The NVIDIA 580 driver leaves composited windows unpainted (NVIDIA bug
-# 5758240): Brave shows the desktop through its window, and the screen stays
-# black after the monitor wakes.
-base_xfce_compositing: false
+# Cinnamon on Wayland: there Brave decodes video on the GT 1030. On X11 the
+# decoded frames reach the page only through EGL, where the NVIDIA 580 driver
+# stops a window from updating once a popup such as Brave's main menu closes.
+base_session: cinnamon-wayland
 
 # Mint's umask is 002, so the apps write their config files as 0664.
 user_config_mode: "0664"
@@ -57,24 +56,30 @@ base_locale:
   LC_TIME: hu_HU.UTF-8
 
 # Tray applets and services with nothing to do here: no Evolution or other
-# calendar client, no Bluetooth adapter, no printer; Update Manager's own
-# automation installs the updates (system-updates role).
+# calendar client, no printer, no Wacom tablet; Update Manager's own automation
+# installs the updates (system-updates role).
 base_autostart_hidden:
   - org.gnome.Evolution-alarm-notify
   - mintreport
-  - blueman
-  - print-applet
   - mintupdate
+  - print-applet
+  - cinnamon-settings-daemon-wacom
 base_units_disabled:
   - motd-news.timer             # news for the terminal's login message
   - podman-restart.service      # restarts root containers; there are none here
 
-# Brave decodes video on the CPU. Through VA-API (graphics_nvidia_vaapi) ANGLE
-# has to run on EGL, and on EGL the NVIDIA 580 driver stops Brave's window from
-# updating; on GLX the decoded frames never reach the page.
+# No input method framework: the Hungarian layout needs none, and Cinnamon
+# starts ibus whenever it is installed.
+base_input_method: none
+
+# Brave decodes video on the GT 1030 through VA-API (graphics_nvidia_vaapi);
+# in the Wayland session it runs as a Wayland client by itself. In an X11
+# session the same switch leaves the video white.
+brave_flags:
+  - "--enable-features=VaapiOnNvidiaGPUs"
 brave_policies_extra:
-  # enhanced-h264ify: YouTube sends H.264, the codec this CPU decodes most
-  # cheaply, instead of VP9 or AV1.
+  # enhanced-h264ify: YouTube sends H.264, which the GT 1030 decodes, instead
+  # of AV1, which neither the card nor this CPU can decode in time.
   ExtensionInstallForcelist:
     - omkfmpieigblcllmkgbflkikinpkodlk
 
@@ -168,6 +173,8 @@ packages_absent:
   - rsyslog                     # writes every journald message again to /var/log
   - plocate                     # the daily locate index
   - kerneloops                  # Ubuntu's kernel crash reporter
+  - papirus-icon-theme          # unused icon theme (Mint-Y-Sand is the one set)
+  - ibus                        # Cinnamon starts it whenever it is installed (base_input_method: none)
   - network-manager-config-connectivity-ubuntu  # NM's 5-minute internet check; Brave finds a captive portal itself
   # Real Docker engine — only ever pulled as a docker-compose-v2 *Recommends*; we
   # run rootless Podman (podman compose uses docker-compose-v2's provider directly,

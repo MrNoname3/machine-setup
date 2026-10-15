@@ -18,7 +18,7 @@ only *procedures and templates*. If a secret must live here, encrypt it with
 - **laptop-old** — Intel i5-2430M (Sandy Bridge), NVIDIA GT 520M (Fermi), 8 GB RAM,
   SSD + HDD, Optimus. Runs Linux Mint (Cinnamon).
 - **desktop-phenom** — AMD Phenom X4 (AM2+, DDR2, legacy BIOS), NVIDIA GT 1030,
-  8 GB RAM, one SSD. Runs Linux Mint (Xfce), with Cinnamon as the fallback session.
+  8 GB RAM, one SSD. Runs Linux Mint (Cinnamon), in its Wayland session.
 - **desktop-bazzite** — main desktop, Bazzite (immutable, rpm-ostree). Uses a different
   package model than apt; the `base` role's apt tasks are guarded and will not run here.
 - **tablet-miix** — Lenovo Miix 2 8 (Atom Z3740, 2 GB RAM), Debian 13 with Phosh,
@@ -314,9 +314,9 @@ boot, via the bootstrap + playbook.
    import the WireGuard client configs (`wireguard`), and unlock/populate
    KeePassXC so it serves the SSH keys (`keyring`).
 
-### desktop-phenom (Linux Mint Xfce)
+### desktop-phenom (Linux Mint Cinnamon)
 
-1. **Live USB** — the board boots legacy BIOS only, so boot the Mint Xfce live
+1. **Live USB** — the board boots legacy BIOS only, so boot the Mint Cinnamon live
    USB in BIOS mode. Check the network, audio and the GT 1030 (`inxi -G`; the
    live system drives it with nouveau, the proprietary driver comes later).
 2. **Install with full-disk encryption**: language **English**, keyboard layout
@@ -326,15 +326,15 @@ boot, via the bootstrap + playbook.
    **never stored anywhere**. Add a generated fallback passphrase to a second
    key slot afterwards and keep that one in KeePassXC.
 3. **First boot** — run the bootstrap one-liner (it suggests `desktop-phenom`
-   on Xfce), then `./scripts/apply.sh desktop-phenom -K`. **Reboot**: the
+   on a Phenom CPU), then `./scripts/apply.sh desktop-phenom -K`. **Reboot**: the
    NVIDIA driver and the dropbear initramfs take effect only then.
 4. **Manual follow-ups that need secrets in hand**: import the WireGuard
    client configs (`wireguard`), and unlock/populate KeePassXC so it serves the
    SSH keys (`keyring`). The remote unlock is described in
    `roles/luks-unlock/README.md`.
-5. **Desktop fallback** — to try Cinnamon instead, set `base_desktop: cinnamon`
-   in `host_vars/desktop-phenom/main.yml`, re-run the playbook and pick the
-   Cinnamon session at the login screen.
+5. **Wayland** — after the playbook, the login screen offers *Cinnamon on
+   Wayland* by default (`base_session`); Brave decodes video on the GPU only
+   there.
 
 ### desktop-bazzite (Bazzite)
 

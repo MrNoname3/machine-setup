@@ -7,6 +7,10 @@ packages_absent: []
 # (tasks/mint.yml, then tasks/<base_desktop>.yml). Empty applies none.
 base_desktop: ""
 
+# The session the login screen picks for a user who has not chosen one, such
+# as cinnamon-wayland; empty keeps the edition's default (mint-info-*).
+base_session: ""
+
 # xfwm4's compositor (Xfce). Off on a host whose GPU driver mis-renders
 # composited windows.
 base_xfce_compositing: true

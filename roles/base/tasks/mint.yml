@@ -27,6 +27,18 @@
     no_extra_spaces: true
   when: ansible_facts['os_family'] == "Debian"
 
+# A drop-in after the edition's 70-linuxmint.conf, which sets its own session.
+- name: Set the login screen's default session
+  community.general.ini_file:
+    path: /etc/lightdm/lightdm.conf.d/90-machine-setup.conf
+    section: "Seat:*"
+    option: user-session
+    value: "{{ base_session }}"
+    state: "{{ 'present' if base_session | length > 0 else 'absent' }}"
+    mode: "0644"
+    no_extra_spaces: true
+  when: ansible_facts['os_family'] == "Debian"
+
 - name: Set VLC as the default video player (user MIME associations)
   community.general.ini_file:
     path: "/home/{{ primary_user }}/.config/mimeapps.list"
