@@ -283,10 +283,22 @@ brave_policies_extra:
   ExtensionInstallForcelist:
     - omkfmpieigblcllmkgbflkikinpkodlk
 
-# The i965 driver exports a surface only once something has been decoded into
-# it, and Chromium exports its surfaces before that (tools/patched-deb).
+# Fixes of ours (tools/patched-deb): the i965 driver exports a surface only
+# once something has been decoded into it, and Chromium exports its surfaces
+# before that; Xwayland finds no GPU under Muffin 6.6, whose linux-dmabuf does
+# not name one, and renders every X client in software.
 patched_debs:
   - { source: intel-vaapi-driver, binary: i965-va-driver }
+  # kisak builds its Xwayland against protocol headers newer than noble's,
+  # from a companion archive signed with the same key.
+  - source: xwayland
+    binary: xwayland
+    build_sources: |
+      Types: deb
+      URIs: https://ppa.launchpadcontent.net/kisak/kisak-mesa-build-deps/ubuntu
+      Suites: noble
+      Components: main
+      Signed-By: /etc/apt/keyrings/kisak-mesa.asc
 
 # GT 520M at full clocks: nouveau rebuilt with the GF108 reclocking patches
 # (graphics role). The GPU powers off whenever nothing renders on it, so the

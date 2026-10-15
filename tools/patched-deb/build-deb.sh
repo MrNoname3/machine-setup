@@ -15,6 +15,9 @@
 #   intel-vaapi-driver  exporting a surface before anything rendered to it
 #                       fails, so Chromium's VA-API decoder falls back to
 #                       software.
+#   xwayland            a compositor offering only linux-dmabuf v3 without
+#                       wl_drm names no GPU, and glamor stays off; the boot
+#                       VGA device's render node is taken there.
 #
 # Run as root, as in a throwaway container, it installs the build tools and
 # dependencies itself; run as a user, they must be installed already. Either
