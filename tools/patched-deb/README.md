@@ -20,6 +20,7 @@ one; `build-deb.sh --suffix <source-package>` prints the suffix.
 | iwd | [iwd-psk-sha256-needs-mfp.patch](patches/iwd-psk-sha256-needs-mfp.patch) | iwd picks PSK-SHA256 on WPA2/WPA3 networks even when the Wi-Fi chip cannot do management frame protection, and the chip never associates |
 | intel-vaapi-driver | [intel-vaapi-driver-export-unrendered-surface.patch](patches/intel-vaapi-driver-export-unrendered-surface.patch) | the i965 VA-API driver cannot export a surface before anything is decoded into it, so Chromium-based browsers decode video in software |
 | xwayland | [xwayland-guess-compositor-gpu.patch](patches/xwayland-guess-compositor-gpu.patch) | under a compositor that offers only linux-dmabuf v3 and no wl_drm, such as Muffin before 6.8 on a current Mesa, Xwayland finds no GPU and every X client renders in software; the patch takes the boot VGA device |
+| muffin | [muffin-presentation-time.patch](patches/muffin-presentation-time.patch), from [linuxmint/muffin#843](https://github.com/linuxmint/muffin/pull/843) | Muffin before 6.8 has no presentation-time protocol, so Chromium paces its frames off a timer the frame callbacks keep re-phasing, and Brave drops about every eighth frame of a 30 fps video it decodes on the GPU |
 
 ## Where it runs
 

@@ -18,6 +18,9 @@
 #   xwayland            a compositor offering only linux-dmabuf v3 without
 #                       wl_drm names no GPU, and glamor stays off; the boot
 #                       VGA device's render node is taken there.
+#   muffin              without the presentation-time protocol Chromium paces
+#                       its frames off a timer the frame callbacks re-phase,
+#                       and drops frames of 30 fps video.
 #
 # Run as root, as in a throwaway container, it installs the build tools and
 # dependencies itself; run as a user, they must be installed already. Either

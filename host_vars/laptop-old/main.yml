@@ -286,7 +286,8 @@ brave_policies_extra:
 # Fixes of ours (tools/patched-deb): the i965 driver exports a surface only
 # once something has been decoded into it, and Chromium exports its surfaces
 # before that; Xwayland finds no GPU under Muffin 6.6, whose linux-dmabuf does
-# not name one, and renders every X client in software.
+# not name one, and renders every X client in software; Muffin 6.6 has no
+# presentation-time, and Brave drops frames of 30 fps video decoded on the GPU.
 patched_debs:
   - { source: intel-vaapi-driver, binary: i965-va-driver }
   # kisak builds its Xwayland against protocol headers newer than noble's,
@@ -299,6 +300,7 @@ patched_debs:
       Suites: noble
       Components: main
       Signed-By: /etc/apt/keyrings/kisak-mesa.asc
+  - { source: muffin, binary: libmuffin0 }
 
 # GT 520M at full clocks: nouveau rebuilt with the GF108 reclocking patches
 # (graphics role). The GPU powers off whenever nothing renders on it, so the
