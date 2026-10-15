@@ -39,7 +39,7 @@
 # where a view was set by hand. ignore-view-metadata=false makes Nemo honour each
 # folder's saved per-folder view, so manual overrides stick; inherit-folder-viewer
 # =false means new folders use this global default rather than the parent's view.
-- name: Default Nemo to list view sorted by name ascending (manual per-folder overrides respected)
+- name: Default Nemo to list view sorted by name, the full path in the title
   community.general.dconf:
     key: "{{ item.key }}"
     value: "{{ item.value }}"
@@ -51,6 +51,7 @@
     - { key: /org/nemo/preferences/default-sort-in-reverse-order, value: "false" }
     - { key: /org/nemo/preferences/ignore-view-metadata, value: "false" }
     - { key: /org/nemo/preferences/inherit-folder-viewer, value: "false" }
+    - { key: /org/nemo/preferences/show-full-path-titles, value: "true" }
   when: ansible_facts['os_family'] == "Debian"
 
 # Start the week on Monday in the Cinnamon calendar/date displays (0=Sunday,
