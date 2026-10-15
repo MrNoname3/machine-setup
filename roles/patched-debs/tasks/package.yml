@@ -56,15 +56,19 @@
     # deb-src entries for the archives that carry the newest version, for this
     # build only.
     - name: Add the source entries for {{ patched_deb.source }}
+      ansible.builtin.script:
+        cmd: >-
+          deb-src-entries {{ patched_deb.binary | quote }} {{ patched_debs_archive | quote }}
+          /etc/apt/sources.list.d/patched-debs-src
+        executable: /usr/bin/python3
+      changed_when: true
+
+    - name: Add the build-only archives for {{ patched_deb.source }}
       ansible.builtin.copy:
-        dest: /etc/apt/sources.list.d/patched-debs-src.list
-        content: |
-          {% for line in patched_debs_madison.stdout_lines
-                 if (line.split('|')[1] | trim) == patched_debs_archive %}
-          {% set origin = (line.split('|')[2] | trim).split(' ') %}
-          deb-src {{ origin[0] }} {{ origin[1].split('/')[0] }} {{ origin[1].split('/')[1] }}
-          {% endfor %}
+        dest: /etc/apt/sources.list.d/patched-debs-build.sources
+        content: "{{ patched_deb.build_sources }}"
         mode: "0644"
+      when: patched_deb.build_sources is defined
 
     - name: Read the source index
       ansible.builtin.apt:
@@ -126,10 +130,11 @@
         | difference(patched_debs_before.stdout_lines | default(patched_debs_after.stdout_lines))
         | length > 0
 
-    - name: Drop the source entries
+    - name: Drop the source entries and the build's archives
       ansible.builtin.file:
-        path: /etc/apt/sources.list.d/patched-debs-src.list
+        path: /etc/apt/sources.list.d/{{ item }}
         state: absent
+      loop: [patched-debs-src.list, patched-debs-src.sources, patched-debs-build.sources]
 
     - name: Read the indexes without the source entries
       ansible.builtin.apt:

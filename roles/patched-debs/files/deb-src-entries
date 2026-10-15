@@ -1,0 +1,66 @@
+#!/usr/bin/python3
+"""deb-src-entries PACKAGE VERSION PREFIX
+
+Writes deb-src entries for the archives that carry VERSION of the binary
+PACKAGE to PREFIX.list and PREFIX.sources, each copying the options of the
+deb entry it sits beside: apt refuses two entries for one archive that
+disagree on Signed-By."""
+import re
+import subprocess
+import sys
+
+package, version, prefix = sys.argv[1:]
+
+
+def run(*args):
+    return subprocess.run(args, check=True, capture_output=True, text=True).stdout
+
+
+descriptions = set()
+for line in run("apt-cache", "madison", package).splitlines():
+    fields = [f.strip() for f in line.split("|")]
+    if fields[1] == version:
+        descriptions.add(fields[2])
+
+# (sources file, repository URI, suite, component) of each matching index
+targets = set()
+fmt = "$(DESCRIPTION)\t$(SOURCESENTRY)\t$(REPO_URI)\t$(RELEASE)\t$(COMPONENT)"
+for line in run("apt-get", "indextargets", "--format", fmt, "Created-By: Packages").splitlines():
+    description, entry, uri, suite, component = line.split("\t")
+    if description in descriptions:
+        targets.add((entry.rsplit(":", 1)[0], uri.rstrip("/"), suite, component))
+if not targets:
+    sys.exit(f"deb-src-entries: no archive carries {package} {version}")
+
+one_line = re.compile(r"\s*deb\s+(\[[^\]]*\]\s+)?(\S+)\s+(\S+)")
+lists, stanzas = [], []
+for path, uri, suite, component in sorted(targets):
+    with open(path) as f:
+        text = f.read()
+    if path.endswith(".list"):
+        for line in text.splitlines():
+            m = one_line.match(line)
+            if m and m.group(2).rstrip("/") == uri and m.group(3) == suite:
+                lists.append(f"deb-src {m.group(1) or ''}{m.group(2)} {suite} {component}")
+                break
+        continue
+    for stanza in re.split(r"\n\s*\n", text):
+        fields, name = {}, None
+        for line in stanza.splitlines():
+            if line.startswith("#"):
+                continue
+            if line[:1] in (" ", "\t") and name:
+                fields[name] += "\n" + line
+            elif ":" in line:
+                name, value = line.split(":", 1)
+                fields[name] = value.strip()
+        if uri in [u.rstrip("/") for u in fields.get("URIs", "").split()] \
+                and suite in fields.get("Suites", "").split():
+            fields.update({"Types": "deb-src", "URIs": uri, "Suites": suite, "Components": component})
+            stanzas.append("\n".join(f"{k}: {v}" for k, v in fields.items()))
+            break
+
+for suffix, entries, separator in ((".list", lists, "\n"), (".sources", stanzas, "\n\n")):
+    if entries:
+        with open(prefix + suffix, "w") as f:
+            f.write(separator.join(entries) + "\n")
