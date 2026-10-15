@@ -133,13 +133,13 @@
     - base_input_method | length > 0
     - base_input_method_current.rc != 0
 
-- name: Ensure the bookmark directory exists
+- name: Ensure the bookmark and VLC config directories exist
   ansible.builtin.file:
     path: "/home/{{ primary_user }}/.config/{{ item }}"
     state: directory
     mode: "0755"
   become: false
-  loop: [gtk-3.0]
+  loop: [gtk-3.0, vlc]
 
 # Nemo's sidebar bookmarks, which GTK's file chooser shares.
 - name: Set the file manager's bookmarks
@@ -149,3 +149,19 @@
     mode: "{{ user_config_mode | default('0644') }}"
   become: false
   when: base_gtk_bookmarks | length > 0
+
+# VLC asks on its first start whether it may look up metadata online; the
+# answer, written before that start, stops the question.
+- name: Answer VLC's first-start privacy question
+  ansible.builtin.copy:
+    dest: "/home/{{ primary_user }}/.config/vlc/vlcrc"
+    content: |
+      [qt]
+      qt-privacy-ask=0
+
+      [core]
+      metadata-network-access=1
+    force: false
+    mode: "{{ user_config_mode | default('0644') }}"
+  become: false
+  when: "'vlc' in (packages_present | default([]))"
