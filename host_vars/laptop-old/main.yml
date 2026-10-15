@@ -22,6 +22,7 @@ roles_enabled:
   - lutris         # the Flatpak Lutris's game icons
   - luks-unlock
   - graphics
+  - patched-debs   # the i965 VA-API driver Brave can decode with (patched_debs below)
   - firewall
   - storage
   - wireguard
@@ -35,6 +36,9 @@ roles_enabled:
 
 # The base role's Mint desktop defaults (roles/base/tasks/mint.yml + cinnamon.yml).
 base_desktop: cinnamon
+
+# Cinnamon on Wayland: there Brave renders and decodes video on the Intel GPU.
+base_session: cinnamon-wayland
 
 # Tray applets with nothing to do here: no Evolution or other calendar client;
 # Cinnamon shows the print notifications itself; Update Manager's own
@@ -147,6 +151,10 @@ packages_absent:
   - network-manager-config-connectivity-ubuntu  # NM's 5-minute internet check; Brave finds a captive portal itself
   - papirus-icon-theme         # unused icon theme (Mint-Y-Sand is the one set)
   - ibus                        # Cinnamon starts it whenever it is installed (base_input_method: none)
+  # Only the native i965 driver is rebuilt (patched_debs), and Multi-Arch needs
+  # one version across architectures; Steam's 32-bit side keeps Mesa's.
+  - i965-va-driver:i386
+  - va-driver-all:i386
   # Real Docker engine — only ever pulled as a docker-compose-v2 *Recommends*; we
   # run rootless Podman (podman compose uses docker-compose-v2's provider directly,
   # so the compose tooling stays). The containers role installs with
@@ -264,9 +272,21 @@ container_docker_host_export: true
 # The unrouted VGA connector reports a phantom monitor (graphics role).
 graphics_disable_vga: true
 
-# No brave_flags: Brave cannot decode video in hardware on this X11 Optimus
-# machine (VA-API lands on the nouveau render node, and decoded frames cannot
-# be handed to GLX), so it decodes in software, which the CPU keeps up with.
+# Brave decodes video on the Intel GPU through VA-API: its i965 driver,
+# patched (patched_debs), and its render node, which Brave would not pick over
+# the GT 520M's by itself.
+brave_flags:
+  - "--render-node-override=/dev/dri/by-path/pci-0000:00:02.0-render"
+brave_policies_extra:
+  # enhanced-h264ify: YouTube sends H.264, which Sandy Bridge decodes, instead
+  # of VP9 or AV1, which it cannot.
+  ExtensionInstallForcelist:
+    - omkfmpieigblcllmkgbflkikinpkodlk
+
+# The i965 driver exports a surface only once something has been decoded into
+# it, and Chromium exports its surfaces before that (tools/patched-deb).
+patched_debs:
+  - { source: intel-vaapi-driver, binary: i965-va-driver }
 
 # GT 520M at full clocks: nouveau rebuilt with the GF108 reclocking patches
 # (graphics role). The GPU powers off whenever nothing renders on it, so the
