@@ -1,0 +1,40 @@
+#!/usr/bin/python3
+"""cinnamon-applet-settings UUID JSON
+
+Sets the settings in JSON, an object of setting names and values, on every
+instance of the applet UUID on the Cinnamon panels, and reloads the applet
+when anything changed; prints CHANGED then. An instance whose settings file
+Cinnamon has not written yet (no login since the install) is left alone."""
+import ast
+import json
+import os
+import subprocess
+import sys
+
+uuid, want = sys.argv[1], json.loads(sys.argv[2])
+
+applets = subprocess.run(["gsettings", "get", "org.cinnamon", "enabled-applets"],
+                         check=True, capture_output=True, text=True).stdout.strip()
+applets = ast.literal_eval(applets.removeprefix("@as "))
+changed = False
+for entry in applets:
+    fields = entry.split(":")
+    if len(fields) < 5 or fields[3] != uuid:
+        continue
+    path = os.path.expanduser(f"~/.config/cinnamon/spices/{uuid}/{fields[4]}.json")
+    if not os.path.exists(path):
+        continue
+    with open(path) as f:
+        settings = json.load(f)
+    if all(settings[k]["value"] == v for k, v in want.items()):
+        continue
+    for k, v in want.items():
+        settings[k]["value"] = v
+    with open(path, "w") as f:
+        json.dump(settings, f, indent=4)
+    changed = True
+
+if changed:
+    subprocess.run(["gdbus", "call", "--session", "--dest", "org.Cinnamon", "--object-path", "/org/Cinnamon",
+                    "--method", "org.Cinnamon.ReloadXlet", uuid, "APPLET"], capture_output=True)
+    print("CHANGED")

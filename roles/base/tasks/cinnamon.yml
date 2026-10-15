@@ -185,15 +185,23 @@
     - { key: /org/cinnamon/settings-daemon/plugins/color/night-light-temperature, value: "uint32 5600" }
   when: ansible_facts['os_family'] == "Debian"
 
-- name: Pin the panel's applications
+# Applet settings live in files Cinnamon writes at the first login, and a
+# running applet picks a change up only when reloaded.
+- name: Set the panel applets' settings
   ansible.builtin.script:
-    cmd: cinnamon-panel-launchers {{ base_panel_launchers | map('quote') | join(' ') }}
+    cmd: cinnamon-applet-settings {{ item.uuid | quote }} {{ item.settings | to_json | quote }}
     executable: /usr/bin/python3
   environment:
     DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts['user_uid'] }}/bus"
   become: false
-  register: base_panel_result
-  changed_when: "'CHANGED' in base_panel_result.stdout"
-  when:
-    - ansible_facts['os_family'] == "Debian"
-    - base_panel_launchers | length > 0
+  register: base_applet_result
+  changed_when: "'CHANGED' in base_applet_result.stdout"
+  loop: >-
+    {{ ([{'uuid': 'grouped-window-list@cinnamon.org', 'settings': {'pinned-apps': base_panel_launchers}}]
+        if base_panel_launchers else [])
+       + ([{'uuid': 'calendar@cinnamon.org',
+            'settings': {'use-custom-format': true, 'custom-format': base_panel_clock_format}}]
+          if base_panel_clock_format else []) }}
+  loop_control:
+    label: "{{ item.uuid }}"
+  when: ansible_facts['os_family'] == "Debian"

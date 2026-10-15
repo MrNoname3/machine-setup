@@ -16,6 +16,10 @@ base_session: ""
 # leaves the panel alone.
 base_panel_launchers: []
 
+# The panel clock's format (GLib date format, %n for a second line); empty
+# keeps Cinnamon's default.
+base_panel_clock_format: ""
+
 # Default applications per MIME type ({type: desktop entry}), written to the
 # user's mimeapps.list; set per host.
 base_mime_defaults: {}
