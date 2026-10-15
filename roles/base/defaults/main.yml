@@ -3,17 +3,13 @@
 packages_present: []
 packages_absent: []
 
-# The Linux Mint desktop whose defaults to apply: cinnamon or xfce
-# (tasks/mint.yml, then tasks/<base_desktop>.yml). Empty applies none.
+# The Linux Mint desktop whose defaults to apply: cinnamon (tasks/mint.yml,
+# then tasks/<base_desktop>.yml). Empty applies none.
 base_desktop: ""
 
 # The session the login screen picks for a user who has not chosen one, such
 # as cinnamon-wayland; empty keeps the edition's default (mint-info-*).
 base_session: ""
-
-# xfwm4's compositor (Xfce). Off on a host whose GPU driver mis-renders
-# composited windows.
-base_xfce_compositing: true
 
 # Default applications per MIME type ({type: desktop entry}), written to the
 # user's mimeapps.list; set per host.
