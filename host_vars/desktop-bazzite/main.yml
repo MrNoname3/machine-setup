@@ -52,11 +52,8 @@ kde_panel_launchers:
   - applications:net.lutris.Lutris.desktop
   - applications:io.github.kolunmi.Bazaar.desktop
 
-# Web apps in windows of their own, pinned to the panel.
-brave_web_apps:
-  - https://outlook.live.com/mail/
-  - https://app.element.io/
-  - https://www.duolingo.com/
+# The web apps above are installed by hand, not through brave_web_apps: Brave
+# applies a policy to every profile, and this one has a work profile as well.
 
 # Flatpak application set (system scope, Flathub). ProtonPlus is managed by the
 # steam role (steam_flatpaks), so it is not repeated here.
