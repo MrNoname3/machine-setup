@@ -40,6 +40,12 @@ ssh_keys_dir: "/home/{{ primary_user }}/SynologyDrive/OneDrive/IOT/SSH"
 # comparison cares.)
 synology_home: "/var/home/{{ primary_user }}"
 
+# Web apps in windows of their own, pinned to the panel.
+brave_web_apps:
+  - https://outlook.live.com/mail/
+  - https://app.element.io/
+  - https://www.duolingo.com/
+
 # Flatpak application set (system scope, Flathub). ProtonPlus is managed by the
 # steam role (steam_flatpaks), so it is not repeated here.
 flatpak_apps:

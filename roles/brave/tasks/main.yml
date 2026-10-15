@@ -92,7 +92,13 @@
     mode: "0644"
     validate: "python3 -m json.tool %s"
   loop:
-    - { level: managed, policies: "{{ brave_policies | combine(brave_policies_extra) }}" }
+    - level: managed
+      policies: >-
+        {{ brave_policies | combine(brave_policies_extra)
+           | combine({'WebAppInstallForceList': brave_web_apps
+                       | map('community.general.dict_kv', 'url')
+                       | map('combine', {'default_launch_container': 'window', 'create_desktop_shortcut': false})
+                       | list} if brave_web_apps else {}) }}
     - { level: recommended, policies: "{{ brave_policies_recommended }}" }
   loop_control:
     label: "{{ item.level }}"

@@ -283,6 +283,12 @@ brave_policies_extra:
   ExtensionInstallForcelist:
     - omkfmpieigblcllmkgbflkikinpkodlk
 
+# Web apps in windows of their own, pinned to the panel.
+brave_web_apps:
+  - https://outlook.live.com/mail/
+  - https://app.element.io/
+  - https://www.duolingo.com/
+
 # Fixes of ours (tools/patched-deb): the i965 driver exports a surface only
 # once something has been decoded into it, and Chromium exports its surfaces
 # before that; Xwayland finds no GPU under Muffin 6.6, whose linux-dmabuf does
