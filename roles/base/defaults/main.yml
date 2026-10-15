@@ -11,6 +11,11 @@ base_desktop: ""
 # as cinnamon-wayland; empty keeps the edition's default (mint-info-*).
 base_session: ""
 
+# Applications pinned to the Cinnamon panel's window list, left to right, as
+# desktop file names; a Flatpak app as "<app-id>.desktop:flatpak". Empty
+# leaves the panel alone.
+base_panel_launchers: []
+
 # Default applications per MIME type ({type: desktop entry}), written to the
 # user's mimeapps.list; set per host.
 base_mime_defaults: {}

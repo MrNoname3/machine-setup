@@ -1,0 +1,41 @@
+#!/usr/bin/python3
+"""cinnamon-panel-launchers DESKTOP-ID...
+
+Pins the given applications, in this order, in every grouped window list on
+the Cinnamon panels and reloads the applet when the list changed; prints
+CHANGED then. An applet whose settings file Cinnamon has not written yet (no
+login since the install) is left alone. Flatpak apps go by their Cinnamon ID,
+"<app-id>.desktop:flatpak"."""
+import ast
+import json
+import os
+import subprocess
+import sys
+
+UUID = "grouped-window-list@cinnamon.org"
+want = sys.argv[1:]
+
+applets = subprocess.run(["gsettings", "get", "org.cinnamon", "enabled-applets"],
+                         check=True, capture_output=True, text=True).stdout.strip()
+applets = ast.literal_eval(applets.removeprefix("@as "))
+changed = False
+for entry in applets:
+    fields = entry.split(":")
+    if len(fields) < 5 or fields[3] != UUID:
+        continue
+    path = os.path.expanduser(f"~/.config/cinnamon/spices/{UUID}/{fields[4]}.json")
+    if not os.path.exists(path):
+        continue
+    with open(path) as f:
+        settings = json.load(f)
+    if settings["pinned-apps"]["value"] == want:
+        continue
+    settings["pinned-apps"]["value"] = want
+    with open(path, "w") as f:
+        json.dump(settings, f, indent=4)
+    changed = True
+
+if changed:
+    subprocess.run(["gdbus", "call", "--session", "--dest", "org.Cinnamon", "--object-path", "/org/Cinnamon",
+                    "--method", "org.Cinnamon.ReloadXlet", UUID, "APPLET"], capture_output=True)
+    print("CHANGED")

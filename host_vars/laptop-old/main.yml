@@ -57,6 +57,17 @@ base_units_disabled:
 # seven processes for it.
 base_input_method: none
 
+# The panel's window list, left to right.
+base_panel_launchers:
+  - brave-browser.desktop
+  - nemo.desktop
+  - org.gnome.Terminal.desktop
+  - brave-eigpmdhekjlgjgcppnanaanbdmnlnagl-Default.desktop   # Outlook
+  - brave-ejhkdoiecgkmdpomoahkdihbcldkgjci-Default.desktop   # Element
+  - brave-jneocipojkkahfcibhjaiilegofacenn-Default.desktop   # Duolingo
+  - steam.desktop
+  - net.lutris.Lutris.desktop:flatpak
+
 # Mint's umask is 002, so the apps write their config files as 0664.
 user_config_mode: "0664"
 
