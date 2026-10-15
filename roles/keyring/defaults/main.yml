@@ -4,6 +4,8 @@
 # The [KeeShare] block is deliberately excluded — it holds a per-install
 # generated PRIVATE key and must never land in the repo.
 keepassxc_ini_settings:
+  # Save through a temporary file, so an interrupted save leaves the old database.
+  - { section: General, option: UseAtomicSaves, value: "true" }
   - { section: SSHAgent, option: Agent, value: "true" }
   - { section: SSHAgent, option: Enabled, value: "true" }
   - { section: GUI, option: ApplicationTheme, value: "dark" }
