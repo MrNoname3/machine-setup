@@ -84,6 +84,17 @@ brave_policies_extra:
   # of AV1, which neither the card nor this CPU can decode in time.
   ExtensionInstallForcelist:
     - omkfmpieigblcllmkgbflkikinpkodlk
+  # Web apps in windows of their own, pinned to the panel.
+  WebAppInstallForceList:
+    - url: https://outlook.live.com/mail/
+      default_launch_container: window
+      create_desktop_shortcut: false
+    - url: https://app.element.io/
+      default_launch_container: window
+      create_desktop_shortcut: false
+    - url: https://www.duolingo.com/
+      default_launch_container: window
+      create_desktop_shortcut: false
 
 # Muffin 6.6 has no presentation-time, and Brave drops frames of 30 fps video
 # decoded on the GPU (tools/patched-deb).
