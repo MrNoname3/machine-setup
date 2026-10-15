@@ -21,6 +21,7 @@ roles_enabled:
   - lutris         # the Flatpak Lutris's game icons
   - luks-unlock
   - graphics       # the proprietary NVIDIA driver
+  - patched-debs   # Muffin with presentation-time (patched_debs below)
   - firewall
   - wireguard
   - containers
@@ -83,6 +84,11 @@ brave_policies_extra:
   # of AV1, which neither the card nor this CPU can decode in time.
   ExtensionInstallForcelist:
     - omkfmpieigblcllmkgbflkikinpkodlk
+
+# Muffin 6.6 has no presentation-time, and Brave drops frames of 30 fps video
+# decoded on the GPU (tools/patched-deb).
+patched_debs:
+  - { source: muffin, binary: libmuffin0 }
 
 # Brave's Memory Saver on, at its "Moderate" savings level.
 brave_local_state_prefs_extra:
