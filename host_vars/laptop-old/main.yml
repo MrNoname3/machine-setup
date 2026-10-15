@@ -40,6 +40,11 @@ base_desktop: cinnamon
 # Cinnamon on Wayland: there Brave renders and decodes video on the Intel GPU.
 base_session: cinnamon-wayland
 
+# Dates and the calendar in Hungarian format, with weeks starting on Monday;
+# LC_TIME otherwise follows LANG, English (US).
+base_locale:
+  LC_TIME: hu_HU.UTF-8
+
 # Tray applets with nothing to do here: no Evolution or other calendar client;
 # Cinnamon shows the print notifications itself; Update Manager's own
 # automation installs the updates (system-updates role).
