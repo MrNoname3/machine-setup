@@ -112,8 +112,8 @@
   when: ansible_facts['os_family'] == "Debian"
 
 # Power (laptop): suspend on lid close (AC + battery); blank the display after
-# 15 min on AC / 30 min on battery; auto-suspend on inactivity after 30 min on
-# AC, never on battery.
+# 15 min on AC / 30 min on battery, except on Wayland; auto-suspend on
+# inactivity after 30 min on AC, never on battery.
 - name: Configure power management — lid, display blank, auto-suspend (Cinnamon)
   community.general.dconf:
     key: "{{ item.key }}"
@@ -123,10 +123,14 @@
   loop:
     - { key: /org/cinnamon/settings-daemon/plugins/power/lid-close-ac-action, value: "'suspend'" }
     - { key: /org/cinnamon/settings-daemon/plugins/power/lid-close-battery-action, value: "'suspend'" }
-    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-display-ac, value: "900" }
-    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-display-battery, value: "1800" }
+    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-display-ac, value: "{{ '0' if base_wayland | bool else '900' }}" }
+    - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-display-battery, value: "{{ '0' if base_wayland | bool else '1800' }}" }
     - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-ac-timeout, value: "1800" }
     - { key: /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-battery-timeout, value: "0" }
+  vars:
+    # Cinnamon on Wayland does not wake a display it blanked for inactivity
+    # (linuxmint/wayland#140); there only the auto-suspend turns it off.
+    base_wayland: "{{ base_session == 'cinnamon-wayland' }}"
   when: ansible_facts['os_family'] == "Debian"
 
 # Turn off Cinnamon touchpad multi-finger gestures.
