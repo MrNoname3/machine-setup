@@ -55,11 +55,11 @@ apt-get source -qq "$SOURCE" >/dev/null 2>&1 || die "apt-get source $SOURCE fail
 cd "$SOURCE"-*/
 VERSION=$(dpkg-parsechangelog -S Version)$SUFFIX
 
-mkdir -p debian/patches
+# Applied to the tree itself: a native source package ignores debian/patches,
+# and a binary-only build needs no source diff.
 for p in "${PATCHES[@]}"; do
   patch -p1 --dry-run -s <"$p" >/dev/null || die "$(basename "$p") does not apply to $(basename "$PWD")"
-  cp "$p" debian/patches/
-  basename "$p" >>debian/patches/series
+  patch -p1 -s <"$p"
 done
 {
   printf '%s (%s) UNRELEASED; urgency=medium\n\n' "$SOURCE" "$VERSION"
