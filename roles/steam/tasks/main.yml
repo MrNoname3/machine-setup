@@ -4,7 +4,9 @@
 
 - name: Install Steam
   ansible.builtin.apt:
-    name: steam-installer
+    name:
+      - steam-installer
+      - steam-devices   # udev rules for game controllers
     state: present
     update_cache: true
   when: ansible_facts['os_family'] == "Debian"
