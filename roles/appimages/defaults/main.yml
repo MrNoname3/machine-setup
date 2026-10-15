@@ -10,6 +10,12 @@ appimages: []
 # app actually uses, or the config lands under a hash nothing looks up.
 appimages_dir: "/home/{{ primary_user }}/AppImages"
 
+# Gear Lever's command line, kept off the display: when it reaches a Wayland
+# session's display, it stays running after --list-installed has printed.
+gearlever_cli: >-
+  flatpak run --nosocket=wayland --nosocket=x11 --nosocket=fallback-x11
+  it.mijorus.gearlever
+
 # Gear Lever's config file, inside the flatpak's per-app config dir.
 gearlever_config: "/home/{{ primary_user }}/.var/app/it.mijorus.gearlever/config/gearlever.conf"
 

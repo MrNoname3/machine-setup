@@ -12,7 +12,7 @@
 # upstream rename would make a filename check re-download on every single run.
 
 - name: List the AppImages Gear Lever has integrated
-  ansible.builtin.command: flatpak run it.mijorus.gearlever --list-installed --json
+  ansible.builtin.command: "{{ gearlever_cli }} --list-installed --json"
   become: false
   changed_when: false
   register: appimages_integrated
@@ -102,7 +102,7 @@
 # digits of the file's md5 when the AppImage declares no version.
 - name: Integrate the downloaded AppImages with Gear Lever
   ansible.builtin.command: >-
-    flatpak run it.mijorus.gearlever --integrate {{ item.dest | quote }} --replace -y
+    {{ gearlever_cli }} --integrate {{ item.dest | quote }} --replace -y
   become: false
   changed_when: true
   loop: "{{ appimages_downloaded.results | default([]) }}"

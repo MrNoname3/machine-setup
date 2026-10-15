@@ -222,7 +222,7 @@
     msg: >-
       Not integrated yet: {{ missing | map(attribute='name') | join(', ') }}.
       Download each AppImage, then integrate it with:
-      flatpak run it.mijorus.gearlever --integrate <downloaded-file> --replace -y
+      {{ gearlever_cli }} --integrate <downloaded-file> --replace -y
       Gear Lever names the installed file after the app itself; if the result
       differs from the `file:` value in host_vars, correct host_vars to match.
   vars:
@@ -245,7 +245,7 @@
 #
 # Only integrated apps are checked; ones still missing are reported above.
 - name: Ask Gear Lever which update manager it resolves for each app
-  ansible.builtin.command: flatpak run it.mijorus.gearlever --list-installed --json
+  ansible.builtin.command: "{{ gearlever_cli }} --list-installed --json"
   become: false
   changed_when: false
   register: appimages_verify
