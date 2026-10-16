@@ -1,0 +1,9 @@
+#!/bin/sh
+# Warns the user when the compositor nears its open-file limit, so the
+# session can be restarted before it runs out.
+pid=$(pgrep -u "$(id -u)" -xo cinnamon) || exit 0
+open=$(ls "/proc/$pid/fd" | wc -l)
+limit=$(awk '/^Max open files/ { print $4 }' "/proc/$pid/limits")
+[ "$open" -ge $((limit * 7 / 10)) ] || exit 0
+notify-send -u critical -i dialog-warning "Log out and back in soon" \
+  "The desktop holds $open of its $limit open files because of an NVIDIA driver leak. Logging out frees them."

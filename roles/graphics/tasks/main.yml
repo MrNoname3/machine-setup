@@ -53,16 +53,49 @@
 
 # The driver's EGL leaks a sync_file descriptor in the compositor for every
 # frame; under the default limit Cinnamon on Wayland crashes within minutes.
+# An hourly check warns before the raised limit runs out; logging out frees them.
 - name: Raise the session's open-file limit past the driver's leak
-  ansible.builtin.copy:
-    dest: /etc/security/limits.d/90-nvidia-sync-file-leak.conf
-    content: "{{ primary_user }} soft nofile 524288\n"
-    owner: root
-    group: root
-    mode: "0644"
   when:
     - ansible_facts['os_family'] == "Debian"
     - graphics_nvidia_branch | length > 0
+  block:
+    - name: Raise the primary user's soft open-file limit to the hard one
+      ansible.builtin.copy:
+        dest: /etc/security/limits.d/90-nvidia-sync-file-leak.conf
+        content: "{{ primary_user }} soft nofile 1048576\n"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Install notify-send
+      ansible.builtin.apt:
+        name: libnotify-bin
+        state: present
+
+    - name: Install the compositor's open-file check
+      ansible.builtin.copy:
+        src: compositor-fd-watch
+        dest: /usr/local/bin/compositor-fd-watch
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Install the check's user units
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "/etc/systemd/user/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - compositor-fd-watch.service
+        - compositor-fd-watch.timer
+
+    - name: Run the check hourly in every user's session
+      ansible.builtin.systemd_service:
+        name: compositor-fd-watch.timer
+        enabled: true
+        scope: global
 
 - name: Hardware video decoding for Chromium browsers (nvidia-vaapi-driver)
   ansible.builtin.include_tasks: nvidia-vaapi.yml

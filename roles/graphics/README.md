@@ -16,7 +16,8 @@ Unrelated parts, split by host:
   decoding for Chromium browsers; see [VA-API on the proprietary
   driver](#va-api-on-the-proprietary-driver). The primary user's open-file
   limit is raised, because the driver leaks a descriptor in the compositor for
-  every frame and Cinnamon on Wayland would otherwise crash within minutes.
+  every frame and Cinnamon on Wayland would otherwise crash within minutes; an
+  hourly check (`compositor-fd-watch`) asks for a re-login before it runs out.
 - **Bazzite desktop** — Radeon RX 9070 XT (Navi 48, RDNA4): undervolt and power
   profiles. Everything after that section is about that part.
 

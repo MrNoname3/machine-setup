@@ -1,0 +1,9 @@
+[Unit]
+Description=Check the compositor's open files hourly
+
+[Timer]
+OnStartupSec=1h
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target

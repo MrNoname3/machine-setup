@@ -1,0 +1,6 @@
+[Unit]
+Description=Check the compositor's open files
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/compositor-fd-watch
