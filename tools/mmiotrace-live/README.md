@@ -1,10 +1,11 @@
-# mmiotrace-live — tracing the NVIDIA 390 driver from a live system
+# mmiotrace-live — tracing a legacy NVIDIA driver from a live system
 
-A Linux Mint 21.3 live ISO for recording, with the kernel's
-[mmiotrace](https://docs.kernel.org/trace/mmiotrace.html), how the proprietary
-NVIDIA 390 driver programs a Fermi GPU, for example the GT 520M in an old
-laptop: what it writes to change clocks is what nouveau needs to learn. The
-installed system on the machine is left alone.
+A Linux Mint live ISO for recording, with the kernel's
+[mmiotrace](https://docs.kernel.org/trace/mmiotrace.html), how a proprietary
+NVIDIA driver programs an old GPU: the 390 driver on a Fermi, for example the
+GT 520M in an old laptop, or the 340 driver on a Tesla (GeForce 8 to 300),
+for example a 9800 GT or a GT 210. What it writes to change clocks is what
+nouveau needs to learn. The installed system on the machine is left alone.
 
 Once the machine has booted the ISO, everything happens over SSH from another
 machine. It goes onto a [Ventoy](https://www.ventoy.net/) stick, like the
@@ -12,15 +13,25 @@ machine. It goes onto a [Ventoy](https://www.ventoy.net/) stick, like the
 
 ## What the image is
 
+`MLT_DRIVER` picks the driver branch when building; the two images differ in
+the first rows.
+
+| | 390 (Fermi, the default) | 340 (Tesla) |
+|---|---|---|
+| **Base** | Linux Mint 21.3 Xfce, on Ubuntu 22.04 | Linux Mint 20.3 Xfce, on Ubuntu 20.04 |
+| **Kernel** | Ubuntu's latest 5.15 (`linux-generic`), which has mmiotrace built in; Ubuntu ships the 390 module prebuilt for exactly this kernel line, not for its newer ones | Ubuntu's latest 5.4 (`linux-generic`), which has mmiotrace built in |
+| **Driver** | the 390 kernel module, X driver and GL libraries, `nvidia-settings`; no DKMS | the 340 module built by DKMS during the image build, with the package's X driver and GL libraries and `nvidia-settings` |
+| **Display** | the desktop stays on the integrated GPU | no desktop: the system boots to the text console, since a Tesla machine usually has no other GPU and a desktop would hold the card while the driver loads |
+| **Mesa** | as usual | the 340 package replaces Mesa's `libGL` and `libEGL` with its own; `LD_LIBRARY_PATH=/opt/mesa-gl` gives a client Mesa's back, for nouveau |
+
+On both:
+
 | | |
 |---|---|
-| **Base** | Linux Mint 21.3 Xfce, on Ubuntu 22.04 |
-| **Kernel** | Ubuntu's latest 5.15 (`linux-generic`), which has mmiotrace built in; Ubuntu ships the 390 module prebuilt for exactly this kernel line, not for its newer ones |
-| **Driver** | the 390 kernel module, X driver and GL libraries, `nvidia-settings`; no DKMS |
-| **NVIDIA modules** | kept from loading, by name too ([mmiotrace.conf](overlay/etc/modprobe.d/mmiotrace.conf)); a trace starts first, then `modprobe --ignore-install nvidia`. `gpu-manager` is masked, and the display stays on the integrated GPU |
+| **NVIDIA modules** | kept from loading, by name too ([mmiotrace.conf](overlay/etc/modprobe.d/mmiotrace.conf)); a trace starts first, then `modprobe --ignore-install nvidia`. `gpu-manager` is masked |
 | **SSH** | root login with the public keys given to `build.sh`, from private address ranges (RFC 1918) only; no passwords |
 | **Host key** | fixed, created on the first build and reused |
-| **Tools** | `glmark2`, `mesa-utils`, `build-essential` and the kernel headers, for load during a trace and for building modules on the live system |
+| **Tools** | `glmark2` (on 340 also `glmark2-drm` for nouveau on KMS), `mesa-utils`, `build-essential` and the kernel headers, for load during a trace and for building modules on the live system |
 | **Boot** | the hostname is `mmiotrace`, and both boot menus start the live system after ten seconds |
 
 All the changes are in [build.sh](build.sh), [customize.sh](customize.sh) (run
@@ -30,10 +41,11 @@ inside the image) and [overlay/](overlay/).
 
 Everything runs as root in a throwaway Debian or Ubuntu container with this
 repository mounted; nothing needs loop devices or mounts. The container needs
-`curl ca-certificates xorriso squashfs-tools openssh-client`.
+`curl ca-certificates xorriso squashfs-tools openssh-client proot`.
 
 ```
 bash tools/mmiotrace-live/build.sh ~/path/to/key.pub [more.pub ...]
+MLT_DRIVER=340 bash tools/mmiotrace-live/build.sh ~/path/to/key.pub
 ```
 
 The Mint ISO is downloaded into `work/mmiotrace-live/` (`MLT_CACHE`) and
@@ -72,6 +84,9 @@ ssh-keyscan -p 2222 127.0.0.1 | ssh-keygen -lf -
        { "VTOY_DEFAULT_IMAGE": "/linuxmint-21.3-xfce-mmiotrace.iso" },
        { "VTOY_SECONDARY_TIMEOUT": "5" } ] }
    ```
+
+   The 340 image is `linuxmint-20.3-xfce-mmiotrace.iso`. Both fit on an 8 GB
+   stick, and both answer with the same host key.
 2. From the other machine:
 
    ```
@@ -101,7 +116,11 @@ second X server coming up on the NVIDIA GPU alone
 ([xorg-nvidia.conf](xorg-nvidia.conf), no display and no input devices), the
 GPU settling to its lowest performance level, `glmark2` driving it to the
 highest, and back down again. Each step and each level change lands in the
-trace as a `MARK` line.
+trace as a `MARK` line. The highest level is the card's own, from
+`nvidia-settings`: a Fermi laptop part has three, a Tesla card may have two or
+one. The X server takes the first NVIDIA display controller off bus 0, which
+passes over the integrated GPU of an nForce board; `MT_GPU=02:00.0` names
+another.
 
 ```
 scp tools/mmiotrace-live/trace-clocks.sh tools/mmiotrace-live/xorg-nvidia.conf mmiotrace:
