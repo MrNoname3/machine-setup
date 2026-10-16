@@ -4,7 +4,10 @@
 Sets the settings in JSON, an object of setting names and values, on every
 instance of the applet UUID on the Cinnamon panels, and reloads the applet
 when anything changed; prints CHANGED then. An instance whose settings file
-Cinnamon has not written yet (no login since the install) is left alone."""
+Cinnamon has not written yet (no login since the install) is left alone.
+
+A multi-instance applet keeps a file per instance (<instance-id>.json); a
+single-instance one keeps a single <uuid>.json shared by its entries."""
 import ast
 import json
 import os
@@ -21,7 +24,10 @@ for entry in applets:
     fields = entry.split(":")
     if len(fields) < 5 or fields[3] != uuid:
         continue
-    path = os.path.expanduser(f"~/.config/cinnamon/spices/{uuid}/{fields[4]}.json")
+    spices = os.path.expanduser(f"~/.config/cinnamon/spices/{uuid}")
+    path = f"{spices}/{fields[4]}.json"
+    if not os.path.exists(path):
+        path = f"{spices}/{uuid}.json"
     if not os.path.exists(path):
         continue
     with open(path) as f:
