@@ -191,6 +191,50 @@
   loop_control:
     label: "{{ item.file }} -> {{ item.option }}"
 
+# --- Launch environment ---------------------------------------------------
+# The `env:` mapping in host_vars goes where Gear Lever keeps an app's own
+# environment variables, the `env K=V ...` prefix of its Exec line, so the GUI
+# shows it and an update carries it over. Tokens are split the way Gear Lever's
+# extract_terminal_arguments() does; values must not contain whitespace, since
+# Gear Lever writes them unquoted.
+- name: Read the current desktop entry of apps with a launch environment
+  ansible.builtin.slurp:
+    src: >-
+      /home/{{ primary_user }}/.local/share/applications/{{
+        item.file | regex_replace('\.appimage$', '.desktop') }}
+  register: appimages_env_desktop_now
+  become: false
+  failed_when: false # a not-yet-integrated app simply has no entry
+  loop: "{{ appimages | selectattr('env', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Set each app's launch environment in its desktop entry
+  community.general.ini_file:
+    path: >-
+      /home/{{ primary_user }}/.local/share/applications/{{
+        item.item.file | regex_replace('\.appimage$', '.desktop') }}
+    section: Desktop Entry
+    option: Exec
+    value: "{{ (['env'] + env_kept + env_wanted + command) | join(' ') }}"
+    no_extra_spaces: true
+    mode: "0644"
+  become: false
+  vars:
+    tokens: >-
+      {{ (item.content | b64decode | regex_search('(?m)^Exec=(.*)$', '\1')
+          | first).split() | reject('equalto', 'env') | list }}
+    command: "{{ tokens | reject('match', '[^/-].*=') | list }}"
+    env_kept: >-
+      {{ tokens | select('match', '[^/-].*=')
+         | reject('match', '(' ~ (item.item.env.keys() | map('regex_escape') | join('|')) ~ ')=')
+         | list }}
+    env_wanted: "{{ item.item.env.items() | map('join', '=') | list }}"
+  loop: "{{ appimages_env_desktop_now.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.content is defined
+
 # --- Hardware access ------------------------------------------------------
 - name: Grant the local user access to the AppImages' USB hardware
   ansible.builtin.template:

@@ -125,6 +125,10 @@ appimages:
       # Upstream publishes only full releases, so /releases/latest is the right
       # endpoint — and it carries a sha256 digest, which beats a size compare.
       allow_prereleases: false
+    # The AppImage's bundled libwayland-client does not work with the host's
+    # Mesa EGL: WebKit aborts and the window stays white.
+    env:
+      LD_PRELOAD: /usr/lib64/libwayland-client.so.0
   - name: MQTT Explorer
     file: mqtt_explorer.appimage
     manager: GithubUpdater

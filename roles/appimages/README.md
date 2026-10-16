@@ -173,6 +173,23 @@ survive:
   dropped. Testing for `applications-other` instead would misfire on the second
   run, once the role's own icon name is in place.
 
+## Launch environment
+
+An app that needs environment variables to start lists them under `env:` in
+host_vars. The role writes them where Gear Lever keeps an app's own variables,
+the `env K=V ...` prefix of the desktop entry's `Exec` line: they show up in the
+app's page in the GUI, an update carries them over, and variables set there by
+hand are left alone. Values must not contain whitespace, because Gear Lever
+writes them unquoted.
+
+A reinstall starts from a fresh entry without them; re-running the role puts
+them back.
+
+FlightCore uses it to preload the host's `libwayland-client`. The copy bundled in
+the AppImage does not work with the host's Mesa EGL, so WebKit aborts with
+`Could not create default EGL display: EGL_BAD_PARAMETER` and the window stays
+white.
+
 ## USB hardware
 
 An app that drives USB hardware lists the devices' `vendor:product` ids under
