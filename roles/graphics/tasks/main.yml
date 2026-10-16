@@ -51,6 +51,19 @@
     - ansible_facts['os_family'] == "Debian"
     - graphics_nvidia_branch | length > 0
 
+# The driver's EGL leaks a sync_file descriptor in the compositor for every
+# frame; under the default limit Cinnamon on Wayland crashes within minutes.
+- name: Raise the session's open-file limit past the driver's leak
+  ansible.builtin.copy:
+    dest: /etc/security/limits.d/90-nvidia-sync-file-leak.conf
+    content: "{{ primary_user }} soft nofile 524288\n"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - graphics_nvidia_branch | length > 0
+
 - name: Hardware video decoding for Chromium browsers (nvidia-vaapi-driver)
   ansible.builtin.include_tasks: nvidia-vaapi.yml
   when:

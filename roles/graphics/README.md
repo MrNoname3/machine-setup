@@ -14,7 +14,9 @@ Unrelated parts, split by host:
 - **Mint desktop with an NVIDIA card** — the proprietary driver
   (`graphics_nvidia_branch`) and, with `graphics_nvidia_vaapi`, hardware video
   decoding for Chromium browsers; see [VA-API on the proprietary
-  driver](#va-api-on-the-proprietary-driver).
+  driver](#va-api-on-the-proprietary-driver). The primary user's open-file
+  limit is raised, because the driver leaks a descriptor in the compositor for
+  every frame and Cinnamon on Wayland would otherwise crash within minutes.
 - **Bazzite desktop** — Radeon RX 9070 XT (Navi 48, RDNA4): undervolt and power
   profiles. Everything after that section is about that part.
 
