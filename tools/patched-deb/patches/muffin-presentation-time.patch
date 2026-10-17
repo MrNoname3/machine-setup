@@ -3,6 +3,9 @@ Description: Implement the presentation-time protocol
  Chromium paces its frames off a timer that each frame callback re-phases; a
  30 fps video in Brave loses about every eighth frame. The compositor reports
  each frame's presentation time and refresh interval from its master clock.
+ When a surface is destroyed, its feedbacks that were painted but not yet
+ presented are discarded with it; the pull request left them to read the
+ freed surface's output table, which crashed Cinnamon.
 Author: Aleksey Samoilov <samoilov.lex@gmail.com>
 Origin: other, https://github.com/linuxmint/muffin/pull/843
 diff --git a/cogl/cogl/winsys/cogl-winsys-egl.c b/cogl/cogl/winsys/cogl-winsys-egl.c
@@ -64,10 +67,10 @@ index fa0e5c0..baf98b9 100644
      wayland_eglstream_protocols_dir = wayland_eglstream_protocols_dep.get_variable(pkgconfig: 'pkgdatadir')
 diff --git a/src/wayland/meta-wayland-presentation-time-private.h b/src/wayland/meta-wayland-presentation-time-private.h
 new file mode 100644
-index 0000000..4de8ce8
+index 0000000..3408927
 --- /dev/null
 +++ b/src/wayland/meta-wayland-presentation-time-private.h
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,70 @@
 +/*
 + * presentation-time protocol
 + *
@@ -135,13 +138,15 @@ index 0000000..4de8ce8
 +
 +void meta_wayland_surface_discard_presentation_feedback (MetaWaylandSurface *surface);
 +
++void meta_wayland_surface_destroy_presentation_feedback (MetaWaylandSurface *surface);
++
 +void meta_wayland_surface_state_discard_presentation_feedback (MetaWaylandSurfaceState *state);
 diff --git a/src/wayland/meta-wayland-presentation-time.c b/src/wayland/meta-wayland-presentation-time.c
 new file mode 100644
-index 0000000..22e6cb0
+index 0000000..a0189b0
 --- /dev/null
 +++ b/src/wayland/meta-wayland-presentation-time.c
-@@ -0,0 +1,392 @@
+@@ -0,0 +1,411 @@
 +/*
 + * presentation-time protocol
 + *
@@ -215,6 +220,25 @@ index 0000000..22e6cb0
 +
 +  meta_wayland_compositor_remove_presentation_feedback_surface (surface->compositor,
 +                                                                surface);
++}
++
++/* Also drops the feedbacks already painted and waiting to be presented, which
++ * would otherwise outlive the surface's output table. */
++void
++meta_wayland_surface_destroy_presentation_feedback (MetaWaylandSurface *surface)
++{
++  MetaWaylandCompositor *compositor = surface->compositor;
++  MetaWaylandPresentationFeedback *feedback, *next;
++
++  meta_wayland_surface_discard_presentation_feedback (surface);
++
++  wl_list_for_each_safe (feedback, next,
++                         &compositor->presentation_time.pending_feedbacks,
++                         link)
++    {
++      if (feedback->surface == surface)
++        meta_wayland_presentation_feedback_discard (feedback);
++    }
 +}
 +
 +static void
@@ -556,7 +580,7 @@ index 44fc53a..aebbe3e 100644
  
  #define META_TYPE_WAYLAND_COMPOSITOR (meta_wayland_compositor_get_type ())
 diff --git a/src/wayland/meta-wayland-surface.c b/src/wayland/meta-wayland-surface.c
-index 13d0f91..9e1b29b 100644
+index 13d0f91..b78a943 100644
 --- a/src/wayland/meta-wayland-surface.c
 +++ b/src/wayland/meta-wayland-surface.c
 @@ -410,6 +410,7 @@ meta_wayland_surface_state_set_default (MetaWaylandSurfaceState *state)
@@ -617,7 +641,7 @@ index 13d0f91..9e1b29b 100644
    meta_wayland_compositor_remove_frame_callback_surface (compositor, surface);
  
 +  /* Clean up presentation-time feedbacks */
-+  meta_wayland_surface_discard_presentation_feedback (surface);
++  meta_wayland_surface_destroy_presentation_feedback (surface);
 +
    g_hash_table_foreach (surface->outputs_to_destroy_notify_id,
                          surface_output_disconnect_signal,
