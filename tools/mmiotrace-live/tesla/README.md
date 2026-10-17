@@ -49,9 +49,27 @@ its parent and on the commit itself narrowed it down:
 | 4a16dd9d18a0 with a 2D object bound on the kernel's channel | fails |
 | 4a16dd9d18a0 with PFIFO's TLB invalidated on every VMM flush | clean, also through the whole default `glmark2` run |
 
-The patch, [upstream/](upstream/) and `0011` in the graphics role, takes a
-reference on FIFO in a channel's VMM while the channel is in it, and
-invalidates PFIFO's TLB while one is held. It applies to nouveau as in kernel
-7.0. `checkpatch.pl` finds the sign-off missing and the one-line `case` style
-of the switch it adds to; the author line is a placeholder, as in the
+The patch, `0001` in [upstream/](upstream/) and `0011` in the graphics role,
+takes a reference on FIFO in a channel's VMM while the channel is in it, and
+invalidates PFIFO's TLB while one is held.
+
+## Copy engine channel
+
+Since commit 04e0481526e3 ("nouveau/dmem: Fix privileged error in copy engine
+channel", Linux 6.12) nouveau asks for a privileged channel for the copy
+engine on every GPU, but only the FIFOs from Kepler on have privileged
+channels. On a GT218, as on every Tesla and Fermi GPU with a copy engine, it
+logs `failed to create ce channel, -22` and moves buffers through its main
+channel. `0002` in [upstream/](upstream/), `0012` in the graphics role, asks
+for a privileged channel only from Kepler on.
+
+## Upstream
+
+Both patches apply to nouveau as in kernel 7.0. Together with the rest of the
+graphics role's set, on Linux 7.0 at `0f`, the GT218 runs the whole default
+`glmark2` set with Ubuntu's Mesa 25.2, and the five scenes above with
+kisak's 26.2, without a GPU error.
+`checkpatch.pl --strict` finds the sign-off missing, the one-line `case` style
+of the switch `0001` adds to and the names nouveau already uses; the author
+line is a placeholder, as in the
 [GF108 series](../gf108/README.md#upstream-series).

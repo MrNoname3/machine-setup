@@ -1,0 +1,47 @@
+From f3720e117ac67ba1993d89ed2449d3f46d3d40f3 Mon Sep 17 00:00:00 2001
+From: Your_Name <you@example.org>
+Date: Sun, 18 Oct 2026 00:34:59 +0200
+Subject: [PATCH] drm/nouveau: ask for a privileged CE channel only from Kepler
+ on
+
+Commit 04e0481526e3 ("nouveau/dmem: Fix privileged error in copy engine
+channel") made the copy engine channel privileged on every GPU, but only
+the FIFOs from Kepler on have privileged channels, and earlier ones
+refuse to create one. Since then, every Tesla and Fermi GPU with a copy
+engine logs "failed to create ce channel, -22", and TTM moves buffers
+through the kernel's main channel instead.
+
+Ask for a privileged channel only where the FIFO has them.
+
+Fixes: 04e0481526e3 ("nouveau/dmem: Fix privileged error in copy engine channel")
+Assisted-by: Claude:claude-opus-5-5
+---
+ nouveau_drm.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/nouveau_drm.c b/nouveau_drm.c
+index 2c7077a..fdc51a4 100644
+--- a/nouveau_drm.c
++++ b/nouveau_drm.c
+@@ -337,6 +337,7 @@ static void
+ nouveau_accel_ce_init(struct nouveau_drm *drm)
+ {
+ 	struct nvif_device *device = &drm->client.device;
++	bool priv;
+ 	u64 runm;
+ 	int ret = 0;
+ 
+@@ -349,7 +350,9 @@ nouveau_accel_ce_init(struct nouveau_drm *drm)
+ 		return;
+ 	}
+ 
+-	ret = nouveau_channel_new(&drm->client, true, runm, NvDmaFB, NvDmaTT, &drm->cechan);
++	/* FIFOs before Kepler have no privileged channels, and refuse to create one. */
++	priv = device->info.family >= NV_DEVICE_INFO_V0_KEPLER;
++	ret = nouveau_channel_new(&drm->client, priv, runm, NvDmaFB, NvDmaTT, &drm->cechan);
+ 	if (ret)
+ 		NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
+ }
+-- 
+2.56.0
+

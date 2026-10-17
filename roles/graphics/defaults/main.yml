@@ -61,6 +61,6 @@ nouveau_patched: false
 # A GPU without that pstate, or without reclocking, stays at its boot clocks.
 nouveau_pstate: ""
 
-# false disables the GF108's copy engines, and nouveau moves buffers between
+# false disables the GPU's copy engines, and nouveau moves buffers between
 # VRAM and system memory with the graphics engine's M2MF instead.
 nouveau_copy_engines: true

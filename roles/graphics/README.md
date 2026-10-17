@@ -31,7 +31,7 @@ the graphics engine's M2MF.
 | Card | GPU (PCI id) | Patches | pstates, core/memory MHz | Notes |
 |---|---|---|---|---|
 | GeForce GT 520M | GF108 (`10de:0df7`) | 0001–0010: reclocking from the VBIOS | `03` 50/135, `07` 202/324, `0f` 672/800 | [tools/mmiotrace-live/gf108](../../tools/mmiotrace-live/gf108) |
-| GeForce GT 210 | GT218 (`10de:0a65`) | 0011: push buffer reads, without which Mesa 22.3+ hangs the GPU | `03` 135/135, `07` 405/324, `0f` 589/500 | [tools/mmiotrace-live/tesla](../../tools/mmiotrace-live/tesla) |
+| GeForce GT 210 | GT218 (`10de:0a65`) | 0011: push buffer reads, without which Mesa 22.3+ hangs the GPU; 0012: the copy engine's channel | `03` 135/135, `07` 405/324, `0f` 589/500 | [tools/mmiotrace-live/tesla](../../tools/mmiotrace-live/tesla) |
 
 ## VA-API on the proprietary driver
 
