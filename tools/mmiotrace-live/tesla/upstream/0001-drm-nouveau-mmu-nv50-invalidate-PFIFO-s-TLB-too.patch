@@ -1,0 +1,63 @@
+From 90f7b3b105cd789579dbb359b20c1df07b630db7 Mon Sep 17 00:00:00 2001
+From: Your_Name <you@example.org>
+Date: Sun, 18 Oct 2026 00:11:21 +0200
+Subject: [PATCH] drm/nouveau/mmu/nv50: invalidate PFIFO's TLB too
+
+nv50_vmm_flush() invalidates the TLB of every engine with an object in
+the VMM, and BAR's, but never PFIFO's, although the DMA pusher fetches
+the IB ring and the push buffers through the channel's VMM. Once pages
+there are remapped, the pusher can go on reading the old ones, report
+INVALID_CMD and the like, and leave PGRAPH wedged until a reboot.
+
+Before commit 4a16dd9d18a0 ("drm/nouveau/kms: switch to drm fbdev
+helpers"), the accelerated fbcon drew through the kernel's channel,
+which is in another VMM, and the channel switches it caused hid this.
+Without it, Mesa 22.3 and later hit it reliably on a GT218.
+
+Take a reference on FIFO in a channel's VMM for as long as the channel
+is in it, and invalidate PFIFO's TLB (VM engine 5) while one is held.
+
+Fixes: 4a16dd9d18a0 ("drm/nouveau/kms: switch to drm fbdev helpers")
+Assisted-by: Claude:claude-opus-5-5
+---
+ nvkm/engine/fifo/chan.c   | 4 ++++
+ nvkm/subdev/mmu/vmmnv50.c | 1 +
+ 2 files changed, 5 insertions(+)
+
+diff --git a/nvkm/engine/fifo/chan.c b/nvkm/engine/fifo/chan.c
+index 418a891..23a2977 100644
+--- a/nvkm/engine/fifo/chan.c
++++ b/nvkm/engine/fifo/chan.c
+@@ -282,6 +282,7 @@ nvkm_chan_del(struct nvkm_chan **pchan)
+ 	nvkm_memory_unref(&chan->userd.mem);
+ 
+ 	if (chan->vmm) {
++		atomic_dec(&chan->vmm->engref[NVKM_ENGINE_FIFO]);
+ 		nvkm_vmm_part(chan->vmm, chan->inst->memory);
+ 		nvkm_vmm_unref(&chan->vmm);
+ 	}
+@@ -425,6 +426,9 @@ nvkm_chan_new_(const struct nvkm_chan_func *func, struct nvkm_runl *runl, int ru
+ 		}
+ 
+ 		chan->vmm = nvkm_vmm_ref(vmm);
++
++		/* The DMA pusher reads through the channel's VMM too. */
++		atomic_inc(&vmm->engref[NVKM_ENGINE_FIFO]);
+ 	}
+ 
+ 	/* Allocate HW ctxdma for push buffer. */
+diff --git a/nvkm/subdev/mmu/vmmnv50.c b/nvkm/subdev/mmu/vmmnv50.c
+index 5217ce6..a86c7f1 100644
+--- a/nvkm/subdev/mmu/vmmnv50.c
++++ b/nvkm/subdev/mmu/vmmnv50.c
+@@ -200,6 +200,7 @@ nv50_vmm_flush(struct nvkm_vmm *vmm, int level)
+ 		case NVKM_ENGINE_GR    : id = 0x00; break;
+ 		case NVKM_ENGINE_VP    :
+ 		case NVKM_ENGINE_MSPDEC: id = 0x01; break;
++		case NVKM_ENGINE_FIFO  : id = 0x05; break;
+ 		case NVKM_SUBDEV_BAR   : id = 0x06; break;
+ 		case NVKM_ENGINE_MSPPP :
+ 		case NVKM_ENGINE_MPEG  : id = 0x08; break;
+-- 
+2.56.0
+

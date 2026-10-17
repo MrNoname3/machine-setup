@@ -231,6 +231,7 @@ one first) if the stick goes missing.
 32-bit accesses, one command at a time or as a script on stdin; build it on the
 live system with `gcc -O2 -o /usr/local/sbin/nvreg nvreg.c`. What the traces
 showed about the GT 520M, and the scripts that replay it, are in [gf108/](gf108/).
+What the Tesla cards need on nouveau is in [tesla/](tesla/README.md).
 
 ## Testing VRAM
 
