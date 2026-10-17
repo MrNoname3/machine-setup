@@ -3,8 +3,9 @@
 # brave role is:
 #
 #   Mint laptop     -- NVIDIA GT 520M (Fermi) + Intel HD 3000 Optimus: kill the
-#                      phantom VGA display; reclock the GT 520M with a patched
-#                      nouveau.
+#                      phantom VGA display.
+#   Mint, nouveau   -- nouveau rebuilt with the local patches (GT 520M
+#                      reclocking), and its pstate.
 #   Mint desktop    -- the proprietary NVIDIA driver, where graphics_nvidia_branch
 #                      is set, and VA-API video decoding for Chromium browsers
 #                      on top of it (nvidia-vaapi.yml).
@@ -169,18 +170,19 @@
     - ansible_facts['os_family'] == "Debian"
     - not (mesa_kisak_ppa | bool)
 
-# --- Mint laptop: GT 520M reclocking ---------------------------------------
-# nouveau ships Fermi reclocking disabled. The patched build comes from the
-# Ubuntu source of the running kernel (prepare.sh fetches and verifies it), and
-# DKMS rebuilds it for later kernels of the same series; a new series keeps its
-# stock nouveau until the role runs again under it.
-- name: Reclock the GT 520M with a patched nouveau
+# --- Mint: nouveau with the local patches ----------------------------------
+# Each patch changes only the GPUs it names, so a card can move between hosts
+# that have this on. The patched build comes from the Ubuntu source of the
+# running kernel (prepare.sh fetches and verifies it), and DKMS rebuilds it for
+# later kernels of the same series; a new series keeps its stock nouveau until
+# the role runs again under it.
+- name: Build nouveau with the local patches
   when:
     - ansible_facts['os_family'] == "Debian"
-    - nouveau_gf108_reclock | bool
+    - nouveau_patched | bool
   vars:
-    nouveau_gf108_config: >-
-      {{ (['NvClkMode=0x' ~ nouveau_gf108_pstate] if nouveau_gf108_pstate | length > 0 else [])
+    nouveau_config: >-
+      {{ (['NvClkMode=0x' ~ nouveau_pstate] if nouveau_pstate | length > 0 else [])
          + ([] if nouveau_copy_engines | bool else ['ce0=0', 'ce1=0']) }}
   block:
     - name: Install what the DKMS build needs
@@ -197,73 +199,104 @@
           - "linux-headers-{{ ansible_facts['kernel'] }}"
         state: present
 
+    - name: List the builds of nouveau-gf108
+      ansible.builtin.command: dkms status nouveau-gf108
+      register: nouveau_gf108_versions
+      changed_when: false
+      check_mode: false
+
+    # Both install nouveau.ko into updates/dkms.
+    - name: Remove the builds of nouveau-gf108
+      ansible.builtin.command: dkms remove {{ item }} --all
+      loop: >-
+        {{ nouveau_gf108_versions.stdout_lines
+           | map('regex_replace', '[,:].*$', '') | unique | list }}
+      changed_when: true
+      notify: Update initramfs
+
+    - name: Find the source trees of nouveau-gf108
+      ansible.builtin.find:
+        paths: /usr/src
+        patterns: "nouveau-gf108-*"
+        file_type: directory
+      register: nouveau_gf108_trees
+
+    - name: Remove the files of nouveau-gf108
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: >-
+        {{ nouveau_gf108_trees.files | map(attribute='path') | list
+           + ['/usr/local/share/nouveau-gf108', '/etc/modprobe.d/nouveau-gf108.conf'] }}
+      notify: Update initramfs
+
     - name: Install the patches and the source preparation script
       ansible.builtin.copy:
-        src: nouveau-gf108/
-        dest: /usr/local/share/nouveau-gf108/
+        src: nouveau-patched/
+        dest: /usr/local/share/nouveau-patched/
         owner: root
         group: root
         mode: preserve
 
     - name: Find the patches installed earlier
       ansible.builtin.find:
-        paths: /usr/local/share/nouveau-gf108
+        paths: /usr/local/share/nouveau-patched
         patterns: "0*.patch"
-      register: nouveau_gf108_installed
+      register: nouveau_patched_installed
 
     # prepare.sh applies every 0*.patch it finds beside itself.
     - name: Remove patches the role no longer ships
       ansible.builtin.file:
         path: "{{ item.path }}"
         state: absent
-      loop: "{{ nouveau_gf108_installed.files }}"
+      loop: "{{ nouveau_patched_installed.files }}"
       loop_control:
         label: "{{ item.path | basename }}"
       when: >-
         item.path | basename not in
-        lookup('ansible.builtin.fileglob', 'nouveau-gf108/0*.patch', wantlist=True) | map('basename')
+        lookup('ansible.builtin.fileglob', 'nouveau-patched/0*.patch', wantlist=True) | map('basename')
 
     - name: Read the patch set's digest
       ansible.builtin.shell: >-
         set -o pipefail &&
-        cat /usr/local/share/nouveau-gf108/0*.patch | sha256sum | cut -c1-8
+        cat /usr/local/share/nouveau-patched/0*.patch | sha256sum | cut -c1-8
       args:
         executable: /bin/bash
-      register: nouveau_gf108_digest
+      register: nouveau_patched_digest
       changed_when: false
       check_mode: false
 
     - name: Read the running kernel's source version
       ansible.builtin.command: >-
         dpkg-query -W -f='${source:Version}' linux-modules-{{ ansible_facts['kernel'] }}
-      register: nouveau_gf108_srcver
+      register: nouveau_patched_srcver
       changed_when: false
       check_mode: false
 
     - name: Name the DKMS module version
       ansible.builtin.set_fact:
-        nouveau_gf108_base: "nouveau-gf108/{{ nouveau_gf108_srcver.stdout | replace('~', '-') }}"
-        nouveau_gf108_dkms: >-
-          nouveau-gf108/{{ nouveau_gf108_srcver.stdout | replace('~', '-') }}-{{ nouveau_gf108_digest.stdout }}
+        nouveau_patched_base: "nouveau-patched/{{ nouveau_patched_srcver.stdout | replace('~', '-') }}"
+        nouveau_patched_dkms: >-
+          nouveau-patched/{{ nouveau_patched_srcver.stdout | replace('~', '-') }}-{{ nouveau_patched_digest.stdout }}
 
     - name: List the versions DKMS has
-      ansible.builtin.command: dkms status nouveau-gf108
-      register: nouveau_gf108_versions
+      ansible.builtin.command: dkms status nouveau-patched
+      register: nouveau_patched_versions
       changed_when: false
       check_mode: false
 
     # The same kernel source with another patch set; other series keep theirs.
     - name: Pick the builds of other patch sets
       ansible.builtin.set_fact:
-        nouveau_gf108_stale: >-
-          {{ nouveau_gf108_versions.stdout_lines
+        nouveau_patched_stale: >-
+          {{ nouveau_patched_versions.stdout_lines
              | map('regex_replace', '[,:].*$', '') | unique
-             | select('match', '^' ~ (nouveau_gf108_base | regex_escape) ~ '(-[0-9a-f]{8})?$')
-             | reject('equalto', nouveau_gf108_dkms) | list }}
+             | select('match', '^' ~ (nouveau_patched_base | regex_escape) ~ '(-[0-9a-f]{8})?$')
+             | reject('equalto', nouveau_patched_dkms) | list }}
 
     - name: Remove the builds of other patch sets
       ansible.builtin.command: dkms remove {{ item }} --all
-      loop: "{{ nouveau_gf108_stale }}"
+      loop: "{{ nouveau_patched_stale }}"
       changed_when: true
       notify: Update initramfs
 
@@ -271,30 +304,30 @@
       ansible.builtin.file:
         path: "/usr/src/{{ item | replace('/', '-') }}"
         state: absent
-      loop: "{{ nouveau_gf108_stale }}"
+      loop: "{{ nouveau_patched_stale }}"
 
     - name: Prepare the DKMS source tree
       ansible.builtin.command: >-
-        /usr/local/share/nouveau-gf108/prepare.sh {{ ansible_facts['kernel'] }} /usr/src
+        /usr/local/share/nouveau-patched/prepare.sh {{ ansible_facts['kernel'] }} /usr/src
       args:
-        creates: "/usr/src/{{ nouveau_gf108_dkms | replace('/', '-') }}/dkms.conf"
+        creates: "/usr/src/{{ nouveau_patched_dkms | replace('/', '-') }}/dkms.conf"
 
     - name: Add the tree to DKMS
-      ansible.builtin.command: dkms add {{ nouveau_gf108_dkms }}
+      ansible.builtin.command: dkms add {{ nouveau_patched_dkms }}
       args:
-        creates: "/var/lib/dkms/{{ nouveau_gf108_dkms }}/source"
+        creates: "/var/lib/dkms/{{ nouveau_patched_dkms }}/source"
 
     - name: Check whether the module is installed for the running kernel
       ansible.builtin.command: >-
-        dkms status {{ nouveau_gf108_dkms }} -k {{ ansible_facts['kernel'] }}
-      register: nouveau_gf108_status
+        dkms status {{ nouveau_patched_dkms }} -k {{ ansible_facts['kernel'] }}
+      register: nouveau_patched_status
       changed_when: false
       check_mode: false
 
     - name: Build and install the module for the running kernel
       ansible.builtin.command: >-
-        dkms install {{ nouveau_gf108_dkms }} -k {{ ansible_facts['kernel'] }}
-      when: "': installed' not in nouveau_gf108_status.stdout"
+        dkms install {{ nouveau_patched_dkms }} -k {{ ansible_facts['kernel'] }}
+      when: "': installed' not in nouveau_patched_status.stdout"
       changed_when: true
       notify: Update initramfs
 
@@ -302,19 +335,19 @@
     # the GPU comes back from runtime power-off.
     - name: Set the nouveau config options
       ansible.builtin.copy:
-        dest: /etc/modprobe.d/nouveau-gf108.conf
-        content: "options nouveau config={{ nouveau_gf108_config | join(',') }}\n"
+        dest: /etc/modprobe.d/nouveau-patched.conf
+        content: "options nouveau config={{ nouveau_config | join(',') }}\n"
         owner: root
         group: root
         mode: "0644"
-      when: nouveau_gf108_config | length > 0
+      when: nouveau_config | length > 0
       notify: Update initramfs
 
     - name: Leave nouveau's config at its defaults
       ansible.builtin.file:
-        path: /etc/modprobe.d/nouveau-gf108.conf
+        path: /etc/modprobe.d/nouveau-patched.conf
         state: absent
-      when: nouveau_gf108_config | length == 0
+      when: nouveau_config | length == 0
       notify: Update initramfs
 
 # --- Bazzite desktop: amdgpu tuning ----------------------------------------

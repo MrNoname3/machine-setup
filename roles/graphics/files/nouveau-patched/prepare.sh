@@ -2,10 +2,10 @@
 #
 # prepare.sh <kernel-release> <dkms-source-root>
 #
-# Builds the DKMS source tree for nouveau with the GF108 patches: the nouveau
+# Builds the DKMS source tree for nouveau with the local patches: the nouveau
 # directory of the Ubuntu source package the kernel's modules were built from,
 # with the patches beside this script applied. Prints the tree's directory,
-# <dkms-source-root>/nouveau-gf108-<version>; an existing one is kept. The
+# <dkms-source-root>/nouveau-patched-<version>; an existing one is kept. The
 # version is the source package's, then the first 8 hex digits of the patches'
 # SHA-256, so a changed patch set builds a new tree.
 #
@@ -47,7 +47,7 @@ fi
 
 # A DKMS version may not contain '~'.
 DKMSVER=${SRCVER//\~/-}-$(cat "$HERE"/0*.patch | sha256sum | cut -c1-8)
-DEST=$ROOT/nouveau-gf108-$DKMSVER
+DEST=$ROOT/nouveau-patched-$DKMSVER
 if [ -f "$DEST/dkms.conf" ]; then
   echo "$DEST"
   exit 0

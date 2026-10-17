@@ -1,4 +1,4 @@
-PACKAGE_NAME="nouveau-gf108"
+PACKAGE_NAME="nouveau-patched"
 PACKAGE_VERSION="@VERSION@"
 BUILT_MODULE_NAME[0]="nouveau"
 DEST_MODULE_LOCATION[0]="/updates/dkms"

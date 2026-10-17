@@ -340,8 +340,8 @@ patched_debs:
 # GT 520M at full clocks: nouveau rebuilt with the GF108 reclocking patches
 # (graphics role). The GPU powers off whenever nothing renders on it, so the
 # highest level costs nothing at idle.
-nouveau_gf108_reclock: true
-nouveau_gf108_pstate: "0f"
+nouveau_patched: true
+nouveau_pstate: "0f"
 # M2MF moves evicted buffers faster than the copy engine on this GPU, and games
 # run the same either way.
 nouveau_copy_engines: false

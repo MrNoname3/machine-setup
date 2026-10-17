@@ -50,17 +50,16 @@ amdgpu_enable_overdrive: true
 # installed; `sudo ppa-purge ppa:kisak/kisak-mesa` goes back to Ubuntu's.
 mesa_kisak_ppa: false
 
-# GT 520M reclocking (Mint laptop): nouveau rebuilt through DKMS with the patches
-# in files/nouveau-gf108 (how they were made: tools/mmiotrace-live/gf108). They
-# compute clocks and DDR3 settings from the VBIOS and enable reclocking on the
-# GF108 only; every other GPU keeps stock behaviour even with this on.
-nouveau_gf108_reclock: false
+# nouveau rebuilt through DKMS with the patches in files/nouveau-patched. Each
+# changes only the GPUs it names, and every other GPU keeps stock behaviour; the
+# cards and what they need are listed in README.md.
+nouveau_patched: false
 
 # The pstate nouveau sets when it loads and after every runtime resume, as its
-# hex id ("0f" = 672/800 MHz core/memory, "07" = 202/324, "03" = 50/135), or ""
-# to keep the boot clocks until one is written to debugfs:
+# hex id, or "" to keep the boot clocks until one is written to debugfs:
 #   echo 0f | sudo tee /sys/kernel/debug/dri/*/pstate
-nouveau_gf108_pstate: ""
+# A GPU without that pstate, or without reclocking, stays at its boot clocks.
+nouveau_pstate: ""
 
 # false disables the GF108's copy engines, and nouveau moves buffers between
 # VRAM and system memory with the graphics engine's M2MF instead.

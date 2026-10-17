@@ -3,14 +3,12 @@
 Unrelated parts, split by host:
 
 - **Mint laptop** — NVIDIA GT 520M + Intel HD 3000 Optimus: suppress a phantom
-  VGA output, and with `nouveau_gf108_reclock` run the GT 520M at full clocks
-  through a DKMS-built nouveau (`files/nouveau-gf108`; how the patches were
-  made, and what they do, is in `tools/mmiotrace-live/gf108`).
-  `nouveau_gf108_pstate` picks the level nouveau sets at load and after each
-  runtime resume, and `nouveau_copy_engines: false` leaves buffer moves to the
-  graphics engine's M2MF. With `mesa_kisak_ppa` Mesa comes from the kisak-mesa "fresh"
+  VGA output. With `mesa_kisak_ppa` Mesa comes from the kisak-mesa "fresh"
   PPA (signing key in `files/kisak-mesa.asc`, fingerprint
   `EB8B81E14DA65431D7504EA8F63F0F2B90935439`).
+- **Mint with an NVIDIA card on nouveau** — with `nouveau_patched`, nouveau
+  rebuilt through DKMS with the patches in `files/nouveau-patched`; see
+  [nouveau cards](#nouveau-cards).
 - **Mint desktop with an NVIDIA card** — the proprietary driver
   (`graphics_nvidia_branch`) and, with `graphics_nvidia_vaapi`, hardware video
   decoding for Chromium browsers; see [VA-API on the proprietary
@@ -20,6 +18,19 @@ Unrelated parts, split by host:
   hourly check (`compositor-fd-watch`) asks for a re-login before it runs out.
 - **Bazzite desktop** — Radeon RX 9070 XT (Navi 48, RDNA4): undervolt and power
   profiles. Everything after that section is about that part.
+
+## nouveau cards
+
+The patches in `files/nouveau-patched` each change only the GPUs they name, so
+a card can move to any host with `nouveau_patched: true` and get what it needs
+there. `nouveau_pstate` picks the level nouveau sets at load and after each
+runtime resume, by the card's own pstate ids below; a card without that pstate
+stays at its boot clocks. `nouveau_copy_engines: false` leaves buffer moves to
+the graphics engine's M2MF.
+
+| Card | GPU (PCI id) | Patches | pstates, core/memory MHz | Notes |
+|---|---|---|---|---|
+| GeForce GT 520M | GF108 (`10de:0df7`) | 0001–0010: reclocking from the VBIOS | `03` 50/135, `07` 202/324, `0f` 672/800 | [tools/mmiotrace-live/gf108](../../tools/mmiotrace-live/gf108) |
 
 ## VA-API on the proprietary driver
 

@@ -14,7 +14,7 @@ that do the same for the GF108 in the Acer Aspire 5750G (PCI subsystem
 ## The patches
 
 The graphics role builds nouveau with the patches in
-[roles/graphics/files/nouveau-gf108](../../../roles/graphics/files/nouveau-gf108),
+[roles/graphics/files/nouveau-patched](../../../roles/graphics/files/nouveau-patched),
 applied with `patch -p1` inside `drivers/gpu/drm/nouveau` of kernel 7.0:
 
 - 0001–0008, the [upstream series](#upstream-series), compute the core
@@ -33,7 +33,7 @@ registers and replay its four DDR3 scripts, on the Aspire 5750G (subsystem
 `1025:0505`) only.
 
 On the installed system the graphics role builds them through DKMS:
-[prepare.sh](../../../roles/graphics/files/nouveau-gf108/prepare.sh) takes
+[prepare.sh](../../../roles/graphics/files/nouveau-patched/prepare.sh) takes
 nouveau from the Ubuntu source of the running kernel, checked along the
 archive's signature chain. By hand, as an out-of-tree module against the
 running kernel's headers:
@@ -255,7 +255,7 @@ and other kernels boot with their stock nouveau. Under a new series, run the
 graphics role again: prepare.sh fetches that series' source and applies the
 patches. If a hunk no longer applies, port it on a copy of the new nouveau,
 build it against the new headers, and replace the patches in
-`roles/graphics/files/nouveau-gf108`; from 5.15 to 7.0 only the clock
+`roles/graphics/files/nouveau-patched`; from 5.15 to 7.0 only the clock
 subdev's allocation call changed.
 
 ## Upstream series
