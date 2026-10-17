@@ -45,9 +45,11 @@ old=$(dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n' \
 if [ "$MLT_DRIVER" = 340 ]; then
   # The 340 package diverts Mesa's libGL and libEGL to its own. Links to
   # Mesa's, for running a client on nouveau: LD_LIBRARY_PATH=/opt/mesa-gl.
+  # glmark2 opens the unversioned names.
   mkdir -p /opt/mesa-gl
   for l in libGL.so.1 libEGL.so.1 libGLESv2.so.2; do
     ln -sf "/usr/lib/x86_64-linux-gnu/$l.distrib" "/opt/mesa-gl/$l"
+    ln -sf "$l" "/opt/mesa-gl/${l%.*}"
   done
   # A Tesla machine usually has no second GPU for a desktop, and a desktop
   # on the card would hold it while the driver loads; the image is used
