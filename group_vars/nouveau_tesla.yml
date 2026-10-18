@@ -41,7 +41,6 @@ brave_flags_extra:
   - --enable-features=AcceleratedVideoDecodeLinuxGL,VaapiIgnoreDriverChecks,VaapiOnNvidiaGPUs
   - --ignore-gpu-blocklist
 
-# Celluloid: without the render context's VA-API interop, which crashes in
-# libva-wayland under a compositor without wl_drm, decoding into system memory,
-# and with mpv's lighter scaling, which these GPUs can keep up with.
+# Celluloid: the base role's copy-back decoding, through VA-API, and mpv's
+# lighter scaling, which these GPUs can keep up with.
 celluloid_mpv_options: "--gpu-hwdec-interop=no --hwdec=vaapi-copy --profile=fast"

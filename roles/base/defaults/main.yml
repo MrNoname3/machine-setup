@@ -49,7 +49,7 @@ base_units_disabled: []
 base_input_method: ""
 
 # Default video player (XDG MIME associations in the user's mimeapps.list).
-default_video_player: vlc.desktop
+default_video_player: io.github.celluloid_player.Celluloid.desktop
 video_mimetypes:
   - video/mp4
   - video/x-matroska
@@ -70,7 +70,7 @@ video_mimetypes:
   - video/x-theora+ogg
 
 # Default audio player (XDG MIME associations), or "" to leave audio files alone.
-default_audio_player: ""
+default_audio_player: io.github.celluloid_player.Celluloid.desktop
 audio_mimetypes:
   - audio/mpeg
   - audio/flac
@@ -87,13 +87,14 @@ audio_mimetypes:
   - audio/x-matroska
   - audio/webm
 
-# Celluloid's mpv-options setting (for example the GPU's hardware decoding),
-# or "" to leave it alone.
-celluloid_mpv_options: ""
+# Celluloid's mpv-options setting, or "" to leave it alone. Hardware decoding
+# copies the frames back: the render context's VA-API interop crashes in
+# libva-wayland under a compositor without wl_drm, such as Mint 22's Muffin.
+celluloid_mpv_options: "--gpu-hwdec-interop=no --hwdec=auto-copy-safe"
 
 # Celluloid with VLC's keys for speed (+ - =) and subtitle delay (g h), which
 # also work on layouts where mpv's own [ ] z keys need AltGr.
-celluloid_vlc_keys: false
+celluloid_vlc_keys: true
 
 # Default text editor (Kate) for text/source MIME types.
 default_text_editor: org.kde.kate.desktop
