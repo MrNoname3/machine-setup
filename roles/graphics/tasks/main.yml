@@ -351,6 +351,72 @@
       when: nouveau_config | length == 0
       notify: Update initramfs
 
+# --- Mint: nouveau video firmware -------------------------------------------
+# The video engines run firmware that only NVIDIA's driver carries and that may
+# not be redistributed, so it is taken out of the driver on the host itself,
+# with envytools' extractor; both downloads are checked against their SHA-256.
+- name: Install the nouveau video firmware
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - nouveau_video_firmware | bool
+  block:
+    - name: Check whether the video firmware is installed
+      ansible.builtin.stat:
+        path: /lib/firmware/nouveau/nva3_bsp
+      register: nouveau_firmware_present
+
+    - name: Extract the video firmware from NVIDIA's driver
+      when: not nouveau_firmware_present.stat.exists
+      block:
+        - name: Create a directory to extract the driver in
+          ansible.builtin.tempfile:
+            state: directory
+            suffix: nouveau-firmware
+          register: nouveau_firmware_tmp
+
+        - name: Download NVIDIA's driver
+          ansible.builtin.get_url:
+            url: "{{ nouveau_firmware_driver_url }}"
+            dest: "{{ nouveau_firmware_tmp.path }}/driver.run"
+            checksum: "sha256:{{ nouveau_firmware_driver_sha256 }}"
+            mode: "0644"
+
+        - name: Download envytools' firmware extractor
+          ansible.builtin.get_url:
+            url: "{{ nouveau_firmware_extractor_url }}"
+            dest: "{{ nouveau_firmware_tmp.path }}/extract_firmware.py"
+            checksum: "sha256:{{ nouveau_firmware_extractor_sha256 }}"
+            mode: "0644"
+
+        - name: Unpack the driver
+          ansible.builtin.command: sh driver.run --extract-only
+          args:
+            chdir: "{{ nouveau_firmware_tmp.path }}"
+          changed_when: true
+
+        - name: Extract the firmware
+          ansible.builtin.command: python3 -I extract_firmware.py
+          args:
+            chdir: "{{ nouveau_firmware_tmp.path }}"
+          changed_when: true
+
+        - name: Install the extracted firmware
+          ansible.builtin.shell: |
+            set -e
+            install -d -m 0755 /lib/firmware/nouveau
+            find . -maxdepth 1 \( -name 'nv*_*' -o -name 'vuc-*' \) -exec cp -P {} /lib/firmware/nouveau/ \;
+            test -e /lib/firmware/nouveau/nva3_bsp
+          args:
+            chdir: "{{ nouveau_firmware_tmp.path }}"
+          changed_when: true
+
+      always:
+        - name: Remove the extracted driver
+          ansible.builtin.file:
+            path: "{{ nouveau_firmware_tmp.path }}"
+            state: absent
+          when: nouveau_firmware_tmp.path is defined
+
 # --- Bazzite desktop: amdgpu tuning ----------------------------------------
 - name: Configure AMD GPU tuning profiles
   when:
