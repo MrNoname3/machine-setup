@@ -18,5 +18,7 @@ patched_debs_extra: []
 # The build script, shared with tools/tablet-image.
 patched_debs_tool: "{{ playbook_dir }}/tools/patched-deb/build-deb.sh"
 
-# Where the built packages stay, which is where the next run looks first.
+# Where the built packages stay, with <source>.build naming the version and
+# patches they were built with; a run that needs that build again installs it
+# from here instead of building.
 patched_debs_dir: "/home/{{ primary_user }}/.cache/patched-debs"
