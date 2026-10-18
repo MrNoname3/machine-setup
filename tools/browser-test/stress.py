@@ -6,7 +6,7 @@ import browser_test as bt
 
 # focus and minimise need X11 window management; the others work on Wayland too.
 ALL = ["click", "newtab", "switch", "close", "focus", "minimise", "context", "appmenu", "menuclick",
-       "select", "tooltip", "bookmarks"]
+       "select", "tooltip", "bookmarks", "video"]
 DEFAULT = "click,click,newtab,switch,focus,minimise,close,context,appmenu,tooltip,bookmarks"
 
 
@@ -143,6 +143,13 @@ def run(name, minutes, env, flags, wayland):
             bt.move(20 + random.randint(0, 3) * 32, 60)
             time.sleep(2.0)
             bt.move(bt.SCREEN_W // 2, bt.SCREEN_H // 2)
+        elif act == "video":  # a few seconds of one of CLIPS in the current tab, then back
+            cdp = bt.current_cdp()
+            cdp.send("Page.navigate", {"url": f"{bt.WEB}/video.html?src={random.choice(bt.CLIPS)}"})
+            time.sleep(random.uniform(4, 10))
+            cdp.send("Page.navigate", {"url": bt.page("red")})
+            time.sleep(1.0)
+            cur = "red"
         elif act == "bookmarks":
             # Shift+Alt+B focuses the bookmarks bar's first item, Brave's tab
             # groups button; the test folder comes after it.

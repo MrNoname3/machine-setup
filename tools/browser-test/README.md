@@ -85,6 +85,7 @@ The `stress` actions:
 | `select` | opens and closes a `<select>` list |
 | `bookmarks` | opens the folder on the bookmarks bar (Shift+Alt+B, Right, Space), then closes it or opens its first page |
 | `tooltip` | hovers a toolbar button until its tooltip shows |
+| `video` | plays one of `CLIPS` in the current tab for a few seconds, then goes back to a red page |
 | `focus`, `minimise` | another window to the front and back, minimise and restore (X11 only) |
 
 ## What it has shown
