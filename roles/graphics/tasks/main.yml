@@ -53,33 +53,6 @@
     - ansible_facts['os_family'] == "Debian"
     - graphics_nvidia_branch | length > 0
 
-# The driver's packages blacklist nouveau, so a host whose card moved to nouveau
-# loses them; graphics_nvidia_branch installs them again.
-- name: Remove the proprietary NVIDIA driver from a nouveau host
-  when:
-    - ansible_facts['os_family'] == "Debian"
-    - graphics_nvidia_branch | length == 0
-    - nouveau_patched | bool
-  block:
-    - name: List the proprietary NVIDIA driver's packages
-      ansible.builtin.shell: >-
-        set -o pipefail;
-        dpkg-query -W -f='${db:Status-Abbrev}|${binary:Package}|${source:Package}\n'
-        | awk -F'|' '$1 ~ /^.i/ && $3 ~ /^nvidia-graphics-drivers-/ {print $2}'
-      args:
-        executable: /bin/bash
-      register: graphics_nvidia_installed
-      changed_when: false
-      check_mode: false
-
-    - name: Purge the proprietary NVIDIA driver's packages
-      ansible.builtin.apt:
-        name: "{{ graphics_nvidia_installed.stdout_lines }}"
-        state: absent
-        purge: true
-      when: graphics_nvidia_installed.stdout_lines | length > 0
-      notify: Update initramfs # it carries the blacklist too
-
 # The driver's EGL leaks a sync_file descriptor in the compositor for every
 # frame; under the default limit Cinnamon on Wayland crashes within minutes.
 # An hourly check warns before the raised limit runs out; logging out frees them.
@@ -132,6 +105,46 @@
     - ansible_facts['os_family'] == "Debian"
     - graphics_nvidia_branch | length > 0
     - graphics_nvidia_vaapi | bool
+
+# A host whose card left the proprietary driver loses all of the above: the
+# driver's packages also blacklist nouveau.
+- name: Remove the proprietary NVIDIA driver
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - graphics_nvidia_branch | length == 0
+  block:
+    - name: List the proprietary NVIDIA driver's packages
+      ansible.builtin.shell: >-
+        set -o pipefail;
+        dpkg-query -W -f='${db:Status-Abbrev}|${binary:Package}|${source:Package}\n'
+        | awk -F'|' '$1 ~ /^.i/ && ($3 ~ /^nvidia-graphics-drivers-/ || $3 == "nvidia-vaapi-driver") {print $2}'
+      args:
+        executable: /bin/bash
+      register: graphics_nvidia_installed
+      changed_when: false
+      check_mode: false
+
+    - name: Purge the proprietary NVIDIA driver's packages
+      ansible.builtin.apt:
+        name: "{{ graphics_nvidia_installed.stdout_lines }}"
+        state: absent
+        purge: true
+      when: graphics_nvidia_installed.stdout_lines | length > 0
+      notify: Update initramfs # it carries the blacklist too
+
+    # The wants link is what the timer's global enable made.
+    - name: Remove the open-file limit, its check and the nvidia-vaapi PPA
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/security/limits.d/90-nvidia-sync-file-leak.conf
+        - /etc/systemd/user/timers.target.wants/compositor-fd-watch.timer
+        - /etc/systemd/user/compositor-fd-watch.timer
+        - /etc/systemd/user/compositor-fd-watch.service
+        - /usr/local/bin/compositor-fd-watch
+        - /etc/apt/sources.list.d/nvidia-vaapi-ppa.sources
+        - /etc/apt/keyrings/nvidia-vaapi-ppa.asc
 
 # --- Mint: Mesa from the kisak-mesa PPA -------------------------------------
 # Upgrades only the Mesa packages already installed, both architectures; later
@@ -490,6 +503,24 @@
             path: "{{ nouveau_firmware_tmp.path }}"
             state: absent
           when: nouveau_firmware_tmp.path is defined
+
+- name: Remove the nouveau video firmware
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - not (nouveau_video_firmware | bool)
+  block:
+    - name: Find the extracted video firmware
+      ansible.builtin.find:
+        paths: /lib/firmware/nouveau
+        patterns: ["nv*_*", "vuc-*"]
+        file_type: any
+      register: nouveau_firmware_left
+
+    - name: Remove the extracted video firmware
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ nouveau_firmware_left.files | map(attribute='path') | list }}"
 
 # --- Bazzite desktop: amdgpu tuning ----------------------------------------
 - name: Configure AMD GPU tuning profiles
