@@ -1,0 +1,96 @@
+Description: Use the boot VGA GPU when the compositor names none
+ Glamor needs the compositor's render node, which Xwayland learns from wl_drm
+ or from linux-dmabuf v4 feedback. A compositor offering only linux-dmabuf v3,
+ on an EGL without wl_drm (Muffin before 6.8 on Mesa 25.2 or later), names
+ none, and every X client then renders in software. Take the render node of
+ the boot VGA device there, or the only render node there is.
+--- a/hw/xwayland/xwayland-glamor-gbm.c
++++ b/hw/xwayland/xwayland-glamor-gbm.c
+@@ -1054,8 +1054,8 @@
+ {
+     struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+ 
+-    if (xwl_gbm->drm == NULL && xwl_screen->dmabuf_protocol_version < 4) {
+-        LogMessageVerb(X_INFO, 3, "glamor: 'wl_drm' not supported and linux-dmabuf v4 not supported\n");
++    if (xwl_gbm->drm == NULL && xwl_screen->dmabuf_protocol_version < 3) {
++        LogMessageVerb(X_INFO, 3, "glamor: 'wl_drm' not supported and linux-dmabuf v3 not supported\n");
+         return FALSE;
+     }
+ 
+@@ -1153,12 +1153,68 @@
+     return TRUE;
+ }
+ 
++/* The compositor's GPU, for a compositor that names none (linux-dmabuf v3
++ * without wl_drm): the boot VGA device, or the only one with a render node. */
++static char *
++xwl_glamor_gbm_guess_render_node(void)
++{
++    drmDevicePtr devices[64];
++    char *path = NULL;
++    int n, i, render_nodes = 0;
++
++    n = drmGetDevices2(0, devices, ARRAY_SIZE(devices));
++    for (i = 0; i < n; i++) {
++        if (devices[i]->available_nodes & (1 << DRM_NODE_RENDER))
++            render_nodes++;
++    }
++
++    for (i = 0; i < n && !path; i++) {
++        drmDevicePtr dev = devices[i];
++        char boot_vga[64], value = 0;
++        int fd;
++
++        if (!(dev->available_nodes & (1 << DRM_NODE_RENDER)))
++            continue;
++        if (render_nodes == 1) {
++            path = strdup(dev->nodes[DRM_NODE_RENDER]);
++            break;
++        }
++        if (dev->bustype != DRM_BUS_PCI)
++            continue;
++
++        snprintf(boot_vga, sizeof(boot_vga),
++                 "/sys/bus/pci/devices/%04x:%02x:%02x.%u/boot_vga",
++                 dev->businfo.pci->domain, dev->businfo.pci->bus,
++                 dev->businfo.pci->dev, dev->businfo.pci->func);
++        fd = open(boot_vga, O_RDONLY | O_CLOEXEC);
++        if (fd < 0)
++            continue;
++        if (read(fd, &value, 1) == 1 && value == '1')
++            path = strdup(dev->nodes[DRM_NODE_RENDER]);
++        close(fd);
++    }
++
++    if (n > 0)
++        drmFreeDevices(devices, n);
++    return path;
++}
++
+ static Bool
+ xwl_glamor_gbm_init_main_dev(struct xwl_screen *xwl_screen)
+ {
+     struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+     drmDevice *main_dev;
+ 
++    if (xwl_screen->dmabuf_protocol_version < 4) {
++        xwl_gbm->device_name = xwl_glamor_gbm_guess_render_node();
++        if (!xwl_gbm->device_name) {
++            ErrorF("Compositor names no GPU and none could be guessed\n");
++            return FALSE;
++        }
++        ErrorF("Compositor names no GPU, using %s\n", xwl_gbm->device_name);
++        goto open_device;
++    }
++
+     while (!xwl_screen->default_feedback.feedback_done) {
+         if (wl_display_dispatch(xwl_screen->display) < 0) {
+             ErrorF("Failed to dispatch Wayland display\n");
+@@ -1177,6 +1233,7 @@
+         return FALSE;
+     }
+ 
++open_device:
+     xwl_gbm->drm_fd = open(xwl_gbm->device_name, O_RDWR | O_CLOEXEC);
+     if (xwl_gbm->drm_fd < 0) {
+         ErrorF("wayland-egl: could not open %s (%s)\n",

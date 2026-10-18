@@ -4,7 +4,9 @@
 # build-deb.sh --suffix <source-package>
 #
 # Rebuilds a Debian or Ubuntu source package with patches/<source-package>-*.patch
-# applied and copies the named binary packages' .debs into <out-dir>. The version gets
+# applied and copies the named binary packages' .debs into <out-dir>. A patch
+# named <source-package>-<name>.<version>.patch replaces <source-package>-<name>.patch
+# when the upstream version starts with <version>. The version gets
 # "+patched.<hash>" appended, the hash covering the patches, so the same source
 # version with the same patches always builds the same version; --suffix
 # prints that "+patched.<hash>". The patches in use:
@@ -58,6 +60,22 @@ cd "$WORK"
 apt-get source -qq "$SOURCE" >/dev/null 2>&1 || die "apt-get source $SOURCE failed (is deb-src enabled?)"
 cd "$SOURCE"-*/
 VERSION=$(dpkg-parsechangelog -S Version)$SUFFIX
+UPSTREAM=$(dpkg-parsechangelog -S Version | sed -E 's/^[0-9]+://; s/-[^-]*$//')
+
+# Per <name>, the variant for the longest matching version prefix, else the plain patch.
+declare -A PICK=() PICKLEN=()
+for p in "${PATCHES[@]}"; do
+  base=$(basename "$p" .patch) name=${base%%.*} ver=
+  [ "$base" = "$name" ] || ver=${base#*.}
+  if [ -n "$ver" ] && [[ $UPSTREAM != "$ver"* ]]; then
+    continue
+  fi
+  if [ -z "${PICK[$name]:-}" ] || [ "${#ver}" -gt "${PICKLEN[$name]}" ]; then
+    PICK[$name]=$p PICKLEN[$name]=${#ver}
+  fi
+done
+[ ${#PICK[@]} -gt 0 ] || die "no patch fits $SOURCE $UPSTREAM"
+mapfile -t PATCHES < <(printf '%s\n' "${PICK[@]}" | sort)
 
 # Applied to the tree itself: a native source package ignores debian/patches,
 # and a binary-only build needs no source diff.
