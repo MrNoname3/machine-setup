@@ -18,23 +18,8 @@ nouveau_video_firmware: true
 # and Wayland EGL that finds the GPU. Xwayland rebuilt to find it as well.
 mesa_kisak_ppa: true
 patched_debs_extra:
-  - source: mesa
-    binary: mesa-libgallium
-    keep_version: true
-    build_sources: |
-      Types: deb
-      URIs: https://ppa.launchpadcontent.net/kisak/kisak-mesa-build-deps/ubuntu
-      Suites: noble
-      Components: main
-      Signed-By: /etc/apt/keyrings/kisak-mesa.asc
-  - source: xwayland
-    binary: xwayland
-    build_sources: |
-      Types: deb
-      URIs: https://ppa.launchpadcontent.net/kisak/kisak-mesa-build-deps/ubuntu
-      Suites: noble
-      Components: main
-      Signed-By: /etc/apt/keyrings/kisak-mesa.asc
+  - "{{ patched_deb_mesa }}"
+  - "{{ patched_deb_xwayland }}"
 
 # Chromium allows VA-API on nouveau only past its driver checks.
 brave_flags_extra:

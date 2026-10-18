@@ -14,3 +14,24 @@ ssh_keys_dir: "/home/{{ primary_user }}/SynologyDrive/OneDrive/IOT/SSH"
 # (mimeapps.list, kdeglobals, katerc): the one the user's umask gives a new
 # file, or every run resets what an app just wrote. 0644 matches umask 022.
 user_config_mode: "0644"
+
+# patched_debs entries shared by hosts and groups. Mesa from kisak's PPA with
+# the mesa-* patches of tools/patched-deb, at the archive's version for Steam's
+# i386 Mesa; Xwayland with its own patch. kisak builds both against headers
+# newer than the Ubuntu base's, from a companion archive signed with the PPA's
+# key.
+patched_deb_kisak_build_sources: |
+  Types: deb
+  URIs: https://ppa.launchpadcontent.net/kisak/kisak-mesa-build-deps/ubuntu
+  Suites: noble
+  Components: main
+  Signed-By: /etc/apt/keyrings/kisak-mesa.asc
+patched_deb_mesa:
+  source: mesa
+  binary: mesa-libgallium
+  keep_version: true
+  build_sources: "{{ patched_deb_kisak_build_sources }}"
+patched_deb_xwayland:
+  source: xwayland
+  binary: xwayland
+  build_sources: "{{ patched_deb_kisak_build_sources }}"

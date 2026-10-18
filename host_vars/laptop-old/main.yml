@@ -325,16 +325,10 @@ brave_web_apps:
 # presentation-time, and Brave drops frames of 30 fps video decoded on the GPU.
 patched_debs:
   - { source: intel-vaapi-driver, binary: i965-va-driver }
-  # kisak builds its Xwayland against protocol headers newer than noble's,
-  # from a companion archive signed with the same key.
-  - source: xwayland
-    binary: xwayland
-    build_sources: |
-      Types: deb
-      URIs: https://ppa.launchpadcontent.net/kisak/kisak-mesa-build-deps/ubuntu
-      Suites: noble
-      Components: main
-      Signed-By: /etc/apt/keyrings/kisak-mesa.asc
+  - "{{ patched_deb_xwayland }}"
+  # Native Wayland clients, Celluloid's video among them, find the GPU only
+  # with Mesa's Wayland EGL patch under Mint 22's Muffin.
+  - "{{ patched_deb_mesa }}"
   - { source: muffin, binary: libmuffin0 }
 
 # GT 520M at full clocks: nouveau rebuilt with the GF108 reclocking patches
