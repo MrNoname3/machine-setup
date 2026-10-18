@@ -69,6 +69,32 @@ video_mimetypes:
   - video/x-ogm+ogg
   - video/x-theora+ogg
 
+# Default audio player (XDG MIME associations), or "" to leave audio files alone.
+default_audio_player: ""
+audio_mimetypes:
+  - audio/mpeg
+  - audio/flac
+  - audio/x-flac
+  - audio/ogg
+  - audio/x-vorbis+ogg
+  - audio/opus
+  - audio/x-opus+ogg
+  - audio/x-wav
+  - audio/mp4
+  - audio/aac
+  - audio/x-m4a
+  - audio/x-ms-wma
+  - audio/x-matroska
+  - audio/webm
+
+# Celluloid's mpv-options setting (for example the GPU's hardware decoding),
+# or "" to leave it alone.
+celluloid_mpv_options: ""
+
+# Celluloid with VLC's keys for speed (+ - =) and subtitle delay (g h), which
+# also work on layouts where mpv's own [ ] z keys need AltGr.
+celluloid_vlc_keys: false
+
 # Default text editor (Kate) for text/source MIME types.
 default_text_editor: org.kde.kate.desktop
 text_mimetypes:
