@@ -286,6 +286,14 @@ def seed_profile():
         json.dump({"bookmark_bar": {"show_on_all_tabs": True}}, f)
 
 
+def offline_flags():
+    """Only 127.0.0.1 resolves unless BT_NETWORK=1, so web apps a browser policy
+    installs into the test profile stay idle instead of loading and using CPU."""
+    if os.environ.get("BT_NETWORK"):
+        return []
+    return ["--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"]
+
+
 def cgroup_usec():
     cg = subprocess.run(["systemctl", "--user", "show", "-p", "ControlGroup", "--value", UNIT],
                         capture_output=True, text=True).stdout.strip()
@@ -317,7 +325,7 @@ def start(env, flags):
     cmd += [BRAVE, f"--user-data-dir={PROFILE}", f"--remote-debugging-port={PORT}",
             "--no-first-run", "--no-default-browser-check", "--password-store=basic", "--disable-extensions",
             "--autoplay-policy=no-user-gesture-required", "--start-maximized", "--enable-logging=stderr",
-            "--disable-features=BraveRewards,BraveNews", *browser_flags(), *flags, page("red")]
+            "--disable-features=BraveRewards,BraveNews", *offline_flags(), *browser_flags(), *flags, page("red")]
     subprocess.run(cmd, check=True)
     for _ in range(60):
         try:
