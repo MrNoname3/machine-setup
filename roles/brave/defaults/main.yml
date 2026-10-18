@@ -23,6 +23,10 @@ brave_policies:
 # Further MANDATORY policies for one host, merged over brave_policies.
 brave_policies_extra: {}
 
+# Extension IDs a group the host is in (group_vars) force-installs, added to
+# the host's ExtensionInstallForcelist.
+brave_extensions_extra: []
+
 # Sites installed as web apps in windows of their own (WebAppInstallForceList).
 # An app's ID comes from the site's manifest, so one installed by hand earlier
 # is taken over rather than duplicated.
@@ -122,6 +126,18 @@ brave_local_state_prefs_extra: {}
 # relaunch-after-update starts all go through it. Empty list = the package's own
 # script. Per-host — see host_vars.
 brave_flags: []
+
+# More flags from a group the host is in (group_vars), added to brave_flags.
+brave_flags_extra: []
+
+# brave_flags and brave_flags_extra as the launcher gets them: Chromium reads
+# only the last --enable-features, so their values are merged into one.
+brave_flags_all: >-
+  {%- set flags = brave_flags + brave_flags_extra -%}
+  {%- set features = flags | select('match', '--enable-features=')
+      | map('regex_replace', '^--enable-features=', '') | map('split', ',') | flatten | unique | list -%}
+  {{ (flags | reject('match', '--enable-features=') | list)
+     + (['--enable-features=' ~ (features | join(','))] if features else []) }}
 
 # Environment variables for every launch ({name: value}), set on the same
 # exec line as brave_flags. Per-host — see host_vars.

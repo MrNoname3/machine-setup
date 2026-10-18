@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 #
-# build-deb.sh <source-package> <binary-package>[,<binary-package>...] <out-dir>
+# build-deb.sh [--keep-version] <source-package> <binary-package>[,<binary-package>...] <out-dir>
 # build-deb.sh --suffix <source-package>
 #
 # Rebuilds a Debian or Ubuntu source package with patches/<source-package>-*.patch
 # applied and copies the named binary packages' .debs into <out-dir>. A patch
 # named <source-package>-<name>.<version>.patch replaces <source-package>-<name>.patch
-# when the upstream version starts with <version>. The version gets
+# when the upstream version starts with <version>. --keep-version builds with the
+# archive's version and changelog, for a source whose packages are installed
+# for more than one architecture: only the native ones are rebuilt, and the
+# others must keep matching their version. The version gets
 # "+patched.<hash>" appended, the hash covering the patches, so the same source
 # version with the same patches always builds the same version; --suffix
 # prints that "+patched.<hash>". The patches in use:
@@ -23,6 +26,10 @@
 #   muffin              without the presentation-time protocol Chromium paces
 #                       its frames off a timer the frame callbacks re-phase,
 #                       and drops frames of 30 fps video.
+#   mesa                on GeForce 8 to 300 cards: VA surfaces a browser can
+#                       import, safe decoder teardown, nv50 clears of video
+#                       surfaces, and Wayland EGL that finds the GPU without
+#                       wl_drm (built with --keep-version).
 #
 # Run as root, as in a throwaway container, it installs the build tools and
 # dependencies itself; run as a user, they must be installed already. Either
@@ -42,7 +49,12 @@ if [ "${1:-}" = --suffix ]; then
   suffix "$2"
   exit
 fi
-[ $# -eq 3 ] || die "usage: build-deb.sh <source-package> <binary-package>[,...] <out-dir>"
+KEEP_VERSION=
+if [ "${1:-}" = --keep-version ]; then
+  KEEP_VERSION=1
+  shift
+fi
+[ $# -eq 3 ] || die "usage: build-deb.sh [--keep-version] <source-package> <binary-package>[,...] <out-dir>"
 SOURCE=$1 OUT=$(readlink -f "$3")
 IFS=, read -ra BINARIES <<<"$2"
 SUFFIX=$(suffix "$SOURCE")
@@ -59,8 +71,23 @@ trap 'rm -rf "$WORK"' EXIT
 cd "$WORK"
 apt-get source -qq "$SOURCE" >/dev/null 2>&1 || die "apt-get source $SOURCE failed (is deb-src enabled?)"
 cd "$SOURCE"-*/
-VERSION=$(dpkg-parsechangelog -S Version)$SUFFIX
+VERSION=$(dpkg-parsechangelog -S Version)
+[ -n "$KEEP_VERSION" ] || VERSION=$VERSION$SUFFIX
 UPSTREAM=$(dpkg-parsechangelog -S Version | sed -E 's/^[0-9]+://; s/-[^-]*$//')
+
+# A package an older version of the source built stays installed until
+# removed, but there is nothing to rebuild it from.
+mapfile -t BUILDS < <(sed -n 's/^Package:[[:space:]]*//p' debian/control)
+WANTED=()
+for b in "${BINARIES[@]}"; do
+  if printf '%s\n' "${BUILDS[@]}" | grep -qx -- "$b"; then
+    WANTED+=("$b")
+  else
+    printf 'build-deb.sh: %s %s no longer builds %s, skipped\n' "$SOURCE" "$UPSTREAM" "$b" >&2
+  fi
+done
+[ ${#WANTED[@]} -gt 0 ] || die "$SOURCE $UPSTREAM builds none of $2"
+BINARIES=("${WANTED[@]}")
 
 # Per <name>, the variant for the longest matching version prefix, else the plain patch.
 declare -A PICK=() PICKLEN=()
@@ -83,15 +110,17 @@ for p in "${PATCHES[@]}"; do
   patch -p1 --dry-run -s <"$p" >/dev/null || die "$(basename "$p") does not apply to $(basename "$PWD")"
   patch -p1 -s <"$p"
 done
-{
-  printf '%s (%s) UNRELEASED; urgency=medium\n\n' "$SOURCE" "$VERSION"
-  for p in "${PATCHES[@]}"; do
-    printf '  * %s\n' "$(sed -n 's/^Description: //p' "$p")"
-  done
-  printf '\n -- machine-setup <machine-setup@localhost>  %s\n\n' "$(date -R)"
-  cat debian/changelog
-} >"$WORK/changelog"
-mv "$WORK/changelog" debian/changelog
+if [ -z "$KEEP_VERSION" ]; then
+  {
+    printf '%s (%s) UNRELEASED; urgency=medium\n\n' "$SOURCE" "$VERSION"
+    for p in "${PATCHES[@]}"; do
+      printf '  * %s\n' "$(sed -n 's/^Description: //p' "$p")"
+    done
+    printf '\n -- machine-setup <machine-setup@localhost>  %s\n\n' "$(date -R)"
+    cat debian/changelog
+  } >"$WORK/changelog"
+  mv "$WORK/changelog" debian/changelog
+fi
 
 DEB_BUILD_OPTIONS="nocheck parallel=$(nproc)" dpkg-buildpackage -b -uc -us >"$WORK/build.log" 2>&1 ||
   { tail -20 "$WORK/build.log"; die "build failed"; }

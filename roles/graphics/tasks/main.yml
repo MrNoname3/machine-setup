@@ -106,6 +106,53 @@
     - graphics_nvidia_branch | length > 0
     - graphics_nvidia_vaapi | bool
 
+# A host whose card left the proprietary driver loses all of the above: the
+# driver's packages also blacklist nouveau.
+- name: Remove the proprietary NVIDIA driver
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - graphics_nvidia_branch | length == 0
+  block:
+    - name: List the proprietary NVIDIA driver's packages
+      ansible.builtin.shell: >-
+        set -o pipefail;
+        dpkg-query -W -f='${db:Status-Abbrev}|${binary:Package}|${source:Package}\n'
+        | awk -F'|' '$1 ~ /^.i/ && ($3 ~ /^nvidia-graphics-drivers-/ || $3 == "nvidia-vaapi-driver") {print $2}'
+      args:
+        executable: /bin/bash
+      register: graphics_nvidia_installed
+      changed_when: false
+      check_mode: false
+
+    - name: Purge the proprietary NVIDIA driver's packages
+      ansible.builtin.apt:
+        name: "{{ graphics_nvidia_installed.stdout_lines }}"
+        state: absent
+        purge: true
+      register: graphics_nvidia_purged
+      when: graphics_nvidia_installed.stdout_lines | length > 0
+
+    # Every kernel's initramfs carries the blacklist; dpkg rebuilds only the
+    # newest, and a handler would be lost to a later failure in the run.
+    - name: Rebuild every initramfs without the blacklist # noqa: no-handler
+      ansible.builtin.command: update-initramfs -u -k all
+      changed_when: true
+      when: graphics_nvidia_purged is changed
+
+    # The wants link is what the timer's global enable made.
+    - name: Remove the open-file limit, its check and the nvidia-vaapi PPA
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/security/limits.d/90-nvidia-sync-file-leak.conf
+        - /etc/systemd/user/timers.target.wants/compositor-fd-watch.timer
+        - /etc/systemd/user/compositor-fd-watch.timer
+        - /etc/systemd/user/compositor-fd-watch.service
+        - /usr/local/bin/compositor-fd-watch
+        - /etc/apt/sources.list.d/nvidia-vaapi-ppa.sources
+        - /etc/apt/keyrings/nvidia-vaapi-ppa.asc
+
 # --- Mint: Mesa from the kisak-mesa PPA -------------------------------------
 # Upgrades only the Mesa packages already installed, both architectures; later
 # PPA releases arrive with the system's regular updates.
@@ -149,16 +196,21 @@
 
     - name: List the installed Mesa packages
       ansible.builtin.command:
-        argv: [dpkg-query, -W, '-f=${binary:Package} ${source:Package}\n']
+        argv: [dpkg-query, -W, '-f=${binary:Package} ${source:Package} ${db:Status-Want}\n']
       register: graphics_dpkg_sources
       changed_when: false
+      check_mode: false
 
+    # A held Mesa is patched-debs' rebuild, which follows the PPA itself.
     - name: Upgrade Mesa from the PPA
       ansible.builtin.apt:
-        name: "{{ graphics_dpkg_sources.stdout_lines | select('search', ' mesa$') | map('split', ' ') | map('first') | list }}"
+        name: "{{ graphics_mesa_lines | map('split', ' ') | map('first') | list }}"
         state: latest
         only_upgrade: true
         update_cache: true
+      when: graphics_mesa_lines | select('search', ' hold$') | length == 0
+      vars:
+        graphics_mesa_lines: "{{ graphics_dpkg_sources.stdout_lines | select('search', ' mesa ') | list }}"
 
 - name: Remove the kisak-mesa apt repository
   ansible.builtin.file:
@@ -175,8 +227,8 @@
 # Each patch changes only the GPUs it names, so a card can move between hosts
 # that have this on. The patched build comes from the Ubuntu source of the
 # running kernel (prepare.sh fetches and verifies it), and DKMS rebuilds it for
-# later kernels of the same series; a new series keeps its stock nouveau until
-# the role runs again under it.
+# later kernels of the same series; a kernel hook prepares the tree of a new
+# series when its first kernel is installed.
 - name: Build nouveau with the local patches
   when:
     - ansible_facts['os_family'] == "Debian"
@@ -332,6 +384,19 @@
       changed_when: true
       notify: Update initramfs
 
+    # Named to run ahead of the dkms hook, which builds the tree it adds.
+    - name: Install the kernel hook for new kernel series
+      ansible.builtin.file:
+        src: /usr/local/share/nouveau-patched/kernel-postinst
+        dest: /etc/kernel/postinst.d/00-nouveau-patched
+        state: link
+
+    - name: Remove the trees no installed kernel needs
+      ansible.builtin.command: >-
+        /usr/local/share/nouveau-patched/kernel-postinst {{ ansible_facts['kernel'] }}
+      register: nouveau_patched_pruned
+      changed_when: nouveau_patched_pruned.stdout | length > 0
+
     # nouveau reads its config at load, and applies the pstate again whenever
     # the GPU comes back from runtime power-off.
     - name: Set the nouveau config options
@@ -350,6 +415,133 @@
         state: absent
       when: nouveau_config | length == 0
       notify: Update initramfs
+
+# A host whose card no longer needs the patches goes back to the kernel's nouveau.
+- name: Remove nouveau's local patches
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - not (nouveau_patched | bool)
+  block:
+    - name: Check whether the patched nouveau is installed
+      ansible.builtin.stat:
+        path: /usr/local/share/nouveau-patched
+      register: nouveau_patched_share
+
+    - name: List the builds of the patched nouveau
+      ansible.builtin.command: dkms status nouveau-patched
+      register: nouveau_patched_left
+      changed_when: false
+      check_mode: false
+      when: nouveau_patched_share.stat.exists
+
+    - name: Remove the builds of the patched nouveau
+      ansible.builtin.command: dkms remove {{ item }} --all
+      loop: >-
+        {{ nouveau_patched_left.stdout_lines | default([])
+           | map('regex_replace', '[,:].*$', '') | unique | list }}
+      changed_when: true
+      notify: Update initramfs
+
+    - name: Find the source trees of the patched nouveau
+      ansible.builtin.find:
+        paths: /usr/src
+        patterns: "nouveau-patched-*"
+        file_type: directory
+      register: nouveau_patched_trees
+
+    - name: Remove the files of the patched nouveau
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: >-
+        {{ nouveau_patched_trees.files | map(attribute='path') | list
+           + ['/usr/local/share/nouveau-patched', '/etc/modprobe.d/nouveau-patched.conf',
+              '/etc/kernel/postinst.d/00-nouveau-patched'] }}
+      notify: Update initramfs
+
+# --- Mint: nouveau video firmware -------------------------------------------
+# The video engines run firmware that only NVIDIA's driver carries and that may
+# not be redistributed, so it is taken out of the driver on the host itself,
+# with envytools' extractor; both downloads are checked against their SHA-256.
+- name: Install the nouveau video firmware
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - nouveau_video_firmware | bool
+  block:
+    - name: Check whether the video firmware is installed
+      ansible.builtin.stat:
+        path: /lib/firmware/nouveau/nva3_bsp
+      register: nouveau_firmware_present
+
+    - name: Extract the video firmware from NVIDIA's driver
+      when: not nouveau_firmware_present.stat.exists
+      block:
+        - name: Create a directory to extract the driver in
+          ansible.builtin.tempfile:
+            state: directory
+            suffix: nouveau-firmware
+          register: nouveau_firmware_tmp
+
+        - name: Download NVIDIA's driver
+          ansible.builtin.get_url:
+            url: "{{ nouveau_firmware_driver_url }}"
+            dest: "{{ nouveau_firmware_tmp.path }}/driver.run"
+            checksum: "sha256:{{ nouveau_firmware_driver_sha256 }}"
+            mode: "0644"
+
+        - name: Download envytools' firmware extractor
+          ansible.builtin.get_url:
+            url: "{{ nouveau_firmware_extractor_url }}"
+            dest: "{{ nouveau_firmware_tmp.path }}/extract_firmware.py"
+            checksum: "sha256:{{ nouveau_firmware_extractor_sha256 }}"
+            mode: "0644"
+
+        - name: Unpack the driver
+          ansible.builtin.command: sh driver.run --extract-only
+          args:
+            chdir: "{{ nouveau_firmware_tmp.path }}"
+          changed_when: true
+
+        - name: Extract the firmware
+          ansible.builtin.command: python3 -I extract_firmware.py
+          args:
+            chdir: "{{ nouveau_firmware_tmp.path }}"
+          changed_when: true
+
+        - name: Install the extracted firmware
+          ansible.builtin.shell: |
+            set -e
+            install -d -m 0755 /lib/firmware/nouveau
+            find . -maxdepth 1 \( -name 'nv*_*' -o -name 'vuc-*' \) -exec cp -P {} /lib/firmware/nouveau/ \;
+            test -e /lib/firmware/nouveau/nva3_bsp
+          args:
+            chdir: "{{ nouveau_firmware_tmp.path }}"
+          changed_when: true
+
+      always:
+        - name: Remove the extracted driver
+          ansible.builtin.file:
+            path: "{{ nouveau_firmware_tmp.path }}"
+            state: absent
+          when: nouveau_firmware_tmp.path is defined
+
+- name: Remove the nouveau video firmware
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - not (nouveau_video_firmware | bool)
+  block:
+    - name: Find the extracted video firmware
+      ansible.builtin.find:
+        paths: /lib/firmware/nouveau
+        patterns: ["nv*_*", "vuc-*"]
+        file_type: any
+      register: nouveau_firmware_left
+
+    - name: Remove the extracted video firmware
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ nouveau_firmware_left.files | map(attribute='path') | list }}"
 
 # --- Bazzite desktop: amdgpu tuning ----------------------------------------
 - name: Configure AMD GPU tuning profiles

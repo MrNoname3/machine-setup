@@ -61,6 +61,16 @@ nouveau_patched: false
 # A GPU without that pstate, or without reclocking, stays at its boot clocks.
 nouveau_pstate: ""
 
+# The firmware of the video decoders of GeForce 8 to 300 and later cards,
+# extracted on the host from NVIDIA's 340 driver (it may not be redistributed)
+# into /lib/firmware/nouveau. Without it nouveau leaves video decoding off.
+nouveau_video_firmware: false
+nouveau_firmware_driver_url: https://us.download.nvidia.com/XFree86/Linux-x86_64/340.108/NVIDIA-Linux-x86_64-340.108.run
+nouveau_firmware_driver_sha256: c671d4f1b7c09bc1af079b98b447adb06d704b04f802f7045a611fa50133b71b
+nouveau_firmware_extractor_url: >-
+  https://raw.githubusercontent.com/envytools/firmware/a0b9f9be0efad90cc84b8b2eaf587c3d7d350ea9/extract_firmware.py
+nouveau_firmware_extractor_sha256: b684b37b69a78f58fb3a6cf73684698a65927e701adedbae736ddbb0d1768ea7
+
 # false disables the GPU's copy engines, and nouveau moves buffers between
 # VRAM and system memory with the graphics engine's M2MF instead.
 nouveau_copy_engines: true

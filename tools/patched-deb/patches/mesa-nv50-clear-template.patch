@@ -1,0 +1,80 @@
+Description: Build a real nv50 surface for a clear of a template
+ Since pipe_surface became a plain template, clear_render_target and
+ clear_depth_stencil get one, but nv50 read it as its own nv50_surface, so
+ the offset, size and layer count came from past the end of the template.
+ VA-API clears every new video surface that way, and on nouveau's
+ field-split video buffers the clear wrote outside the surface and PGRAPH
+ trapped with SURF_HEIGHT_OVERRUN. Build the nv50 surface from the template.
+--- a/src/gallium/drivers/nouveau/nv50/nv50_surface.c
++++ b/src/gallium/drivers/nouveau/nv50/nv50_surface.c
+@@ -287,10 +287,15 @@
+    struct nv50_context *nv50 = nv50_context(pipe);
+    struct nouveau_pushbuf *push = nv50->base.pushbuf;
+    struct nv50_miptree *mt = nv50_miptree(dst->texture);
+-   struct nv50_surface *sf = nv50_surface(dst);
++   /* dst may be a plain template, without nv50_surface's fields. */
++   struct pipe_surface *ps = nv50_miptree_surface_new(pipe, dst->texture, dst);
++   struct nv50_surface *sf = nv50_surface(ps);
+    struct nouveau_bo *bo = mt->base.bo;
+    unsigned z;
+ 
++   if (!ps)
++      return;
++
+    assert(dst->texture->target != PIPE_BUFFER);
+ 
+    BEGIN_NV04(push, NV50_3D(CLEAR_COLOR(0)), 4);
+@@ -300,7 +305,7 @@
+    PUSH_DATAf(push, color->f[3]);
+ 
+    if (!PUSH_SPACE_EX(push, 64 + sf->depth, 1, 0))
+-      return;
++      goto out;
+ 
+    PUSH_REF1(push, bo, mt->base.domain | NOUVEAU_BO_WR);
+ 
+@@ -363,6 +368,8 @@
+    }
+ 
+    nv50->dirty_3d |= NV50_NEW_3D_FRAMEBUFFER | NV50_NEW_3D_SCISSOR;
++out:
++   nv50_surface_destroy(pipe, ps);
+ }
+ 
+ static void
+@@ -378,11 +385,16 @@
+    struct nv50_context *nv50 = nv50_context(pipe);
+    struct nouveau_pushbuf *push = nv50->base.pushbuf;
+    struct nv50_miptree *mt = nv50_miptree(dst->texture);
+-   struct nv50_surface *sf = nv50_surface(dst);
++   /* dst may be a plain template, without nv50_surface's fields. */
++   struct pipe_surface *ps = nv50_miptree_surface_new(pipe, dst->texture, dst);
++   struct nv50_surface *sf = nv50_surface(ps);
+    struct nouveau_bo *bo = mt->base.bo;
+    uint32_t mode = 0;
+    unsigned z;
+ 
++   if (!ps)
++      return;
++
+    assert(dst->texture->target != PIPE_BUFFER);
+    assert(nouveau_bo_memtype(bo)); /* ZETA cannot be linear */
+ 
+@@ -399,7 +411,7 @@
+    }
+ 
+    if (!PUSH_SPACE_EX(push, 64 + sf->depth, 1, 0))
+-      return;
++      goto out;
+ 
+    PUSH_REF1(push, bo, mt->base.domain | NOUVEAU_BO_WR);
+ 
+@@ -451,6 +463,8 @@
+    }
+ 
+    nv50->dirty_3d |= NV50_NEW_3D_FRAMEBUFFER | NV50_NEW_3D_SCISSOR;
++out:
++   nv50_surface_destroy(pipe, ps);
+ }
+ 
+ void

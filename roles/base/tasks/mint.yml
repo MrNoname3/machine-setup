@@ -39,7 +39,7 @@
     no_extra_spaces: true
   when: ansible_facts['os_family'] == "Debian"
 
-- name: Set VLC as the default video player (user MIME associations)
+- name: Set the default video player (user MIME associations)
   community.general.ini_file:
     path: "/home/{{ primary_user }}/.config/mimeapps.list"
     section: Default Applications
@@ -50,6 +50,59 @@
   become: false
   loop: "{{ video_mimetypes }}"
   when: ansible_facts['os_family'] == "Debian"
+
+- name: Set the default audio player (user MIME associations)
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.config/mimeapps.list"
+    section: Default Applications
+    option: "{{ item }}"
+    value: "{{ default_audio_player }}"
+    mode: "{{ user_config_mode }}"
+    no_extra_spaces: true
+  become: false
+  loop: "{{ audio_mimetypes }}"
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - default_audio_player | length > 0
+
+- name: Set Celluloid's mpv options
+  community.general.dconf:
+    key: /io/github/celluloid-player/celluloid/mpv-options
+    value: "{{ celluloid_mpv_options | to_json }}"
+    state: present
+  become: false
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - celluloid_mpv_options | length > 0
+
+- name: Celluloid with VLC's keys
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - celluloid_vlc_keys | bool
+  block:
+    - name: Ensure Celluloid's config directory exists
+      ansible.builtin.file:
+        path: "/home/{{ primary_user }}/.config/celluloid"
+        state: directory
+        mode: "0755"
+      become: false
+
+    - name: Install the VLC-style key bindings for Celluloid
+      ansible.builtin.copy:
+        src: celluloid-vlc-keys.conf
+        dest: "/home/{{ primary_user }}/.config/celluloid/vlc-keys.conf"
+        mode: "0644"
+      become: false
+
+    - name: Point Celluloid at the VLC-style key bindings
+      community.general.dconf:
+        key: "/io/github/celluloid-player/celluloid/{{ item.key }}"
+        value: "{{ item.value }}"
+        state: present
+      become: false
+      loop:
+        - { key: mpv-input-config-file, value: "'/home/{{ primary_user }}/.config/celluloid/vlc-keys.conf'" }
+        - { key: mpv-input-config-enable, value: "true" }
 
 - name: Set Kate as the default text editor (user MIME associations)
   community.general.ini_file:
@@ -133,13 +186,12 @@
     - base_input_method | length > 0
     - base_input_method_current.rc != 0
 
-- name: Ensure the bookmark and VLC config directories exist
+- name: Ensure the bookmark directory exists
   ansible.builtin.file:
-    path: "/home/{{ primary_user }}/.config/{{ item }}"
+    path: "/home/{{ primary_user }}/.config/gtk-3.0"
     state: directory
     mode: "0755"
   become: false
-  loop: [gtk-3.0, vlc]
 
 # Nemo's sidebar bookmarks, which GTK's file chooser shares.
 - name: Set the file manager's bookmarks
@@ -149,19 +201,3 @@
     mode: "{{ user_config_mode | default('0644') }}"
   become: false
   when: base_gtk_bookmarks | length > 0
-
-# VLC asks on its first start whether it may look up metadata online; the
-# answer, written before that start, stops the question.
-- name: Answer VLC's first-start privacy question
-  ansible.builtin.copy:
-    dest: "/home/{{ primary_user }}/.config/vlc/vlcrc"
-    content: |
-      [qt]
-      qt-privacy-ask=0
-
-      [core]
-      metadata-network-access=1
-    force: false
-    mode: "{{ user_config_mode | default('0644') }}"
-  become: false
-  when: "'vlc' in (packages_present | default([]))"

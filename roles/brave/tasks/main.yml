@@ -95,6 +95,8 @@
     - level: managed
       policies: >-
         {{ brave_policies | combine(brave_policies_extra)
+           | combine({'ExtensionInstallForcelist': (brave_policies_extra.ExtensionInstallForcelist | default([]))
+                       | union(brave_extensions_extra)} if brave_extensions_extra else {})
            | combine({'WebAppInstallForceList': brave_web_apps
                        | map('community.general.dict_kv', 'url')
                        | map('combine', {'default_launch_container': 'window', 'create_desktop_shortcut': false})
@@ -137,12 +139,12 @@
 - name: Add the flags to the Brave launcher
   when:
     - ansible_facts['os_family'] == "Debian"
-    - (brave_flags | length > 0) or (brave_env | length > 0)
+    - (brave_flags_all | length > 0) or (brave_env | length > 0)
   vars:
     brave_launcher_exec: '"$HERE/brave" "$@"'
     brave_launcher_exec_new: >-
       {{ ((brave_env.keys() | zip(brave_env.values() | map('quote')) | map('join', '=') | list)
-          + ['"$HERE/brave"'] + (brave_flags | map('quote') | list) + ['"$@"']) | join(' ') }}
+          + ['"$HERE/brave"'] + (brave_flags_all | map('quote') | list) + ['"$@"']) | join(' ') }}
   block:
     - name: Divert the package's Brave launcher
       ansible.builtin.command: >-
@@ -182,7 +184,7 @@
     dpkg-divert --local --rename --remove {{ brave_launcher | quote }}
   when:
     - ansible_facts['os_family'] == "Debian"
-    - brave_flags | length == 0
+    - brave_flags_all | length == 0
     - brave_env | length == 0
     - brave_launcher_divert.stdout == 'LOCAL'
   changed_when: true

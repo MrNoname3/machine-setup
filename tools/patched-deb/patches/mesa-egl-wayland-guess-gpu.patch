@@ -1,0 +1,92 @@
+Description: Use the boot VGA GPU when the compositor names none
+ Wayland EGL learns the compositor's GPU from linux-dmabuf v4 feedback or
+ from wl_drm. A compositor offering only linux-dmabuf v3 without wl_drm
+ (Muffin before 6.8) names none, and every Wayland GL client then fell to
+ software rendering. Take the render node of the boot VGA device there, or
+ the only render node there is, as Xwayland's patch here does.
+--- a/src/egl/drivers/dri2/platform_wayland.c
++++ b/src/egl/drivers/dri2/platform_wayland.c
+@@ -2625,6 +2625,62 @@
+    }
+ }
+ 
++/* The compositor's GPU, for a compositor that names none (linux-dmabuf v3
++ * without wl_drm): the boot VGA device, or the only one with a render node. */
++static bool
++dri2_wl_guess_render_gpu(struct dri2_egl_display *dri2_dpy)
++{
++   drmDevicePtr devices[64];
++   const char *path = NULL;
++   int n, i, render_nodes = 0;
++
++   n = drmGetDevices2(0, devices, ARRAY_SIZE(devices));
++   for (i = 0; i < n; i++) {
++      if (devices[i]->available_nodes & (1 << DRM_NODE_RENDER))
++         render_nodes++;
++   }
++
++   for (i = 0; i < n && !path; i++) {
++      drmDevicePtr dev = devices[i];
++      char boot_vga[64], value = 0;
++      int fd;
++
++      if (!(dev->available_nodes & (1 << DRM_NODE_RENDER)))
++         continue;
++      if (render_nodes == 1) {
++         path = dev->nodes[DRM_NODE_RENDER];
++         break;
++      }
++      if (dev->bustype != DRM_BUS_PCI)
++         continue;
++
++      snprintf(boot_vga, sizeof(boot_vga),
++               "/sys/bus/pci/devices/%04x:%02x:%02x.%u/boot_vga",
++               dev->businfo.pci->domain, dev->businfo.pci->bus,
++               dev->businfo.pci->dev, dev->businfo.pci->func);
++      fd = open(boot_vga, O_RDONLY | O_CLOEXEC);
++      if (fd < 0)
++         continue;
++      if (read(fd, &value, 1) == 1 && value == '1')
++         path = dev->nodes[DRM_NODE_RENDER];
++      close(fd);
++   }
++
++   if (path) {
++      dri2_dpy->fd_render_gpu = loader_open_device(path);
++      if (dri2_dpy->fd_render_gpu != -1) {
++         dri2_dpy->device_name = strdup(path);
++#ifdef HAVE_BIND_WL_DISPLAY
++         dri2_dpy->authenticated = true;
++#endif
++      }
++   }
++
++   if (n > 0)
++      drmFreeDevices(devices, n);
++   return dri2_dpy->fd_render_gpu != -1;
++}
++
+ static bool
+ dri2_initialize_wayland_drm_extensions(struct dri2_egl_display *dri2_dpy)
+ {
+@@ -2653,9 +2709,9 @@
+    /* We couldn't retrieve a render node from the dma-buf feedback (or the
+     * feedback was not advertised at all), so we must fallback to wl_drm. */
+    if (dri2_dpy->fd_render_gpu == -1) {
+-      /* wl_drm not advertised by compositor, so can't continue */
++      /* wl_drm not advertised by compositor either */
+       if (dri2_dpy->wl_drm_name == 0)
+-         return false;
++         return dri2_wl_guess_render_gpu(dri2_dpy);
+       wl_drm_bind(dri2_dpy);
+ 
+       if (dri2_dpy->wl_drm == NULL)
+@@ -2668,7 +2724,7 @@
+          return false;
+    }
+ #endif
+-   return true;
++   return dri2_dpy->fd_render_gpu != -1 || dri2_wl_guess_render_gpu(dri2_dpy);
+ }
+ 
+ static EGLBoolean

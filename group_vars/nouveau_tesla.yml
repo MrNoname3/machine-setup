@@ -1,0 +1,51 @@
+# A GeForce 8 to 300 (Tesla) card on nouveau, on Mint 22: full clocks, video
+# decoding in hardware for Brave and Celluloid, and Wayland and X11 clients on
+# the GPU under Mint 22's Muffin. A host gets it by joining the nouveau_tesla
+# group in inventory.ini; it also needs the base, brave, graphics and
+# patched-debs roles enabled; the graphics role removes the proprietary driver,
+# which blacklists nouveau. The cards, and what each fix is for:
+# roles/graphics/README.md, "nouveau cards".
+
+# nouveau with the local patches, at the card's top pstate.
+nouveau_patched: true
+nouveau_pstate: "0f"
+
+# The video engines' firmware, from NVIDIA's driver.
+nouveau_video_firmware: true
+
+# Mesa from kisak's PPA, rebuilt with the local patches: VA-API surfaces a
+# browser can take, decoders torn down safely, nv50 clears of video surfaces,
+# and Wayland EGL that finds the GPU. Xwayland rebuilt to find it as well.
+mesa_kisak_ppa: true
+patched_debs_extra:
+  - source: mesa
+    binary: mesa-libgallium
+    keep_version: true
+    build_sources: |
+      Types: deb
+      URIs: https://ppa.launchpadcontent.net/kisak/kisak-mesa-build-deps/ubuntu
+      Suites: noble
+      Components: main
+      Signed-By: /etc/apt/keyrings/kisak-mesa.asc
+  - source: xwayland
+    binary: xwayland
+    build_sources: |
+      Types: deb
+      URIs: https://ppa.launchpadcontent.net/kisak/kisak-mesa-build-deps/ubuntu
+      Suites: noble
+      Components: main
+      Signed-By: /etc/apt/keyrings/kisak-mesa.asc
+
+# Chromium allows VA-API on nouveau only past its driver checks.
+brave_flags_extra:
+  - --enable-features=AcceleratedVideoDecodeLinuxGL,VaapiIgnoreDriverChecks,VaapiOnNvidiaGPUs
+  - --ignore-gpu-blocklist
+
+# enhanced-h264ify: YouTube sends H.264, the only one of its codecs these
+# cards decode, instead of VP9 or AV1.
+brave_extensions_extra:
+  - omkfmpieigblcllmkgbflkikinpkodlk
+
+# Celluloid: the base role's copy-back decoding, through VA-API, and mpv's
+# lighter scaling, which these GPUs can keep up with.
+celluloid_mpv_options: "--gpu-hwdec-interop=no --hwdec=vaapi-copy --profile=fast"

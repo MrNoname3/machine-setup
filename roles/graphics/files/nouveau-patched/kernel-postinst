@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+#
+# kernel-postinst <kernel-release>
+#
+# Kernel hook (/etc/kernel/postinst.d, ahead of dkms): a kernel of a series no
+# DKMS tree covers gets one from prepare.sh, which the dkms hook then builds.
+# Trees of series no installed kernel belongs to, and trees of an older patch
+# set where the current one covers the series, are removed. A failure leaves
+# that kernel with its stock nouveau and never fails the kernel's install.
+#
+set -uo pipefail
+
+KREL=${1:?usage: kernel-postinst <kernel-release>}
+HERE=$(dirname "$(readlink -f "$0")")
+DIGEST=$(cat "$HERE"/0*.patch | sha256sum | cut -c1-8)
+
+# Also to the journal: an unattended upgrade's output goes unread.
+warn() {
+  printf 'nouveau-patched: %s\n' "$*" >&2
+  logger -p user.warning -t nouveau-patched -- "$*" 2>/dev/null
+}
+
+# A tree covers the series of the source version it was named after.
+series() { echo "$1" | cut -d. -f1-2; }
+
+srcver_of() {
+  dpkg-query -W -f='${source:Version}' "linux-modules-$1" 2>/dev/null
+}
+
+want=$(srcver_of "$KREL") || { warn "no linux-modules-$KREL package"; exit 0; }
+covered=
+for tree in /usr/src/nouveau-patched-*-"$DIGEST"; do
+  [ -f "$tree/dkms.conf" ] || continue
+  ver=${tree#/usr/src/nouveau-patched-}
+  [ "$(series "${ver%-*}")" = "$(series "${want//\~/-}")" ] && covered=1
+done
+
+if [ -z "$covered" ]; then
+  if tree=$("$HERE/prepare.sh" "$KREL" /usr/src); then
+    dkms add "nouveau-patched/${tree#/usr/src/nouveau-patched-}" >/dev/null ||
+      warn "dkms add failed for $tree"
+  else
+    warn "no patched tree for $KREL, which boots the stock nouveau"
+  fi
+fi
+
+installed=$(dpkg-query -W -f='${db:Status-Abbrev} ${Package} ${source:Version}\n' 'linux-modules-[0-9]*' 2>/dev/null |
+  awk '$1 ~ /^.i/ { print $3 }' | sed 's/~/-/g')
+current=$(for tree in /usr/src/nouveau-patched-*-"$DIGEST"; do
+  [ -f "$tree/dkms.conf" ] && ver=${tree#/usr/src/nouveau-patched-} && series "${ver%-*}"
+done)
+# Two trees of one series would both build for its kernels.
+for tree in /usr/src/nouveau-patched-*; do
+  [ -f "$tree/dkms.conf" ] || continue
+  ver=${tree#/usr/src/nouveau-patched-}
+  s=$(series "${ver%-*}")
+  for v in $installed; do
+    if [ "$(series "$v")" = "$s" ]; then
+      [ "${ver##*-}" = "$DIGEST" ] && continue 2
+      grep -qxF "$s" <<<"$current" || continue 2
+      break
+    fi
+  done
+  dkms remove "nouveau-patched/$ver" --all >/dev/null 2>&1
+  rm -rf "$tree"
+  echo "removed $tree"
+done
+exit 0

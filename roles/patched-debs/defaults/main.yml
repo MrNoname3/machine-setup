@@ -4,11 +4,21 @@
 # tools/patched-deb/patches/<source>-*.patch. The binary's archive version
 # decides when to rebuild, and every binary package of the source installed
 # on the host is rebuilt and held. An optional build_sources holds deb822
-# entries of archives the build alone needs. Set per host.
+# entries of archives the build alone needs. keep_version: true keeps the
+# archive's version, for a source also installed for another architecture
+# (Mesa with Steam's i386 libraries): only the native packages are rebuilt,
+# and the marker each source gets under /var/lib/patched-debs tells a patched
+# build from the archive's. A source dropped from these lists goes back to the
+# archive's build on the next run. Set per host.
 patched_debs: []
+
+# More packages from a group the host is in (group_vars), added to patched_debs.
+patched_debs_extra: []
 
 # The build script, shared with tools/tablet-image.
 patched_debs_tool: "{{ playbook_dir }}/tools/patched-deb/build-deb.sh"
 
-# Where the built packages stay, which is where the next run looks first.
+# Where the built packages stay, with <source>.build naming the version and
+# patches they were built with; a run that needs that build again installs it
+# from here instead of building.
 patched_debs_dir: "/home/{{ primary_user }}/.cache/patched-debs"

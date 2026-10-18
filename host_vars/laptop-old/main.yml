@@ -98,7 +98,7 @@ packages_present:
   - python3-venv                 # repo-local toolchain (scripts/ensure-venv.sh)
   - htop
   - mc                           # Midnight Commander
-  - vlc
+  - celluloid                    # video and music player (base role makes it the default)
   - kate
   - breeze                       # Breeze widget style for Kate (base role sets it)
   - keepassxc
@@ -124,10 +124,10 @@ packages_absent:
   - thunderbird-locale-en
   - thunderbird-locale-en-us
   # Redundant / unused Mint default apps
-  - celluloid                   # Mint video player (VLC is the default now)
+  - vlc                         # Celluloid plays video and music
   - hypnotix                    # Mint IPTV/TV player
   - warpinator                  # Mint LAN file transfer (we have Synology/SMB)
-  - rhythmbox                   # music player (VLC covers it)
+  - rhythmbox                   # music player (Celluloid covers it)
   - rhythmbox-data
   - rhythmbox-plugins
   - rhythmbox-plugin-tray-icon

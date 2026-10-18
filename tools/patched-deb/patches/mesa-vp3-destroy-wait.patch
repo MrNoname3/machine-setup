@@ -1,0 +1,29 @@
+Description: Let the VP3/VP4 engines go idle before the decoder goes away
+ The decoder's stages hand frames to each other through memory the
+ firmware polls, and destroying the decoder removed the engine objects at
+ once. A player that closes a decoder mid-stream, as a browser does when a
+ tab moves on from a video, could leave an engine hung, after which no
+ channel using it would idle again. Wait for the buffers each stage uses
+ before tearing the decoder down.
+--- a/src/gallium/drivers/nouveau/nouveau_vp3_video.c
++++ b/src/gallium/drivers/nouveau/nouveau_vp3_video.c
+@@ -205,8 +205,19 @@
+ nouveau_vp3_decoder_destroy(struct pipe_video_codec *decoder)
+ {
+    struct nouveau_vp3_decoder *dec = (struct nouveau_vp3_decoder *)decoder;
++   struct nouveau_bo *busy[] = { dec->ref_bo, dec->bitplane_bo, dec->inter_bo[0], dec->inter_bo[1],
++                                 dec->fw_bo };
+    int i;
+ 
++   /* The engines may still be decoding: unbinding their objects from a busy
++    * engine leaves it hung, so wait for every stage's buffers first. */
++   for (i = 0; i < ARRAY_SIZE(busy); ++i)
++      if (busy[i])
++         nouveau_bo_wait(busy[i], NOUVEAU_BO_RDWR, dec->client);
++   for (i = 0; i < NOUVEAU_VP3_VIDEO_QDEPTH; ++i)
++      if (dec->bsp_bo[i])
++         nouveau_bo_wait(dec->bsp_bo[i], NOUVEAU_BO_RDWR, dec->client);
++
+    nouveau_bo_ref(NULL, &dec->ref_bo);
+    nouveau_bo_ref(NULL, &dec->bitplane_bo);
+    nouveau_bo_ref(NULL, &dec->inter_bo[0]);
