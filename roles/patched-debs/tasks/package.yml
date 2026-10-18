@@ -54,11 +54,44 @@
       {{ (patched_debs_madison.stdout_lines[0].split('|')[1] | trim) ~ patched_debs_suffix.stdout }}
     patched_debs_packages: "{{ patched_debs_binaries.stdout_lines | union([patched_deb.binary]) }}"
 
+# A build of this version with these patches, kept from an earlier run.
+- name: Look for a kept build of {{ patched_deb.source }}
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    f={{ (patched_debs_dir ~ '/' ~ patched_deb.source ~ '.build') | quote }};
+    [ "$(head -n 1 "$f" 2>/dev/null)" = {{ patched_debs_mark | quote }} ] || exit 0;
+    tail -n +2 "$f" | while read -r deb; do [ -f "$deb" ] || exit 1; done && tail -n +2 "$f" || true
+  args:
+    executable: /bin/bash
+  become: false
+  register: patched_debs_kept
+  changed_when: false
+  check_mode: false
+
+# A kept version looks the same to apt as the archive's build, which an apt
+# run may put back in its place; the files tell them apart.
+- name: Compare the installed files with the kept build of {{ patched_deb.source }}
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    for deb in {{ patched_debs_kept.stdout_lines | map('quote') | join(' ') }}; do
+    pkg=$(dpkg-deb -f "$deb" Package):$(dpkg-deb -f "$deb" Architecture);
+    cmp -s <(dpkg-deb -I "$deb" md5sums | sort) <(dpkg-query --control-show "$pkg" md5sums 2>/dev/null | sort)
+    || echo "$pkg"; done
+  args:
+    executable: /bin/bash
+  register: patched_debs_drift
+  changed_when: false
+  check_mode: false
+  when:
+    - patched_debs_keep | bool
+    - patched_debs_kept.stdout_lines | length > 0
+
 - name: Build and install the patched {{ patched_deb.source }}
   when:
     - >-
       patched_debs_installed.stdout != patched_debs_want
       or (patched_debs_keep | bool and patched_debs_marker.stdout != patched_debs_mark)
+      or (patched_debs_drift.stdout | default('') | length > 0)
     - not ansible_check_mode
   vars:
     patched_debs_debs: >-
@@ -86,19 +119,6 @@
           {{ patched_deb.binary }} is installed for {{ patched_debs_foreign.stdout_lines | join(', ') }}
           too; list {{ patched_deb.binary }}:<arch> and what depends on it in packages_absent.
         quiet: true
-
-    # A build of this version with these patches, kept from an earlier run.
-    - name: Look for a kept build of {{ patched_deb.source }}
-      ansible.builtin.shell: >-
-        set -o pipefail;
-        f={{ (patched_debs_dir ~ '/' ~ patched_deb.source ~ '.build') | quote }};
-        [ "$(head -n 1 "$f" 2>/dev/null)" = {{ patched_debs_mark | quote }} ] || exit 0;
-        tail -n +2 "$f" | while read -r deb; do [ -f "$deb" ] || exit 1; done && tail -n +2 "$f" || true
-      args:
-        executable: /bin/bash
-      become: false
-      register: patched_debs_kept
-      changed_when: false
 
     # deb-src entries for the archives that carry the newest version, for this
     # build only.
@@ -161,26 +181,6 @@
       become: false
       when: patched_debs_kept.stdout_lines | length == 0
 
-    - name: Release the hold on the packages of {{ patched_deb.source }}
-      ansible.builtin.dpkg_selections:
-        name: "{{ item }}"
-        selection: install
-      loop: "{{ patched_debs_packages }}"
-
-    # The apt module installs one local .deb at a time, and these need each
-    # other's version. A kept version is the installed one already, so apt
-    # needs --reinstall to take the patched build, and counts a local package
-    # of the same version as a downgrade.
-    - name: Install the patched packages of {{ patched_deb.source }}  # noqa: command-instead-of-module
-      ansible.builtin.command:
-        argv: >-
-          {{ ['apt-get', 'install', '-y', '-q']
-             + (['--reinstall', '--allow-downgrades'] if patched_debs_keep | bool else [])
-             + patched_debs_debs }}
-      environment:
-        DEBIAN_FRONTEND: noninteractive
-      changed_when: true
-
     - name: List the other architectures' packages of {{ patched_deb.source }}
       ansible.builtin.shell: >-
         set -o pipefail;
@@ -193,17 +193,29 @@
       changed_when: false
       when: patched_debs_keep | bool
 
-    - name: Bring the other architectures' packages to the same version  # noqa: command-instead-of-module
+    - name: Release the hold on the packages of {{ patched_deb.source }}
+      ansible.builtin.dpkg_selections:
+        name: "{{ item }}"
+        selection: install
+      loop: "{{ patched_debs_packages }}"
+
+    # The apt module installs one local .deb at a time, and these need each
+    # other's version. A kept version is the installed one already, so apt
+    # needs --reinstall to take the patched build, and counts a local package
+    # of the same version as a downgrade. The other architectures' packages
+    # follow to the archive's version in the same transaction: a second one
+    # may resolve the native packages to the archive's build again.
+    - name: Install the patched packages of {{ patched_deb.source }}  # noqa: command-instead-of-module
       ansible.builtin.command:
         argv: >-
           {{ ['apt-get', 'install', '-y', '-q']
-             + (patched_debs_others.stdout_lines | map('regex_replace', '$', '=' ~ patched_debs_want) | list) }}
+             + (['--reinstall', '--allow-downgrades'] if patched_debs_keep | bool else [])
+             + patched_debs_debs
+             + (patched_debs_others.stdout_lines | default([])
+                | map('regex_replace', '$', '=' ~ patched_debs_want) | list) }}
       environment:
         DEBIAN_FRONTEND: noninteractive
       changed_when: true
-      when:
-        - patched_debs_keep | bool
-        - patched_debs_others.stdout_lines | length > 0
 
   always:
     - name: List the packages installed after the build
