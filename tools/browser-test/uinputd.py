@@ -17,7 +17,9 @@ EV_SYN, EV_KEY, EV_ABS = 0, 1, 3
 BTN = {1: 0x110, 3: 0x111}
 KEYS = {"Escape": 1, "Tab": 15, "Return": 28, "Control_L": 29, "Shift_L": 42, "Alt_L": 56, "space": 57,
         "F5": 63, "F10": 68, "F11": 87, "Up": 103, "Left": 105, "Right": 106, "Down": 108,
-        "a": 30, "b": 48, "d": 32, "f": 33, "l": 38, "n": 49, "t": 20, "w": 17}
+        "a": 30, "b": 48, "d": 32, "f": 33, "j": 36, "l": 38, "n": 49, "t": 20, "v": 47, "w": 17, "x": 45,
+        "z": 44, "g": 34, "h": 35, "3": 4, "7": 8, "slash": 53, "bracketleft": 26, "bracketright": 27,
+        "KP_Add": 78, "KP_Subtract": 74}
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_ABSBIT, UI_DEV_CREATE = 0x40045564, 0x40045565, 0x40045567, 0x5501
 SOCK = "/var/tmp/uinputd.sock"
 
