@@ -1,0 +1,135 @@
+Description: Export a progressive copy of an interlaced VA surface
+ nouveau's video engines decode into field-split buffers, which VA-API
+ refused to export, so Chromium and other dma-buf consumers fell back to
+ software decoding. Export a progressive buffer instead, which the
+ processing path weaves from the fields after every decode into the
+ surface.
+--- a/src/gallium/frontends/va/va_private.h
++++ b/src/gallium/frontends/va/va_private.h
+@@ -436,6 +436,8 @@
+    vlVaBuffer *coded_buf;
+    struct pipe_fence_handle *fence; /* pipe_video_codec fence */
+    struct pipe_fence_handle *pipe_fence; /* pipe_context fence */
++   /* Progressive copy of an interlaced buffer, which is what gets exported. */
++   struct pipe_video_buffer *export_buffer;
+    bool is_dpb;
+    unsigned int strides[3];
+    unsigned int offsets[3];
+@@ -563,6 +565,7 @@
+                                    const uint64_t *modifiers, unsigned int modifiers_count);
+ struct pipe_video_buffer *vlVaGetSurfaceBuffer(vlVaDriver *drv, vlVaSurface *surface);
+ void vlVaSurfaceFlush(vlVaDriver *drv, vlVaSurface *surf);
++void vlVaUpdateExportBuffer(vlVaDriver *drv, vlVaSurface *surf);
+ void vlVaAddRawHeader(struct util_dynarray *headers, uint8_t type, uint32_t size, uint8_t *buf,
+                       bool is_slice, uint32_t emulation_bytes_start);
+ void vlVaGetBufferFeedback(vlVaBuffer *buf);
+--- a/src/gallium/frontends/va/surface.c
++++ b/src/gallium/frontends/va/surface.c
+@@ -105,6 +105,8 @@
+ {
+    if (surf->buffer)
+       surf->buffer->destroy(surf->buffer);
++   if (surf->export_buffer)
++      surf->export_buffer->destroy(surf->export_buffer);
+    if (surf->pipe_fence)
+       drv->pipe->screen->fence_reference(drv->pipe->screen, &surf->pipe_fence, NULL);
+    if (surf->ctx) {
+@@ -816,6 +818,26 @@
+                     drv->has_external_handles ? 0 : PIPE_FLUSH_ASYNC);
+ }
+ 
++/* Weaves the fields of an interlaced buffer into its exported progressive copy. */
++void
++vlVaUpdateExportBuffer(vlVaDriver *drv, vlVaSurface *surf)
++{
++   struct pipe_vpp_desc param = {
++      .base = {
++         .out_pipe_fence = &surf->pipe_fence,
++      },
++      .src_region = { 0, 0, surf->templat.width, surf->templat.height },
++      .dst_region = { 0, 0, surf->templat.width, surf->templat.height },
++      .in_color_range = PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_REDUCED,
++      .out_color_range = PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_REDUCED,
++      .in_matrix_coefficients = PIPE_VIDEO_VPP_MCF_BT709,
++      .out_matrix_coefficients = PIPE_VIDEO_VPP_MCF_BT709,
++   };
++
++   if (surf->export_buffer)
++      vlVaPostProc(drv, NULL, surf->buffer, surf->export_buffer, &param);
++}
++
+ static void
+ vlVaSwitchToProtectedContext(vlVaDriver *drv)
+ {
+@@ -1187,6 +1209,7 @@
+ {
+    vlVaDriver *drv;
+    vlVaSurface *surf;
++   struct pipe_video_buffer *buffer;
+    struct pipe_surface *surfaces;
+    struct pipe_screen *screen;
+    VAStatus ret;
+@@ -1217,12 +1240,31 @@
+       return VA_STATUS_ERROR_INVALID_SURFACE;
+    }
+ 
+-   if (surf->buffer->interlaced) {
+-      mtx_unlock(&drv->mutex);
+-      return VA_STATUS_ERROR_INVALID_SURFACE;
++   buffer = surf->buffer;
++   if (buffer->interlaced) {
++      /* Fields cannot be exported as one frame: export a progressive copy,
++       * which every decode into this surface brings up to date.
++       */
++      if (!surf->export_buffer) {
++         struct pipe_video_buffer templat = surf->templat;
++
++         templat.buffer_format = buffer->buffer_format;
++         templat.width = buffer->width;
++         templat.height = buffer->height;
++         templat.interlaced = false;
++         templat.bind |= PIPE_BIND_SHARED;
++         /* The driver's own buffers may all be interlaced. */
++         surf->export_buffer = vl_video_buffer_create(drv->pipe, &templat);
++         if (!surf->export_buffer) {
++            mtx_unlock(&drv->mutex);
++            return VA_STATUS_ERROR_ALLOCATION_FAILED;
++         }
++         vlVaUpdateExportBuffer(drv, surf);
++      }
++      buffer = surf->export_buffer;
+    }
+ 
+-   surfaces = surf->buffer->get_surfaces(surf->buffer);
++   surfaces = buffer->get_surfaces(buffer);
+ 
+    usage = 0;
+    if (flags & VA_EXPORT_SURFACE_WRITE_ONLY)
+@@ -1251,7 +1293,7 @@
+ 
+ #else
+    VADRMPRIMESurfaceDescriptor *desc = descriptor;
+-   desc->fourcc = PipeFormatToVaFourcc(surf->buffer->buffer_format);
++   desc->fourcc = PipeFormatToVaFourcc(buffer->buffer_format);
+    desc->width = surf->templat.width;
+    desc->height = surf->templat.height;
+    desc->num_objects = 0;
+@@ -1315,7 +1357,7 @@
+    }
+ 
+    if (flags & VA_EXPORT_SURFACE_COMPOSED_LAYERS) {
+-      uint32_t drm_format = pipe_format_to_drm_format(surf->buffer->buffer_format);
++      uint32_t drm_format = pipe_format_to_drm_format(buffer->buffer_format);
+       if (drm_format == DRM_FORMAT_INVALID) {
+          ret = VA_STATUS_ERROR_UNSUPPORTED_MEMORY_TYPE;
+          goto fail;
+--- a/src/gallium/frontends/va/picture.c
++++ b/src/gallium/frontends/va/picture.c
+@@ -428,6 +428,7 @@
+ 
+ 
+    if (context->decoder->entrypoint == PIPE_VIDEO_ENTRYPOINT_BITSTREAM) {
++      vlVaUpdateExportBuffer(drv, surf);
+       if (context->proc.dst_surface) {
+          if (!context->decoder->process_frame ||
+              context->decoder->process_frame(context->decoder, context->target, &context->proc.vpp) != 0) {

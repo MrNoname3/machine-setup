@@ -81,11 +81,15 @@ before remapping it.
 The GT218's VP4 engine decodes H.264, MPEG-2 and VC-1 with firmware that only
 NVIDIA's driver carries: envytools' `extract_firmware.py` takes it out of the
 340.108 driver into `/lib/firmware/nouveau/`, and it may not be
-redistributed. VA-API and VDPAU players then decode in hardware, 720p H.264
-at about 110 frames a second. Browsers cannot use it: Chromium and Firefox
-take decoded frames as exported dma-bufs, and Mesa refuses to export the
-interlaced surfaces nouveau's video engines decode into, so Brave falls back
-to software decoding.
+redistributed. VA-API players then decode in hardware, 720p H.264 at about
+110 frames a second. Chromium and Firefox take decoded frames as exported
+dma-bufs, and Mesa refused to export the interlaced surfaces nouveau's video
+engines decode into; with the Mesa patches of
+[tools/patched-deb](../../patched-deb/) it exports a progressive copy, and Brave
+plays 1080p H.264 at about a quarter of the CPU software decoding takes. VLC 3
+maps decoded surfaces with vaDeriveImage, which needs both planes in one
+buffer, and nouveau keeps them apart, so VLC stays in software; Celluloid
+(mpv) decodes in hardware with copy-back.
 
 ## Upstream
 
