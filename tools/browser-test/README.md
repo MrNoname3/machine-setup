@@ -55,7 +55,8 @@ ACTIONS=appmenu,select,context,bookmarks tools/browser-test/run.py stress menus 
   without it, `stress` only watches the screen.
 
 The profile, the results and the clips live in `work/browser-test/` of this
-repository, or in `BT_STATE`. The test pages in [www/](www/) are served on
+repository, or in `BT_STATE`; so does the test browser's `XDG_DATA_HOME`, where
+web apps installed by policy put their launchers instead of next to the user's. The test pages in [www/](www/) are served on
 `127.0.0.1:8765` by [serve.py](serve.py), which `run.py` starts as the
 `browser-test-www` user unit when it is not running.
 

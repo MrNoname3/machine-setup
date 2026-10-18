@@ -7,6 +7,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 STATE = os.environ.get("BT_STATE", os.path.join(REPO, "work", "browser-test"))
 PROFILE = os.path.join(STATE, "profile")
+XDG_DATA = os.path.join(STATE, "xdg-data")
 RESULTS = os.path.join(STATE, "results")
 MEDIA = os.path.join(STATE, "media")
 BRAVE = os.environ.get("BT_BRAVE", "/opt/brave.com/brave/brave")
@@ -308,7 +309,9 @@ def start(env, flags):
     subprocess.run(["systemctl", "--user", "reset-failed", UNIT], capture_output=True)
     seed_profile()
     cmd = ["systemd-run", "--user", "--unit", UNIT, "--collect", "--quiet"]
-    cmd += [f"--setenv={k}={v}" for k, v in {**session_env(), **env}.items()]
+    # Web apps the browser policy installs write launchers and icons there, and
+    # in the user's own data directory they would replace the real profile's.
+    cmd += [f"--setenv={k}={v}" for k, v in {**session_env(), "XDG_DATA_HOME": XDG_DATA, **env}.items()]
     if os.environ.get("BT_STDERR"):
         cmd += ["-p", f"StandardError=truncate:{os.environ['BT_STDERR']}"]
     cmd += [BRAVE, f"--user-data-dir={PROFILE}", f"--remote-debugging-port={PORT}",
