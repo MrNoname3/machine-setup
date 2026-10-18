@@ -1,0 +1,6 @@
+<!doctype html><meta charset="utf-8"><title>video+anim</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}video{width:100vw;height:100vh;object-fit:fill;display:block}
+#a{position:fixed;left:0;top:0;width:2px;height:2px;background:#010101;animation:s 1s linear infinite}
+@keyframes s{from{transform:translateX(0)}to{transform:translateX(1px)}}</style>
+<video id="v" muted autoplay loop playsinline></video><div id="a"></div>
+<script>document.getElementById('v').src = new URLSearchParams(location.search).get('src');</script>
