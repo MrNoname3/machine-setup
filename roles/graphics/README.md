@@ -46,7 +46,8 @@ and a host gets all of it by joining the `nouveau_tesla` group in
   that finds the GPU under a compositor without wl_drm), and Xwayland rebuilt
   to find the GPU as well; the Mesa build keeps the archive's version, so
   Steam's i386 Mesa stays installable;
-- Brave's flags for VA-API on nouveau, and Celluloid's mpv options;
+- Brave's flags for VA-API on nouveau and the enhanced-h264ify extension, as the
+  cards decode H.264 but not VP9 or AV1, and Celluloid's mpv options;
 - the proprietary NVIDIA driver removed, as its packages blacklist nouveau.
 
 A card on the proprietary driver has its group as well,

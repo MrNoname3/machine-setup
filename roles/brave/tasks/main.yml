@@ -95,6 +95,8 @@
     - level: managed
       policies: >-
         {{ brave_policies | combine(brave_policies_extra)
+           | combine({'ExtensionInstallForcelist': (brave_policies_extra.ExtensionInstallForcelist | default([]))
+                       | union(brave_extensions_extra)} if brave_extensions_extra else {})
            | combine({'WebAppInstallForceList': brave_web_apps
                        | map('community.general.dict_kv', 'url')
                        | map('combine', {'default_launch_container': 'window', 'create_desktop_shortcut': false})

@@ -41,6 +41,11 @@ brave_flags_extra:
   - --enable-features=AcceleratedVideoDecodeLinuxGL,VaapiIgnoreDriverChecks,VaapiOnNvidiaGPUs
   - --ignore-gpu-blocklist
 
+# enhanced-h264ify: YouTube sends H.264, the only one of its codecs these
+# cards decode, instead of VP9 or AV1.
+brave_extensions_extra:
+  - omkfmpieigblcllmkgbflkikinpkodlk
+
 # Celluloid: the base role's copy-back decoding, through VA-API, and mpv's
 # lighter scaling, which these GPUs can keep up with.
 celluloid_mpv_options: "--gpu-hwdec-interop=no --hwdec=vaapi-copy --profile=fast"

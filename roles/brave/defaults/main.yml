@@ -23,6 +23,10 @@ brave_policies:
 # Further MANDATORY policies for one host, merged over brave_policies.
 brave_policies_extra: {}
 
+# Extension IDs a group the host is in (group_vars) force-installs, added to
+# the host's ExtensionInstallForcelist.
+brave_extensions_extra: []
+
 # Sites installed as web apps in windows of their own (WebAppInstallForceList).
 # An app's ID comes from the site's manifest, so one installed by hand earlier
 # is taken over rather than duplicated.
