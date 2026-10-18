@@ -121,9 +121,26 @@
     for node in /sys/class/drm/renderD*; do
       [ "$(basename "$(readlink -f "$node/device/driver")")" = nvidia ] && echo "/dev/dri/${node##*/}" && break
     done
+    true
   register: nvidia_vaapi_node
   changed_when: false
   check_mode: false
+
+# A driver installed by this run, as before or after a card swap, takes the
+# card at the next boot.
+- name: Look for a GPU the NVIDIA driver has taken
+  ansible.builtin.find:
+    paths: /sys/bus/pci/drivers/nvidia
+    patterns: "0000:*"
+    file_type: link
+  register: nvidia_vaapi_bound
+
+- name: Note that VA-API is checked after a reboot
+  ansible.builtin.debug:
+    msg: >-
+      No GPU runs on the NVIDIA driver yet, so VA-API was not checked.
+      Reboot and run the role again.
+  when: nvidia_vaapi_bound.matched == 0
 
 - name: Query VA-API on the NVIDIA GPU
   ansible.builtin.command:
@@ -146,4 +163,6 @@
           | default('no NVIDIA render node', true) }}). After an NVIDIA driver
       update this usually means a newer nvidia-vaapi-driver is needed.
     quiet: true
-  when: not ansible_check_mode
+  when:
+    - not ansible_check_mode
+    - nvidia_vaapi_bound.matched > 0
