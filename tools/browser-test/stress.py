@@ -40,12 +40,20 @@ def x_windows():
     return res
 
 
+def colour():
+    """bt.colour(), or the reason there is no picture to read."""
+    try:
+        return bt.colour()
+    except RuntimeError as e:  # a stalled compositor counts as a picture that does not follow
+        return str(e)
+
+
 def wait_for(expect, seconds=3.0):
     end = time.time() + seconds
     seen = None
     while time.time() < end:
         time.sleep(0.25)
-        seen = bt.colour()
+        seen = colour()
         if seen == expect:
             return True, seen
     return False, seen
@@ -155,9 +163,9 @@ def run(name, minutes, env, flags, wayland):
                 bt.keys("Escape")
         if cur is None:  # after a tab change only the screen knows the colour; read it twice
             time.sleep(1.0)
-            a = bt.colour()
+            a = colour()
             time.sleep(1.0)
-            cur = bt.colour()
+            cur = colour()
             ok = a == cur and cur in ("red", "blue")
             seen = cur
             if not ok:  # a click must still turn a red or blue page to the other colour
