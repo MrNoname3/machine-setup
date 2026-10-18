@@ -19,9 +19,21 @@
       ./scripts/apply.sh {{ inventory_hostname }} --tags patched-debs -K
   when: patched_debs_uid.stdout != "0"
 
+- name: Ensure the directory for the patched-build markers exists
+  ansible.builtin.file:
+    path: /var/lib/patched-debs
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - patched_debs_uid.stdout == "0"
+    - ansible_facts['os_family'] == "Debian"
+    - (patched_debs + patched_debs_extra) | length > 0
+
 - name: Keep each patched package built from the archive's newest version
   ansible.builtin.include_tasks: package.yml
-  loop: "{{ patched_debs }}"
+  loop: "{{ patched_debs + patched_debs_extra }}"
   loop_control:
     loop_var: patched_deb
     label: "{{ patched_deb.binary }}"
