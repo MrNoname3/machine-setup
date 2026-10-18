@@ -34,10 +34,12 @@ until systemd-inhibit --what=shutdown --mode=block --who="Update Manager" \
 done
 
 # Timeshift never deletes an on-demand snapshot itself. Snapshot names are
-# their timestamps, so the glob lists them oldest first.
+# their timestamps, so the glob lists them oldest first. The new snapshot is
+# taken, so a failed deletion does not hold the upgrade back.
 grep -l "\"comments\" : \"$comment\"" /timeshift/snapshots/*/info.json 2>/dev/null \
   | sed 's|^/timeshift/snapshots/||; s|/info.json$||' \
   | head -n "-$keep" \
   | while read -r name; do
-      timeshift --delete --scripted --snapshot "$name"
+      timeshift --delete --scripted --snapshot "$name" ||
+        echo "deleting snapshot $name failed (exit $?)" >&2
     done
