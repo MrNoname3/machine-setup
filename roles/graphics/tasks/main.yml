@@ -383,6 +383,48 @@
       when: nouveau_config | length == 0
       notify: Update initramfs
 
+# A host whose card no longer needs the patches goes back to the kernel's nouveau.
+- name: Remove nouveau's local patches
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - not (nouveau_patched | bool)
+  block:
+    - name: Check whether the patched nouveau is installed
+      ansible.builtin.stat:
+        path: /usr/local/share/nouveau-patched
+      register: nouveau_patched_share
+
+    - name: List the builds of the patched nouveau
+      ansible.builtin.command: dkms status nouveau-patched
+      register: nouveau_patched_left
+      changed_when: false
+      check_mode: false
+      when: nouveau_patched_share.stat.exists
+
+    - name: Remove the builds of the patched nouveau
+      ansible.builtin.command: dkms remove {{ item }} --all
+      loop: >-
+        {{ nouveau_patched_left.stdout_lines | default([])
+           | map('regex_replace', '[,:].*$', '') | unique | list }}
+      changed_when: true
+      notify: Update initramfs
+
+    - name: Find the source trees of the patched nouveau
+      ansible.builtin.find:
+        paths: /usr/src
+        patterns: "nouveau-patched-*"
+        file_type: directory
+      register: nouveau_patched_trees
+
+    - name: Remove the files of the patched nouveau
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: >-
+        {{ nouveau_patched_trees.files | map(attribute='path') | list
+           + ['/usr/local/share/nouveau-patched', '/etc/modprobe.d/nouveau-patched.conf'] }}
+      notify: Update initramfs
+
 # --- Mint: nouveau video firmware -------------------------------------------
 # The video engines run firmware that only NVIDIA's driver carries and that may
 # not be redistributed, so it is taken out of the driver on the host itself,
