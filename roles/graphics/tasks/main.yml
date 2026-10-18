@@ -129,8 +129,15 @@
         name: "{{ graphics_nvidia_installed.stdout_lines }}"
         state: absent
         purge: true
+      register: graphics_nvidia_purged
       when: graphics_nvidia_installed.stdout_lines | length > 0
-      notify: Update initramfs # it carries the blacklist too
+
+    # Every kernel's initramfs carries the blacklist; dpkg rebuilds only the
+    # newest, and a handler would be lost to a later failure in the run.
+    - name: Rebuild every initramfs without the blacklist # noqa: no-handler
+      ansible.builtin.command: update-initramfs -u -k all
+      changed_when: true
+      when: graphics_nvidia_purged is changed
 
     # The wants link is what the timer's global enable made.
     - name: Remove the open-file limit, its check and the nvidia-vaapi PPA
