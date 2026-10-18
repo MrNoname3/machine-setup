@@ -149,16 +149,21 @@
 
     - name: List the installed Mesa packages
       ansible.builtin.command:
-        argv: [dpkg-query, -W, '-f=${binary:Package} ${source:Package}\n']
+        argv: [dpkg-query, -W, '-f=${binary:Package} ${source:Package} ${db:Status-Want}\n']
       register: graphics_dpkg_sources
       changed_when: false
+      check_mode: false
 
+    # A held Mesa is patched-debs' rebuild, which follows the PPA itself.
     - name: Upgrade Mesa from the PPA
       ansible.builtin.apt:
-        name: "{{ graphics_dpkg_sources.stdout_lines | select('search', ' mesa$') | map('split', ' ') | map('first') | list }}"
+        name: "{{ graphics_mesa_lines | map('split', ' ') | map('first') | list }}"
         state: latest
         only_upgrade: true
         update_cache: true
+      when: graphics_mesa_lines | select('search', ' hold$') | length == 0
+      vars:
+        graphics_mesa_lines: "{{ graphics_dpkg_sources.stdout_lines | select('search', ' mesa ') | list }}"
 
 - name: Remove the kisak-mesa apt repository
   ansible.builtin.file:
