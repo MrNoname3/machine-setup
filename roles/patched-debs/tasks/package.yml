@@ -208,15 +208,16 @@
 
     # The apt module installs one local .deb at a time, and these need each
     # other's version. A kept version is the installed one already, so apt
-    # needs --reinstall to take the patched build, and counts a local package
-    # of the same version as a downgrade. The other architectures' packages
-    # follow to the archive's version in the same transaction: a second one
-    # may resolve the native packages to the archive's build again.
+    # needs --reinstall to take the patched build. apt may count the build as
+    # a downgrade: a local package of the installed version, or a patch hash
+    # that compares lower than the installed one's. The other architectures'
+    # packages follow to the archive's version in the same transaction: a
+    # second one may resolve the native packages to the archive's build again.
     - name: Install the patched packages of {{ patched_deb.source }}  # noqa: command-instead-of-module
       ansible.builtin.command:
         argv: >-
-          {{ ['apt-get', 'install', '-y', '-q']
-             + (['--reinstall', '--allow-downgrades'] if patched_debs_keep | bool else [])
+          {{ ['apt-get', 'install', '-y', '-q', '--allow-downgrades']
+             + (['--reinstall'] if patched_debs_keep | bool else [])
              + patched_debs_debs
              + (patched_debs_others.stdout_lines | default([])
                 | map('regex_replace', '$', '=' ~ patched_debs_want) | list) }}
