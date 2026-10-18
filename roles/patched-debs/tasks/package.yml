@@ -14,8 +14,15 @@
   changed_when: false
   check_mode: false
 
+# The native architecture's: with another one installed too, dpkg-query
+# prints each version.
 - name: Read the installed version of {{ patched_deb.binary }}
-  ansible.builtin.command: dpkg-query -W -f=${Version} {{ patched_deb.binary }}
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    dpkg-query -W -f='${db:Status-Abbrev}|${Architecture}|${Version}\n' {{ patched_deb.binary | quote }} 2>/dev/null
+    | awk -F'|' -v arch="$(dpkg --print-architecture)" '$1 ~ /^.i/ && ($2 == arch || $2 == "all") {print $3}'
+  args:
+    executable: /bin/bash
   register: patched_debs_installed
   changed_when: false
   failed_when: false
