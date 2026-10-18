@@ -137,12 +137,12 @@
 - name: Add the flags to the Brave launcher
   when:
     - ansible_facts['os_family'] == "Debian"
-    - (brave_flags | length > 0) or (brave_env | length > 0)
+    - (brave_flags_all | length > 0) or (brave_env | length > 0)
   vars:
     brave_launcher_exec: '"$HERE/brave" "$@"'
     brave_launcher_exec_new: >-
       {{ ((brave_env.keys() | zip(brave_env.values() | map('quote')) | map('join', '=') | list)
-          + ['"$HERE/brave"'] + (brave_flags | map('quote') | list) + ['"$@"']) | join(' ') }}
+          + ['"$HERE/brave"'] + (brave_flags_all | map('quote') | list) + ['"$@"']) | join(' ') }}
   block:
     - name: Divert the package's Brave launcher
       ansible.builtin.command: >-
@@ -182,7 +182,7 @@
     dpkg-divert --local --rename --remove {{ brave_launcher | quote }}
   when:
     - ansible_facts['os_family'] == "Debian"
-    - brave_flags | length == 0
+    - brave_flags_all | length == 0
     - brave_env | length == 0
     - brave_launcher_divert.stdout == 'LOCAL'
   changed_when: true
