@@ -54,7 +54,7 @@ if [ -f "$DEST/dkms.conf" ]; then
 fi
 
 WORK=$(mktemp -d)
-trap 'rm -rf "$WORK"' EXIT
+trap 'rm -rf "$WORK" "$DEST.part"' EXIT
 cd "$WORK"
 
 check() { # check <sha256> <file>

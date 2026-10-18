@@ -14,7 +14,11 @@ KREL=${1:?usage: kernel-postinst <kernel-release>}
 HERE=$(dirname "$(readlink -f "$0")")
 DIGEST=$(cat "$HERE"/0*.patch | sha256sum | cut -c1-8)
 
-warn() { printf 'nouveau-patched: %s\n' "$*" >&2; }
+# Also to the journal: an unattended upgrade's output goes unread.
+warn() {
+  printf 'nouveau-patched: %s\n' "$*" >&2
+  logger -p user.warning -t nouveau-patched -- "$*" 2>/dev/null
+}
 
 # A tree covers the series of the source version it was named after.
 series() { echo "$1" | cut -d. -f1-2; }
@@ -36,7 +40,7 @@ if [ -z "$covered" ]; then
     dkms add "nouveau-patched/${tree#/usr/src/nouveau-patched-}" >/dev/null ||
       warn "dkms add failed for $tree"
   else
-    warn "no source for $KREL; it boots the stock nouveau until the graphics role runs"
+    warn "no patched tree for $KREL, which boots the stock nouveau"
   fi
 fi
 
