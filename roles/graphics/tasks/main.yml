@@ -53,6 +53,33 @@
     - ansible_facts['os_family'] == "Debian"
     - graphics_nvidia_branch | length > 0
 
+# The driver's packages blacklist nouveau, so a host whose card moved to nouveau
+# loses them; graphics_nvidia_branch installs them again.
+- name: Remove the proprietary NVIDIA driver from a nouveau host
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - graphics_nvidia_branch | length == 0
+    - nouveau_patched | bool
+  block:
+    - name: List the proprietary NVIDIA driver's packages
+      ansible.builtin.shell: >-
+        set -o pipefail;
+        dpkg-query -W -f='${db:Status-Abbrev}|${binary:Package}|${source:Package}\n'
+        | awk -F'|' '$1 ~ /^.i/ && $3 ~ /^nvidia-graphics-drivers-/ {print $2}'
+      args:
+        executable: /bin/bash
+      register: graphics_nvidia_installed
+      changed_when: false
+      check_mode: false
+
+    - name: Purge the proprietary NVIDIA driver's packages
+      ansible.builtin.apt:
+        name: "{{ graphics_nvidia_installed.stdout_lines }}"
+        state: absent
+        purge: true
+      when: graphics_nvidia_installed.stdout_lines | length > 0
+      notify: Update initramfs # it carries the blacklist too
+
 # The driver's EGL leaks a sync_file descriptor in the compositor for every
 # frame; under the default limit Cinnamon on Wayland crashes within minutes.
 # An hourly check warns before the raised limit runs out; logging out frees them.

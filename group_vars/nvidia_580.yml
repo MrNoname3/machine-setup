@@ -1,0 +1,13 @@
+# A card on NVIDIA's proprietary 580 branch (Maxwell to Blackwell; Pascal's
+# GT 1030 is not supported by the open kernel modules), with video decoding in
+# Brave through nvidia-vaapi-driver. A host gets it by joining the nvidia_580
+# group in inventory.ini; a card that moves to nouveau takes the host to
+# nouveau_tesla instead, and the graphics role removes the driver there.
+
+graphics_nvidia_branch: "580"
+graphics_nvidia_vaapi: true
+
+# In the Wayland session Brave runs as a Wayland client by itself; in an X11
+# session the same switch leaves the video white.
+brave_flags_extra:
+  - "--enable-features=VaapiOnNvidiaGPUs"

@@ -70,11 +70,6 @@ user_config_mode: "0664"
 # The key the ssh-access and luks-unlock roles authorize for primary_user.
 ssh_authorized_key_file: phenom.pub
 
-# The GT 1030 (Pascal) is supported by the 580 branch, not by the open kernel
-# modules.
-graphics_nvidia_branch: "580"
-graphics_nvidia_vaapi: true
-
 # Dates and the calendar in Hungarian format, with weeks starting on Monday;
 # LC_TIME otherwise follows LANG, English (US).
 base_locale:
@@ -98,14 +93,10 @@ base_units_disabled:
 # starts ibus whenever it is installed.
 base_input_method: none
 
-# Brave decodes video on the GT 1030 through VA-API (graphics_nvidia_vaapi);
-# in the Wayland session it runs as a Wayland client by itself. In an X11
-# session the same switch leaves the video white.
-brave_flags:
-  - "--enable-features=VaapiOnNvidiaGPUs"
+# The card's flags for VA-API come from its group in inventory.ini.
 brave_policies_extra:
-  # enhanced-h264ify: YouTube sends H.264, which the GT 1030 decodes, instead
-  # of AV1, which neither the card nor this CPU can decode in time.
+  # enhanced-h264ify: YouTube sends H.264, which the card decodes, instead of
+  # AV1 or VP9, which this CPU cannot decode in time.
   ExtensionInstallForcelist:
     - omkfmpieigblcllmkgbflkikinpkodlk
 

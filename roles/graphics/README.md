@@ -46,7 +46,12 @@ and a host gets all of it by joining the `nouveau_tesla` group in
   that finds the GPU under a compositor without wl_drm), and Xwayland rebuilt
   to find the GPU as well; the Mesa build keeps the archive's version, so
   Steam's i386 Mesa stays installable;
-- Brave's flags for VA-API on nouveau, and Celluloid's mpv options.
+- Brave's flags for VA-API on nouveau, and Celluloid's mpv options;
+- the proprietary NVIDIA driver removed, as its packages blacklist nouveau.
+
+A card on the proprietary driver has its group as well,
+[group_vars/nvidia_580.yml](../../group_vars/nvidia_580.yml), so a card that
+moves between hosts takes the host from one group to the other.
 
 Brave then decodes H.264 in hardware, and Celluloid does through VA-API with
 copy-back. VP9 and AV1 stay in software, as the engines cannot decode them.
@@ -68,7 +73,7 @@ whose later releases arrive with the system's regular updates.
   module's internal interface. The role checks with `vainfo` on every run and
   fails when VA-API no longer goes through `nvidia-vaapi-driver`.
 
-The browser needs flags as well (`brave_flags` in the host's vars), and ANGLE
+The browser needs flags as well (`brave_flags_extra` in the card's group), and ANGLE
 has to run on EGL (`--use-angle=gl-egl`): on GLX the decoded frames never reach
 the page. The card cannot decode AV1, so YouTube is steered to H.264 with the
 enhanced-h264ify extension.

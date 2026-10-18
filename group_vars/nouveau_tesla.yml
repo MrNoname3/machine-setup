@@ -2,8 +2,9 @@
 # decoding in hardware for Brave and Celluloid, and Wayland and X11 clients on
 # the GPU under Mint 22's Muffin. A host gets it by joining the nouveau_tesla
 # group in inventory.ini; it also needs the base, brave, graphics and
-# patched-debs roles enabled, and no graphics_nvidia_branch. The cards, and
-# what each fix is for: roles/graphics/README.md, "nouveau cards".
+# patched-debs roles enabled; the graphics role removes the proprietary driver,
+# which blacklists nouveau. The cards, and what each fix is for:
+# roles/graphics/README.md, "nouveau cards".
 
 # nouveau with the local patches, at the card's top pstate.
 nouveau_patched: true
