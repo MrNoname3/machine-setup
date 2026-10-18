@@ -56,15 +56,16 @@ def area(x, y, w, h):
     fn = tempfile.mktemp(suffix=".png", dir="/var/tmp")
     subprocess.run(["busctl", "--user", "call", "org.Cinnamon", "/org/Cinnamon", "org.Cinnamon", "ScreenshotArea",
                     "biiiibs", "false", str(x), str(y), str(w), str(h), "false", fn], check=True, capture_output=True)
+    data = b""
     for _ in range(250):  # Cinnamon writes the file after the call returns
-        if os.path.exists(fn) and os.path.getsize(fn) > 0:
-            break
+        if os.path.exists(fn):
+            with open(fn, "rb") as f:
+                data = f.read()
+            if data.endswith(b"IEND\xaeB`\x82"):
+                break
         time.sleep(0.02)
     else:
         raise RuntimeError("no screenshot from Cinnamon")
-    time.sleep(0.05)
-    with open(fn, "rb") as f:
-        data = f.read()
     os.unlink(fn)
     return _png_rgb(data)
 
