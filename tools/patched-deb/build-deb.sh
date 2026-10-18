@@ -75,6 +75,20 @@ VERSION=$(dpkg-parsechangelog -S Version)
 [ -n "$KEEP_VERSION" ] || VERSION=$VERSION$SUFFIX
 UPSTREAM=$(dpkg-parsechangelog -S Version | sed -E 's/^[0-9]+://; s/-[^-]*$//')
 
+# A package an older version of the source built stays installed until
+# removed, but there is nothing to rebuild it from.
+mapfile -t BUILDS < <(sed -n 's/^Package:[[:space:]]*//p' debian/control)
+WANTED=()
+for b in "${BINARIES[@]}"; do
+  if printf '%s\n' "${BUILDS[@]}" | grep -qx -- "$b"; then
+    WANTED+=("$b")
+  else
+    printf 'build-deb.sh: %s %s no longer builds %s, skipped\n' "$SOURCE" "$UPSTREAM" "$b" >&2
+  fi
+done
+[ ${#WANTED[@]} -gt 0 ] || die "$SOURCE $UPSTREAM builds none of $2"
+BINARIES=("${WANTED[@]}")
+
 # Per <name>, the variant for the longest matching version prefix, else the plain patch.
 declare -A PICK=() PICKLEN=()
 for p in "${PATCHES[@]}"; do
