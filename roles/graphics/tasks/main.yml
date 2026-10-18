@@ -220,8 +220,8 @@
 # Each patch changes only the GPUs it names, so a card can move between hosts
 # that have this on. The patched build comes from the Ubuntu source of the
 # running kernel (prepare.sh fetches and verifies it), and DKMS rebuilds it for
-# later kernels of the same series; a new series keeps its stock nouveau until
-# the role runs again under it.
+# later kernels of the same series; a kernel hook prepares the tree of a new
+# series when its first kernel is installed.
 - name: Build nouveau with the local patches
   when:
     - ansible_facts['os_family'] == "Debian"
@@ -377,6 +377,19 @@
       changed_when: true
       notify: Update initramfs
 
+    # Named to run ahead of the dkms hook, which builds the tree it adds.
+    - name: Install the kernel hook for new kernel series
+      ansible.builtin.file:
+        src: /usr/local/share/nouveau-patched/kernel-postinst
+        dest: /etc/kernel/postinst.d/00-nouveau-patched
+        state: link
+
+    - name: Remove the trees no installed kernel needs
+      ansible.builtin.command: >-
+        /usr/local/share/nouveau-patched/kernel-postinst {{ ansible_facts['kernel'] }}
+      register: nouveau_patched_pruned
+      changed_when: nouveau_patched_pruned.stdout | length > 0
+
     # nouveau reads its config at load, and applies the pstate again whenever
     # the GPU comes back from runtime power-off.
     - name: Set the nouveau config options
@@ -435,7 +448,8 @@
         state: absent
       loop: >-
         {{ nouveau_patched_trees.files | map(attribute='path') | list
-           + ['/usr/local/share/nouveau-patched', '/etc/modprobe.d/nouveau-patched.conf'] }}
+           + ['/usr/local/share/nouveau-patched', '/etc/modprobe.d/nouveau-patched.conf',
+              '/etc/kernel/postinst.d/00-nouveau-patched'] }}
       notify: Update initramfs
 
 # --- Mint: nouveau video firmware -------------------------------------------
