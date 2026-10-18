@@ -34,8 +34,8 @@
   changed_when: false
   check_mode: false
 
-# With keep_version the packages keep the archive's version, so the marker
-# records which version was patched, and with which patches.
+# The marker records which version was patched, and with which patches: with
+# keep_version the packages carry the archive's version alone.
 - name: Read the patched-build marker of {{ patched_deb.source }}
   ansible.builtin.command: cat /var/lib/patched-debs/{{ patched_deb.source }}
   register: patched_debs_marker
@@ -171,13 +171,6 @@
         - patched_debs_keep | bool
         - patched_debs_others.stdout_lines | length > 0
 
-    - name: Record the patched-build marker of {{ patched_deb.source }}
-      ansible.builtin.copy:
-        dest: /var/lib/patched-debs/{{ patched_deb.source }}
-        content: "{{ patched_debs_mark }}"
-        mode: "0644"
-      when: patched_debs_keep | bool
-
   always:
     - name: List the packages installed after the build
       ansible.builtin.shell: >-
@@ -209,6 +202,13 @@
     - name: Read the indexes without the source entries
       ansible.builtin.apt:
         update_cache: true
+
+- name: Record the patched-build marker of {{ patched_deb.source }}
+  ansible.builtin.copy:
+    dest: /var/lib/patched-debs/{{ patched_deb.source }}
+    content: "{{ patched_debs_mark }}"
+    mode: "0644"
+  when: not ansible_check_mode
 
 # Mint's and Debian's automatic upgrades would otherwise put the archive's
 # unpatched build back.

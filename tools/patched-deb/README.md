@@ -44,4 +44,5 @@ it; the longest matching suffix wins.
   installs and holds every binary package of the source the host has, since
   they often require each other's exact version. It rebuilds once the archive
   carries a newer version, so the held packages keep getting the distribution's
-  updates.
+  updates, and puts the archive's build back once the source is no longer
+  listed for the host.

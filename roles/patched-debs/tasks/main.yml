@@ -29,7 +29,41 @@
   when:
     - patched_debs_uid.stdout == "0"
     - ansible_facts['os_family'] == "Debian"
-    - (patched_debs + patched_debs_extra) | length > 0
+
+# A source no longer listed, for example after its card moved to another
+# group, goes back to the archive's build.
+- name: Find the sources patched on this host
+  ansible.builtin.find:
+    paths: /var/lib/patched-debs
+  register: patched_debs_markers
+  when:
+    - patched_debs_uid.stdout == "0"
+    - ansible_facts['os_family'] == "Debian"
+
+- name: Put the archive's build back for the sources no longer patched
+  ansible.builtin.script:
+    cmd: release-patched {{ item | quote }}
+    executable: /usr/bin/python3
+  loop: >-
+    {{ patched_debs_markers.files | default([]) | map(attribute='path') | map('basename')
+       | reject('in', (patched_debs + patched_debs_extra) | map(attribute='source') | list) | list }}
+  changed_when: true
+  when:
+    - patched_debs_uid.stdout == "0"
+    - ansible_facts['os_family'] == "Debian"
+    - not ansible_check_mode
+
+- name: Forget the sources no longer patched
+  ansible.builtin.file:
+    path: "/var/lib/patched-debs/{{ item }}"
+    state: absent
+  loop: >-
+    {{ patched_debs_markers.files | default([]) | map(attribute='path') | map('basename')
+       | reject('in', (patched_debs + patched_debs_extra) | map(attribute='source') | list) | list }}
+  when:
+    - patched_debs_uid.stdout == "0"
+    - ansible_facts['os_family'] == "Debian"
+    - not ansible_check_mode
 
 - name: Keep each patched package built from the archive's newest version
   ansible.builtin.include_tasks: package.yml

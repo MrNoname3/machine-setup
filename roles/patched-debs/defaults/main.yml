@@ -7,8 +7,9 @@
 # entries of archives the build alone needs. keep_version: true keeps the
 # archive's version, for a source also installed for another architecture
 # (Mesa with Steam's i386 libraries): only the native packages are rebuilt,
-# and a marker under /var/lib/patched-debs tells a patched build from the
-# archive's. Set per host.
+# and the marker each source gets under /var/lib/patched-debs tells a patched
+# build from the archive's. A source dropped from these lists goes back to the
+# archive's build on the next run. Set per host.
 patched_debs: []
 
 # More packages from a group the host is in (group_vars), added to patched_debs.

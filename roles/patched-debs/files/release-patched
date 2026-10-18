@@ -1,0 +1,39 @@
+#!/usr/bin/python3
+"""release-patched SOURCE
+
+Puts the archive's build back for every installed binary package of SOURCE,
+on all architectures: releases the hold and installs each package's newest
+archive version, a downgrade where the patched build was newer."""
+import os
+import subprocess
+import sys
+
+source = sys.argv[1]
+
+
+def run(*args):
+    return subprocess.run(args, check=True, capture_output=True, text=True).stdout
+
+
+run("apt-get", "update", "-q")
+
+packages = []
+for line in run("dpkg-query", "-W", "-f=${db:Status-Abbrev}|${binary:Package}|${source:Package}\n").splitlines():
+    status, package, package_source = line.split("|")
+    if status[1] == "i" and package_source == source:
+        packages.append(package)
+
+run("apt-mark", "unhold", *packages)
+
+wanted = []
+for package in packages:
+    lines = run("apt-cache", "madison", package).splitlines()
+    if lines:
+        wanted.append(f"{package}={lines[0].split('|')[1].strip()}")
+
+subprocess.run(
+    ["apt-get", "install", "-y", "-q", "--reinstall", "--allow-downgrades", *wanted],
+    check=True,
+    env=dict(os.environ, DEBIAN_FRONTEND="noninteractive"),
+)
+print("\n".join(wanted))
