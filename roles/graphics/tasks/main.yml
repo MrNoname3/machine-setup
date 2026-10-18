@@ -6,7 +6,7 @@
 #                      phantom VGA display.
 #   Mint, nouveau   -- nouveau rebuilt with the local patches (GT 520M
 #                      reclocking, Tesla push buffer reads, pre-Kepler copy
-#                      engine channel), and its pstate.
+#                      engine channel, moving a buffer in use), and its pstate.
 #   Mint desktop    -- the proprietary NVIDIA driver, where graphics_nvidia_branch
 #                      is set, and VA-API video decoding for Chromium browsers
 #                      on top of it (nvidia-vaapi.yml).

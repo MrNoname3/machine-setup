@@ -63,11 +63,35 @@ logs `failed to create ce channel, -22` and moves buffers through its main
 channel. `0002` in [upstream/](upstream/), `0012` in the graphics role, asks
 for a privileged channel only from Kepler on.
 
+## Moving a buffer in use
+
+`nouveau_bo_move` pointed a buffer's VMAs at its new placement first, waited
+for the GPU to finish with the buffer second, and copied the contents third.
+A channel still using the buffer read the new placement before the copy had
+filled it. Since Mesa 22.3 every GL context has a channel of its own, and a
+browser's GPU process submits from several, so one context's submission can
+move a buffer another one is still reading, which gives push buffer and
+PGRAPH errors like the ones above. The stale PFIFO TLB used to hide this as
+well, by reading the old placement. `0003` in
+[upstream/](upstream/), `0013` in the graphics role, waits for the buffer
+before remapping it.
+
+## Video decoding
+
+The GT218's VP4 engine decodes H.264, MPEG-2 and VC-1 with firmware that only
+NVIDIA's driver carries: envytools' `extract_firmware.py` takes it out of the
+340.108 driver into `/lib/firmware/nouveau/`, and it may not be
+redistributed. VA-API and VDPAU players then decode in hardware, 720p H.264
+at about 110 frames a second. Browsers cannot use it: Chromium and Firefox
+take decoded frames as exported dma-bufs, and Mesa refuses to export the
+interlaced surfaces nouveau's video engines decode into, so Brave falls back
+to software decoding.
+
 ## Upstream
 
-Both patches apply to nouveau as in kernel 7.0. Together with the rest of the
-graphics role's set, on Linux 7.0 at `0f`, the GT218 runs the whole default
-`glmark2` set with Ubuntu's Mesa 25.2, and the five scenes above with
+All three patches apply to nouveau as in kernel 7.0. Together with the rest
+of the graphics role's set, on Linux 7.0 at `0f`, the GT218 runs the whole
+default `glmark2` set with Ubuntu's Mesa 25.2, and the five scenes above with
 kisak's 26.2, without a GPU error.
 `checkpatch.pl --strict` finds the sign-off missing, the one-line `case` style
 of the switch `0001` adds to and the names nouveau already uses; the author

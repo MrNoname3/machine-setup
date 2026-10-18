@@ -1,0 +1,45 @@
+From 2ddc92d18fd1d19c4f0e9e16a8d807d65d7b00a4 Mon Sep 17 00:00:00 2001
+From: Your_Name <you@example.org>
+Date: Sun, 18 Oct 2026 12:42:12 +0200
+Subject: [PATCH] drm/nouveau: wait for a moved bo to idle before remapping it
+
+nouveau_bo_move() pointed the bo's VMAs at the new placement before
+waiting for the GPU to be done with the bo, and only then copied the
+contents over. A channel still using the bo in that window read the new
+placement before the copy had filled it, which shows up as push buffer
+INVALID_CMD errors and PGRAPH traps on Tesla when another channel's
+submission moves a bo that is in use.
+
+Wait for the bo first, and remap it once nothing uses the old placement.
+
+Assisted-by: Claude:claude-opus-5-5
+---
+ nouveau_bo.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/nouveau_bo.c b/nouveau_bo.c
+index 6dcb925..5a7bdf9 100644
+--- a/nouveau_bo.c
++++ b/nouveau_bo.c
+@@ -1160,11 +1160,15 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
+ 			return ret;
+ 	}
+ 
+-	drm_gpuvm_bo_gem_evict(obj, evict);
+-	nouveau_bo_move_ntfy(bo, new_reg);
++	/* Wait for the GPU to finish with the old placement before the VMAs point
++	 * at the new one, whose contents the copy below has yet to fill.
++	 */
+ 	ret = ttm_bo_wait_ctx(bo, ctx);
+ 	if (ret)
+-		goto out_ntfy;
++		return ret;
++
++	drm_gpuvm_bo_gem_evict(obj, evict);
++	nouveau_bo_move_ntfy(bo, new_reg);
+ 
+ 	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+ 		ret = nouveau_bo_vm_bind(bo, new_reg, &new_tile);
+-- 
+2.56.0
+
