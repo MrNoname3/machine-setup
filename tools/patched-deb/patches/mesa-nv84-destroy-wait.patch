@@ -1,0 +1,24 @@
+Description: Let the VP2 engines go idle before the decoder goes away
+ nv84_decoder_destroy dropped the buffers the BSP and VP engines read,
+ then their objects and channels, while the engines could still be
+ decoding: the BSP then read a freed page and its channel never idled.
+ Wait for the buffers the engines use before tearing the decoder down.
+--- a/src/gallium/drivers/nouveau/nv50/nv84_video.c
++++ b/src/gallium/drivers/nouveau/nv50/nv84_video.c
+@@ -237,6 +237,16 @@
+ nv84_decoder_destroy(struct pipe_video_codec *decoder)
+ {
+    struct nv84_decoder *dec = (struct nv84_decoder *)decoder;
++   struct nouveau_screen *screen = nouveau_screen(decoder->context->screen);
++   struct nouveau_bo *busy[] = { dec->bsp_data, dec->vp_data, dec->mbring, dec->vpring,
++                                 dec->bitstream, dec->vp_params, dec->fence };
++   unsigned i;
++
++   /* The engines may still be decoding: freeing what they read and removing
++    * their objects from under them leaves them hung, so wait for them first. */
++   for (i = 0; i < ARRAY_SIZE(busy); ++i)
++      if (busy[i])
++         BO_WAIT(screen, busy[i], NOUVEAU_BO_RDWR, dec->client);
+ 
+    nouveau_bo_ref(NULL, &dec->bsp_fw);
+    nouveau_bo_ref(NULL, &dec->bsp_data);

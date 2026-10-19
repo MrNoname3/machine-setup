@@ -27,9 +27,9 @@
 #                       its frames off a timer the frame callbacks re-phase,
 #                       and drops frames of 30 fps video.
 #   mesa                on GeForce 8 to 300 cards: VA surfaces a browser can
-#                       import, safe decoder teardown, nv50 clears of video
-#                       surfaces, and Wayland EGL that finds the GPU without
-#                       wl_drm (built with --keep-version).
+#                       import, safe decoder setup and teardown, nv50 clears
+#                       of video surfaces, and Wayland EGL that finds the GPU
+#                       without wl_drm (built with --keep-version).
 #
 # Run as root, as in a throwaway container, it installs the build tools and
 # dependencies itself; run as a user, they must be installed already. Either
