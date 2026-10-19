@@ -1,0 +1,30 @@
+From 790f275c370a3260c19a08b458a528f60cf5ecc8 Mon Sep 17 00:00:00 2001
+From: Your_Name <you@example.org>
+Date: Mon, 19 Oct 2026 14:25:00 +0200
+Subject: [PATCH] drm/nouveau/bsp/g92: enable by default
+
+Commit 194d68dd051c ("drm/nouveau/bsp/g92: disable by default") turned
+PBSP off on G92 because its commands hung, with the clocks of the VLD
+behind it suspected. With the video clock run off XPLL at devinit, PBSP
+decodes H.264 on G92 as on the other VP2 chips.
+
+Assisted-by: Claude:claude-opus-5-5
+---
+ nvkm/engine/bsp/g84.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/nvkm/engine/bsp/g84.c b/nvkm/engine/bsp/g84.c
+index 39f6db2..446f9eb 100644
+--- a/nvkm/engine/bsp/g84.c
++++ b/nvkm/engine/bsp/g84.c
+@@ -39,6 +39,5 @@ int
+ g84_bsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+ 	    struct nvkm_engine **pengine)
+ {
+-	return nvkm_xtensa_new_(&g84_bsp, device, type, inst,
+-				device->chipset != 0x92, 0x103000, pengine);
++	return nvkm_xtensa_new_(&g84_bsp, device, type, inst, true, 0x103000, pengine);
+ }
+-- 
+2.56.0
+

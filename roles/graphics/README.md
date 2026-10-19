@@ -32,6 +32,7 @@ the graphics engine's M2MF.
 |---|---|---|---|---|
 | GeForce GT 520M | GF108 (`10de:0df7`) | 0001–0010: reclocking from the VBIOS | `03` 50/135, `07` 202/324, `0f` 672/800 | [tools/mmiotrace-live/gf108](../../tools/mmiotrace-live/gf108) |
 | GeForce GT 210 | GT218 (`10de:0a65`) | 0011: push buffer reads, without which Mesa 22.3+ hangs the GPU; 0012: the copy engine's channel; 0013: moving a buffer in use | `03` 135/135, `07` 405/324, `0f` 589/500 | [tools/mmiotrace-live/tesla](../../tools/mmiotrace-live/tesla) |
+| GeForce 9800 GT | G92 (`10de:0614`) | 0011–0013 as above; 0014: the video clock, without which H.264 decoding hangs; 0015: the H.264 engine enabled | `0f` 600/900, which nouveau does not set on G92: it stays at the boot clocks, 400/400 | [tools/mmiotrace-live/tesla](../../tools/mmiotrace-live/tesla#geforce-9800-gt) |
 
 A Tesla card (GeForce 8 to 300) needs more than the kernel module on Mint 22,
 and a host gets all of it by joining the `nouveau_tesla` group in
@@ -42,10 +43,10 @@ and a host gets all of it by joining the `nouveau_tesla` group in
   from NVIDIA's 340.108 driver, which may not be redistributed;
 - kisak's Mesa rebuilt with the `mesa-*` patches of
   [tools/patched-deb](../../tools/patched-deb/) (VA-API surfaces a browser can
-  take, decoders torn down safely, nv50 clears of video surfaces, Wayland EGL
-  that finds the GPU under a compositor without wl_drm), and Xwayland rebuilt
-  to find the GPU as well; the Mesa build keeps the archive's version, so
-  Steam's i386 Mesa stays installable;
+  take, decoders set up and torn down safely, nv50 clears of video surfaces,
+  Wayland EGL that finds the GPU under a compositor without wl_drm), and
+  Xwayland rebuilt to find the GPU as well; the Mesa build keeps the archive's
+  version, so Steam's i386 Mesa stays installable;
 - Brave's flags for VA-API on nouveau and the enhanced-h264ify extension, as the
   cards decode H.264 but not VP9 or AV1, and Celluloid's mpv options;
 - the proprietary NVIDIA driver removed, as its packages blacklist nouveau.

@@ -23,6 +23,41 @@ With five `glmark2-drm` scenes off-screen at 800×600, the score goes from 332
 at the boot clocks to 453 at `0f`; a [VRAM test](../vramtest.c) across nine
 level changes finds no flipped bit.
 
+## GeForce 9800 GT
+
+G92 (`10de:0614`, subsystem `1043:8314`), 512 MiB GDDR3. The VBIOS has one
+level, `0f` at 600 / 1500 / 900 MHz core/shader/memory, and the card boots at
+400 / 810 / 400. nouveau does not reclock G92 (`g84_clk_new` allows it from
+G94 on), so the card stays at its boot clocks; `nouveau_pstate` changes
+nothing there.
+
+### The video clock
+
+G92's PVP2 and PBSP engines run on the video clock, which the VBIOS leaves on
+nvclk divided by two (`0xc040` bits 10-11 = 3, divider `0x4800` bits 8-10 =
+1). At the boot clocks PVP2 decodes 720p MPEG-2 at about 10 frames a second,
+and PBSP hangs on its first H.264 command, its engine registers faulting
+from then on; nouveau has kept PBSP off on G92 since commit 194d68dd051c for
+that reason. NVIDIA's 340 driver, traced with mmiotrace while it loads,
+moves the video clock to XPLL before using the engines:
+
+| Step | Write |
+|---|---|
+| video clock to the crystal, bit 9 set | `0xc040` bits 8-11 = `0x2` |
+| XPLL post divider and video divider to 0 | `0x4030` bits 16-21 = 0, `0x4800` bits 8-10 = 0 |
+| XPLL coefficients | `0x4034` = N `0x12`, M `0x02` |
+| XPLL fed from the PCIE reference | `0xc040` bit 25 |
+| XPLL P = 1, video divider 1 | `0x4030` bits 16-21 = `0x09`, `0x4800` bits 8-10 = 1 |
+| video clock to XPLL, bit 8 set | `0xc040` bits 8-11 = `0xb` |
+
+The same writes with nouveau and the NVIDIA driver never loaded bring MPEG-2
+to about 60 frames a second and H.264 decoding through PBSP without a hang.
+Only the PLL and video-clock writes matter: moving the video clock to XPLL
+without bit 25 and the coefficients stops PVP2 as well. `0014` in the
+graphics role (`0004` in [upstream/](upstream/)) makes these writes at
+devinit on G92, with N and M from the VBIOS's XPLL limits for 450 MHz, which
+gives the driver's values; `0015` (`0005`) turns PBSP back on.
+
 ## Push buffer reads
 
 With Linux 6.2 or later and Mesa 22.3 or later, a GT218 soon fails under
@@ -91,12 +126,28 @@ maps decoded surfaces with vaDeriveImage, which needs both planes in one
 buffer, and nouveau keeps them apart, so VLC stays in software; Celluloid
 (mpv) decodes in hardware with copy-back.
 
+The 9800 GT's VP2 engines (PBSP for H.264, PVP2) use the `nv84_*` files the
+same extraction gives. Mesa's VP2 decoder zeroed its rings with a clear of a
+render target it made up around each ring, which the template surfaces of
+Mesa 25.2 broke, and it tore itself down while the engines could still be
+running; the `mesa-nv84-*` patches fix both. A browser's GPU process also
+needs `mesa-winsys-object-del.patch`: Mesa deleted its nouveau objects
+through the wrong file descriptor, the kernel kept them, and the VP2
+decoder's probe for PBSP failed when it reused a freed object's address.
+
+With all of these, Brave decodes H.264 on the 9800 GT with about a fifth of
+a core, 720p30 without a dropped frame; at 1080p it keeps up with about 23
+frames a second of a 6 Mbit/s stream, as does Celluloid. The card runs at its
+boot clocks, below its stock ones, while it decodes.
+
 ## Upstream
 
-All three patches apply to nouveau as in kernel 7.0. Together with the rest
-of the graphics role's set, on Linux 7.0 at `0f`, the GT218 runs the whole
-default `glmark2` set with Ubuntu's Mesa 25.2, and the five scenes above with
-kisak's 26.2, without a GPU error.
+All five patches apply to nouveau as in kernel 7.0, `0004` and `0005` to
+mainline as well. Together with the rest of the graphics role's set, on Linux
+7.0 at `0f`, the GT218 runs the whole default `glmark2` set with Ubuntu's Mesa
+25.2, and the five scenes above with kisak's 26.2, without a GPU error; the
+9800 GT decodes H.264 and MPEG-2 through VA-API, and survives decodes cut
+short, without one.
 `checkpatch.pl --strict` finds the sign-off missing, the one-line `case` style
 of the switch `0001` adds to and the names nouveau already uses; the author
 line is a placeholder, as in the

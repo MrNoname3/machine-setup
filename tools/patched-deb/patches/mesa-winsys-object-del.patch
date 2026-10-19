@@ -1,0 +1,27 @@
+Description: Delete winsys objects through the DRM fd
+ nouveau_object_subchan_del sent its NVIF delete to obj->parent->handle,
+ which is the channel's id, not the DRM fd, so the kernel never deleted
+ the object and still had its key, the address of the freed object, on
+ the fd's list. A later object that calloc placed at the same address
+ then failed with EEXIST, as the VP2 decoder's probe for its BSP engine
+ does in a browser's GPU process, which leaves the GPU without H.264
+ decoding. Use the DRM fd, as nouveau_object_subchan_new does.
+--- a/src/gallium/winsys/nouveau/drm/nouveau.c
++++ b/src/gallium/winsys/nouveau/drm/nouveau.c
+@@ -229,6 +229,7 @@
+ static void
+ nouveau_object_subchan_del(struct nouveau_object *obj)
+ {
++   struct nouveau_drm *drm = nouveau_drm(obj->parent);
+    struct {
+       struct nvif_ioctl_v0 ioctl;
+       struct nvif_ioctl_del del;
+@@ -242,7 +243,7 @@
+       },
+    };
+ 
+-   drmCommandWrite(obj->parent->handle, DRM_NOUVEAU_NVIF, &args, sizeof(args));
++   drmCommandWrite(drm->fd, DRM_NOUVEAU_NVIF, &args, sizeof(args));
+ }
+ 
+ static void

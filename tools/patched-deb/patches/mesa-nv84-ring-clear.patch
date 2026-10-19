@@ -1,0 +1,142 @@
+Description: Clear the VP2 decoder's rings through a surface of their own
+ nv84_create_decoder zeroes parts of its H.264 macroblock and VP rings
+ with clear_render_target, on an nv50_surface it fills in over a miptree
+ made up around each ring's bo. Since pipe_surface became a plain
+ template the nv50 clear builds its own surface from the template, which
+ drops the ring's offset and size and divides by the made-up miptree's
+ unset fields. Split the clear into a function that takes an nv50_surface
+ as it is, call that from the decoder, and zero the made-up miptree and
+ surface before filling them in.
+--- a/src/gallium/drivers/nouveau/nv50/nv50_resource.h
++++ b/src/gallium/drivers/nouveau/nv50/nv50_resource.h
+@@ -156,6 +156,14 @@
+ void
+ nv50_surface_destroy(struct pipe_context *, struct pipe_surface *);
+ 
++/* Clears sf through the 3D engine, with its offset and size as they are. */
++void
++nv50_clear_render_target_sf(struct pipe_context *, struct nv50_surface *sf,
++                            const union pipe_color_union *color,
++                            unsigned dstx, unsigned dsty,
++                            unsigned width, unsigned height,
++                            bool render_condition_enabled);
++
+ void
+ nv50_framebuffer_init(struct pipe_context *pctx,
+                       const struct pipe_framebuffer_state *fb,
+--- a/src/gallium/drivers/nouveau/nv50/nv50_surface.c
++++ b/src/gallium/drivers/nouveau/nv50/nv50_surface.c
+@@ -276,28 +276,20 @@
+    nouveau_bufctx_reset(nv50->bufctx, NV50_BIND_2D);
+ }
+ 
+-static void
+-nv50_clear_render_target(struct pipe_context *pipe,
+-                         struct pipe_surface *dst,
+-                         const union pipe_color_union *color,
+-                         unsigned dstx, unsigned dsty,
+-                         unsigned width, unsigned height,
+-                         bool render_condition_enabled)
++void
++nv50_clear_render_target_sf(struct pipe_context *pipe,
++                            struct nv50_surface *sf,
++                            const union pipe_color_union *color,
++                            unsigned dstx, unsigned dsty,
++                            unsigned width, unsigned height,
++                            bool render_condition_enabled)
+ {
+    struct nv50_context *nv50 = nv50_context(pipe);
+    struct nouveau_pushbuf *push = nv50->base.pushbuf;
+-   struct nv50_miptree *mt = nv50_miptree(dst->texture);
+-   /* dst may be a plain template, without nv50_surface's fields. */
+-   struct pipe_surface *ps = nv50_miptree_surface_new(pipe, dst->texture, dst);
+-   struct nv50_surface *sf = nv50_surface(ps);
++   struct nv50_miptree *mt = nv50_miptree(sf->base.texture);
+    struct nouveau_bo *bo = mt->base.bo;
+    unsigned z;
+ 
+-   if (!ps)
+-      return;
+-
+-   assert(dst->texture->target != PIPE_BUFFER);
+-
+    BEGIN_NV04(push, NV50_3D(CLEAR_COLOR(0)), 4);
+    PUSH_DATAf(push, color->f[0]);
+    PUSH_DATAf(push, color->f[1]);
+@@ -305,7 +297,7 @@
+    PUSH_DATAf(push, color->f[3]);
+ 
+    if (!PUSH_SPACE_EX(push, 64 + sf->depth, 1, 0))
+-      goto out;
++      return;
+ 
+    PUSH_REF1(push, bo, mt->base.domain | NOUVEAU_BO_WR);
+ 
+@@ -322,7 +314,7 @@
+    BEGIN_NV04(push, NV50_3D(RT_ADDRESS_HIGH(0)), 5);
+    PUSH_DATAh(push, mt->base.address + sf->offset);
+    PUSH_DATA (push, mt->base.address + sf->offset);
+-   PUSH_DATA (push, nv50_format_table[dst->format].rt);
++   PUSH_DATA (push, nv50_format_table[sf->base.format].rt);
+    PUSH_DATA (push, mt->level[sf->base.level].tile_mode);
+    PUSH_DATA (push, mt->layer_stride >> 2);
+    BEGIN_NV04(push, NV50_3D(RT_HORIZ(0)), 2);
+@@ -368,7 +360,26 @@
+    }
+ 
+    nv50->dirty_3d |= NV50_NEW_3D_FRAMEBUFFER | NV50_NEW_3D_SCISSOR;
+-out:
++}
++
++static void
++nv50_clear_render_target(struct pipe_context *pipe,
++                         struct pipe_surface *dst,
++                         const union pipe_color_union *color,
++                         unsigned dstx, unsigned dsty,
++                         unsigned width, unsigned height,
++                         bool render_condition_enabled)
++{
++   /* dst may be a plain template, without nv50_surface's fields. */
++   struct pipe_surface *ps;
++
++   assert(dst->texture->target != PIPE_BUFFER);
++
++   ps = nv50_miptree_surface_new(pipe, dst->texture, dst);
++   if (!ps)
++      return;
++   nv50_clear_render_target_sf(pipe, nv50_surface(ps), color, dstx, dsty,
++                               width, height, render_condition_enabled);
+    nv50_surface_destroy(pipe, ps);
+ }
+ 
+--- a/src/gallium/drivers/nouveau/nv50/nv84_video.c
++++ b/src/gallium/drivers/nouveau/nv50/nv84_video.c
+@@ -472,6 +472,8 @@
+        * of doing this... perhaps makes sense to just copy the relevant logic
+        * here. */
+       color.f[0] = color.f[1] = color.f[2] = color.f[3] = 0;
++      memset(&surf, 0, sizeof(surf));
++      memset(&mip, 0, sizeof(mip));
+       surf.offset = dec->frame_size;
+       surf.width = 64;
+       surf.height = (templ->max_references + 1) * dec->frame_mbs / 4;
+@@ -484,16 +486,16 @@
+       mip.base.domain = NOUVEAU_BO_VRAM;
+       mip.base.bo = dec->mbring;
+       mip.base.address = dec->mbring->offset;
+-      context->clear_render_target(context, &surf.base, &color, 0, 0, 64, 4760, false);
++      nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 64, 4760, false);
+       surf.offset = dec->vpring->size / 2 - 0x1000;
+       surf.width = 1024;
+       surf.height = 1;
+       mip.level[0].pitch = surf.width * 4;
+       mip.base.bo = dec->vpring;
+       mip.base.address = dec->vpring->offset;
+-      context->clear_render_target(context, &surf.base, &color, 0, 0, 1024, 1, false);
++      nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 1024, 1, false);
+       surf.offset = dec->vpring->size - 0x1000;
+-      context->clear_render_target(context, &surf.base, &color, 0, 0, 1024, 1, false);
++      nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 1024, 1, false);
+ 
+       PUSH_SPACE(nv50->base.pushbuf, 5);
+       PUSH_REF1(nv50->base.pushbuf, dec->fence, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
