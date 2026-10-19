@@ -11,3 +11,7 @@ graphics_nvidia_vaapi: true
 # session the same switch leaves the video white.
 brave_flags_extra:
   - "--enable-features=VaapiOnNvidiaGPUs"
+
+# Celluloid: NVIDIA's EGL offers wl_drm, so libva-wayland does not crash and
+# mpv's own interop can take the decoded frames without copying them back.
+celluloid_mpv_options: "--hwdec=auto-safe"
