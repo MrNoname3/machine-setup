@@ -55,8 +55,9 @@ A card on the proprietary driver has its group as well,
 [group_vars/nvidia_580.yml](../../group_vars/nvidia_580.yml), so a card that
 moves between hosts takes the host from one group to the other.
 
-Brave then decodes H.264 in hardware, and Celluloid does through VA-API with
-copy-back. VP9 and AV1 stay in software, as the engines cannot decode them.
+Celluloid then decodes H.264 in hardware through VA-API with copy-back. Brave
+picks the hardware decoder as well, but on the Tesla cards its picture is not
+the clip's ([tesla notes](../../tools/mmiotrace-live/tesla/README.md#video-decoding)). VP9 and AV1 stay in software, as the engines cannot decode them.
 
 ## VA-API on the proprietary driver
 

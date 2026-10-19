@@ -146,6 +146,30 @@ def region_stats(shot, x0, y0, x1, y1, step=8):
     return {"white": white / n, "black": black / n, "mean": (rs // n, gs // n, bs // n), "sig": sig}
 
 
+def region(shot, x0, y0, x1, y1):
+    """A screen region given in fractions: width, height, bytes per pixel and
+    the pixels, row by row, in the backend's channel order."""
+    w, h, bpl, bypp, px = shot
+    X0, X1 = int(x0 * w), int(x1 * w)
+    rows = [px[y * bpl + X0 * bypp:y * bpl + X1 * bypp] for y in range(int(y0 * h), int(y1 * h))]
+    return X1 - X0, len(rows), bypp, b"".join(rows)
+
+
+def cell_means(reg, cells=16, step=4):
+    """Mean colour of each cell of a cells x cells grid over a region."""
+    w, h, bpp, px = reg
+    out = []
+    for cy in range(cells):
+        for cx in range(cells):
+            n = c0 = c1 = c2 = 0
+            for y in range(cy * h // cells, (cy + 1) * h // cells, step):
+                for x in range(cx * w // cells, (cx + 1) * w // cells, step):
+                    o = (y * w + x) * bpp
+                    c0 += px[o]; c1 += px[o + 1]; c2 += px[o + 2]; n += 1
+            out.append((c0 // n, c1 // n, c2 // n))
+    return out
+
+
 _X = {}
 
 

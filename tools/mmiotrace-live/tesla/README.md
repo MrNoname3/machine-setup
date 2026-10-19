@@ -135,8 +135,8 @@ redistributed. VA-API players then decode in hardware, 720p H.264 at about
 110 frames a second. Chromium and Firefox take decoded frames as exported
 dma-bufs, and Mesa refused to export the interlaced surfaces nouveau's video
 engines decode into; with the Mesa patches of
-[tools/patched-deb](../../patched-deb/) it exports a progressive copy, and Brave
-plays 1080p H.264 at about a quarter of the CPU software decoding takes. VLC 3
+[tools/patched-deb](../../patched-deb/) it exports a progressive copy, which
+Brave takes, but the picture Brave shows from it is not the clip's (below). VLC 3
 maps decoded surfaces with vaDeriveImage, which needs both planes in one
 buffer, and nouveau keeps them apart, so VLC stays in software; Celluloid
 (mpv) decodes in hardware with copy-back.
@@ -150,9 +150,12 @@ needs `mesa-winsys-object-del.patch`: Mesa deleted its nouveau objects
 through the wrong file descriptor, the kernel kept them, and the VP2
 decoder's probe for PBSP failed when it reused a freed object's address.
 
-With all of these, Brave decodes H.264 on the 9800 GT with about a fifth of
-a core, 720p30 without a dropped frame; at 1080p it keeps up with about 23
-frames a second of a 6 Mbit/s stream, as does Celluloid.
+With all of these the VP2 engines decode H.264 on the 9800 GT, and Celluloid
+with copy-back shows the clip's frames, at 1080p as well. Brave picks the
+hardware decoder and plays smoothly, yet its picture is blocks of the frame
+scrambled across the page: the import of the exported surface gets its
+layout wrong, which
+[browser-test](../../browser-test/)'s picture check reports as `WRONG`.
 
 ## Upstream
 
