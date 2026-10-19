@@ -99,11 +99,12 @@ The `stress` actions:
 
 ## What it has shown
 
-- On the Tesla cards Brave picks the hardware decoder, the picture moves and
-  no frame drops, but it is not the clip: blocks of it lie scrambled across
-  the page. Celluloid's copy-back shows the same decoder's frames right, so
-  the decoding is right and Brave's import of the surface Mesa exports is
-  not ([tesla notes](../mmiotrace-live/tesla/README.md#video-decoding)).
+- On the Tesla cards Brave picked the hardware decoder, the picture moved and
+  no frame dropped, yet it was noise or blocks of stale video: Mesa never
+  drew the progressive copy it exports, as the export patch gave the copy's
+  regions in the wrong field order. The picture check reports such a picture
+  as `WRONG`, and `ok` with the fix
+  ([tesla notes](../mmiotrace-live/tesla/README.md#video-decoding)).
 
 - On the Phenom's GT 1030 with the NVIDIA driver on X11, Brave froze after
   opening and closing the main menu whenever it rendered through ANGLE's

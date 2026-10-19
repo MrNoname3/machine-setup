@@ -55,9 +55,12 @@ A card on the proprietary driver has its group as well,
 [group_vars/nvidia_580.yml](../../group_vars/nvidia_580.yml), so a card that
 moves between hosts takes the host from one group to the other.
 
-Celluloid then decodes H.264 in hardware through VA-API with copy-back. Brave
-picks the hardware decoder as well, but on the Tesla cards its picture is not
-the clip's ([tesla notes](../../tools/mmiotrace-live/tesla/README.md#video-decoding)). VP9 and AV1 stay in software, as the engines cannot decode them.
+Brave then decodes H.264 in hardware, and Celluloid does through VA-API with
+copy-back. The 9800 GT's decoder does not keep up with 1080p at 60 frames a
+second ([tesla notes](../../tools/mmiotrace-live/tesla/README.md#video-decoding));
+enhanced-h264ify's "Block 60fps" option, set by hand in each Brave profile as
+the extension takes no policy, keeps YouTube at 30. VP9 and AV1 stay in
+software, as the engines cannot decode them.
 
 ## VA-API on the proprietary driver
 

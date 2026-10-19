@@ -136,7 +136,7 @@ redistributed. VA-API players then decode in hardware, 720p H.264 at about
 dma-bufs, and Mesa refused to export the interlaced surfaces nouveau's video
 engines decode into; with the Mesa patches of
 [tools/patched-deb](../../patched-deb/) it exports a progressive copy, which
-Brave takes, but the picture Brave shows from it is not the clip's (below). VLC 3
+every decode into the surface brings up to date. VLC 3
 maps decoded surfaces with vaDeriveImage, which needs both planes in one
 buffer, and nouveau keeps them apart, so VLC stays in software; Celluloid
 (mpv) decodes in hardware with copy-back.
@@ -150,12 +150,15 @@ needs `mesa-winsys-object-del.patch`: Mesa deleted its nouveau objects
 through the wrong file descriptor, the kernel kept them, and the VP2
 decoder's probe for PBSP failed when it reused a freed object's address.
 
-With all of these the VP2 engines decode H.264 on the 9800 GT, and Celluloid
-with copy-back shows the clip's frames, at 1080p as well. Brave picks the
-hardware decoder and plays smoothly, yet its picture is blocks of the frame
-scrambled across the page: the import of the exported surface gets its
-layout wrong, which
-[browser-test](../../browser-test/)'s picture check reports as `WRONG`.
+With all of these the VP2 engines decode H.264 on the 9800 GT, and Brave and
+Celluloid show the clip's frames, which
+[browser-test](../../browser-test/)'s picture check compares with a
+reference. Mesa ran PBSP and then PVP2 on each frame, never both at once;
+`mesa-nv84-slots.patch` lets PBSP parse a frame while PVP2 reconstructs the
+one before, and Brave then plays 720p and 1080p at 30 frames a second
+without dropping one. PVP2 alone takes about 20 ms on a 1080p frame, so
+1080p at 60 frames a second does not keep up; enhanced-h264ify's "Block
+60fps" option keeps YouTube at 30.
 
 ## Upstream
 
