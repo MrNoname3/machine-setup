@@ -27,9 +27,9 @@ level changes finds no flipped bit.
 
 G92 (`10de:0614`, subsystem `1043:8314`), 512 MiB GDDR3. The VBIOS has one
 level, `0f` at 600 / 1500 / 900 MHz core/shader/memory, and the card boots at
-400 / 810 / 400. nouveau does not reclock G92 (`g84_clk_new` allows it from
-G94 on), so the card stays at its boot clocks; `nouveau_pstate` changes
-nothing there.
+400 / 810 / 400. Upstream nouveau does not reclock G92 (`g84_clk_new` allows
+it from G94 on); with the two patches under [Reclocking](#reclocking) it sets
+`0f`.
 
 ### The video clock
 
@@ -57,6 +57,21 @@ without bit 25 and the coefficients stops PVP2 as well. `0014` in the
 graphics role (`0004` in [upstream/](upstream/)) makes these writes at
 devinit on G92, with N and M from the VBIOS's XPLL limits for 450 MHz, which
 gives the driver's values; `0015` (`0005`) turns PBSP back on.
+
+### Reclocking
+
+nouveau's GDDR3 reclock computes the same timings for G92 as its VBIOS sets,
+but clears bit 14 of the MPLL control, `0x004008`, for the switch and leaves it
+clear, as the rammap entry's `rammap_00_16_40` is zero. With that bit clear
+VRAM loses its contents: the BAR page tables read back as not present right
+after the switch, and the screen fills with stripes. NVIDIA's driver switches
+the memory clock with a short HWSQ script, which
+[hwsq-dis.py](hwsq-dis.py) reads out of the trace: precharge, self-refresh,
+the new MPLL coefficients, out of self-refresh and a DLL reset, with bit 14
+never cleared. `0016` (`0006`) keeps the bit on G92, and `0017` (`0007`)
+allows reclocking there. At `0f` the [VRAM test](../vramtest.c) finds no
+flipped bit, also with more textures than VRAM holds, and the five
+`glmark2-drm` scenes off-screen at 800×600 score 2314.
 
 ## Push buffer reads
 
@@ -137,12 +152,11 @@ decoder's probe for PBSP failed when it reused a freed object's address.
 
 With all of these, Brave decodes H.264 on the 9800 GT with about a fifth of
 a core, 720p30 without a dropped frame; at 1080p it keeps up with about 23
-frames a second of a 6 Mbit/s stream, as does Celluloid. The card runs at its
-boot clocks, below its stock ones, while it decodes.
+frames a second of a 6 Mbit/s stream, as does Celluloid.
 
 ## Upstream
 
-All five patches apply to nouveau as in kernel 7.0, `0004` and `0005` to
+All seven patches apply to nouveau as in kernel 7.0, `0004` to `0007` to
 mainline as well. Together with the rest of the graphics role's set, on Linux
 7.0 at `0f`, the GT218 runs the whole default `glmark2` set with Ubuntu's Mesa
 25.2, and the five scenes above with kisak's 26.2, without a GPU error; the

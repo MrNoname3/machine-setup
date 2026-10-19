@@ -154,7 +154,9 @@ change touched.
 mmiotrace sees what the CPU does. Work the GPU's own microcontrollers do, such
 as the PMU, shows only as the data the driver uploads to them, through their
 data memory ports; [gf108/pmu-scripts.py](gf108/pmu-scripts.py) pulls such
-uploads apart.
+uploads apart. A Tesla card has no PMU: its driver switches clocks with
+scripts for the HWSQ sequencer, which
+[tesla/hwsq-dis.py](tesla/hwsq-dis.py) disassembles.
 
 Many values in a trace come from the VBIOS tables, which nouveau reads too.
 [nvbios.sh](nvbios.sh) decodes a VBIOS with envytools' `nvbios`, built from a
