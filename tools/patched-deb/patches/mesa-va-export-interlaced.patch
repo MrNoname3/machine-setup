@@ -46,8 +46,8 @@ Description: Export a progressive copy of an interlaced VA surface
 +      .base = {
 +         .out_pipe_fence = &surf->pipe_fence,
 +      },
-+      .src_region = { 0, 0, surf->templat.width, surf->templat.height },
-+      .dst_region = { 0, 0, surf->templat.width, surf->templat.height },
++      .src_region = { .x0 = 0, .x1 = surf->templat.width, .y0 = 0, .y1 = surf->templat.height },
++      .dst_region = { .x0 = 0, .x1 = surf->templat.width, .y0 = 0, .y1 = surf->templat.height },
 +      .in_color_range = PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_REDUCED,
 +      .out_color_range = PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_REDUCED,
 +      .in_matrix_coefficients = PIPE_VIDEO_VPP_MCF_BT709,
