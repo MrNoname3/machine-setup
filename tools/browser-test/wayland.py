@@ -88,6 +88,8 @@ def region_stats(_shot, x0, y0, x1, y1, step=8):
 
 bt.screen = lambda: None
 bt.region_stats = region_stats
+bt.region = lambda _shot, x0, y0, x1, y1: area(int(x0 * bt.SCREEN_W), int(y0 * bt.SCREEN_H),
+                                               int((x1 - x0) * bt.SCREEN_W), int((y1 - y0) * bt.SCREEN_H))
 bt.move = lambda x, y: _send(f"move {x} {y}")
 bt.click = lambda x, y, button=1: _send(f"click {x} {y} {button}")
 bt.keys = lambda *names: _send("keys " + " ".join(names))

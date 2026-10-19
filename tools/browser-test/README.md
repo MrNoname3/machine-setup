@@ -13,7 +13,16 @@ touched. It runs on X11, and on Cinnamon's Wayland session.
   chose (`VaapiVideoDecoder` is hardware, `FFmpegVideoDecoder` and
   `VpxVideoDecoder` software), the CPU of the whole browser, and whether the
   picture is white, black or moving; plus the GPU features `chrome://gpu`
-  would show. Into `results/NAME.json`.
+  would show. Then it pauses the clip at `REF_T` and compares the picture,
+  cell by cell on a grid, with the clip's reference frame from
+  [make-media.sh](make-media.sh): `picture` is `ok`, `WRONG` or
+  `no reference`, and `wrong_cells` the share of cells that differ. Into
+  `results/NAME.json`.
+
+  Only `picture: ok` shows that video plays right. A picture that moves can
+  still be garbage: a decoder or a buffer import that gets the layout wrong
+  moves just as a right one does, and a hardware decoder that is picked says
+  nothing about what reaches the screen.
 - **`quality SECONDS`** — per clip, frames shown and dropped over the window,
   and the CPU of the browser and of the compositor. It reads no screen, so it
   disturbs the timing least; this is how a dropped-frame problem shows.
@@ -89,6 +98,12 @@ The `stress` actions:
 | `focus`, `minimise` | another window to the front and back, minimise and restore (X11 only) |
 
 ## What it has shown
+
+- On the Tesla cards Brave picks the hardware decoder, the picture moves and
+  no frame drops, but it is not the clip: blocks of it lie scrambled across
+  the page. Celluloid's copy-back shows the same decoder's frames right, so
+  the decoding is right and Brave's import of the surface Mesa exports is
+  not ([tesla notes](../mmiotrace-live/tesla/README.md#video-decoding)).
 
 - On the Phenom's GT 1030 with the NVIDIA driver on X11, Brave froze after
   opening and closing the main menu whenever it rendered through ANGLE's

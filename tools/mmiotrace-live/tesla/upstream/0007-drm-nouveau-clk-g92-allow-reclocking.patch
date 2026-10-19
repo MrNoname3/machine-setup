@@ -1,0 +1,30 @@
+From 244a03c34f3fa09b5ea283024d366019e56e3ba9 Mon Sep 17 00:00:00 2001
+From: Your_Name <you@example.org>
+Date: Mon, 19 Oct 2026 16:17:57 +0200
+Subject: [PATCH 2/2] drm/nouveau/clk/g92: allow reclocking
+
+Commit 0d42743dfa90 ("drm/nouveau/clk/g84: Enable reclocking for GDDR3
+G94-G200") enabled reclocking from G94 on, as those were the cards it was
+tested on. G92 takes the same clock and GDDR3 paths, with bit 14 of the
+MPLL control kept as the previous commit does, and boots below the level
+its VBIOS lists. Allow it on G92 as well.
+
+Assisted-by: Claude:claude-opus-5-5
+---
+ nvkm/subdev/clk/g84.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/nvkm/subdev/clk/g84.c b/nvkm/subdev/clk/g84.c
+index 07157cf..0dbb405 100644
+--- a/nvkm/subdev/clk/g84.c
++++ b/nvkm/subdev/clk/g84.c
+@@ -44,5 +44,5 @@ int
+ g84_clk_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+ 	    struct nvkm_clk **pclk)
+ {
+-	return nv50_clk_new_(&g84_clk, device, type, inst, (device->chipset >= 0x94), pclk);
++	return nv50_clk_new_(&g84_clk, device, type, inst, (device->chipset >= 0x92), pclk);
+ }
+-- 
+2.56.0
+

@@ -7,7 +7,7 @@ Wayland session (chosen by XDG_SESSION_TYPE, or BT_WAYLAND=1/0):
   run.py stress NAME MINUTES [--env K=V ...] [-- BRAVE_FLAGS...]
 
 See README.md for what each one measures."""
-import json, os, subprocess, sys, time
+import json, os, subprocess, sys, time, urllib.request
 
 sys.dont_write_bytecode = True  # no __pycache__ beside the sources
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -17,6 +17,18 @@ WAYLAND = os.environ.get("BT_WAYLAND", "1" if os.environ.get("XDG_SESSION_TYPE")
 if WAYLAND:
     import wayland  # noqa: E402,F401
 import stress  # noqa: E402
+
+# The instant the picture check pauses at, clear of frame boundaries and of
+# keyframes at 25, 30 and 60 fps, so the frame is predicted from others;
+# make-media.sh takes each clip's reference frame there.
+REF_T = 11.01
+# Where the video and its reference are compared: inside the page under any
+# infobar, clear of the panel.
+REF_REGION = (0.05, 0.25, 0.95, 0.95)
+# A cell whose mean colour is this far from the reference's counts as wrong,
+# and a picture with more than WRONG_SHARE of its cells wrong is not the clip.
+CELL_DIFF = 48
+WRONG_SHARE = 0.05
 
 QUALITY = ("(()=>{const v=document.getElementById('v'),q=v.getVideoPlaybackQuality();"
            "return [v.currentTime,q.totalVideoFrames,q.droppedVideoFrames]})()")
@@ -53,9 +65,31 @@ def play(cdp, clip, settle):
     return props.get("kVideoDecoderName"), props.get("kIsPlatformVideoDecoder"), errors
 
 
+def picture(cdp, clip):
+    """Share of grid cells where the paused video differs from the clip's
+    reference frame, or None without one. The reference image takes the
+    video's place on the page, so both fill the same box."""
+    ref = f"{clip}.ref.png"
+    try:
+        urllib.request.urlopen(f"{bt.WEB}/{ref}", timeout=2)
+    except OSError:
+        return None
+    cdp.js("new Promise(r=>{const v=document.getElementById('v');v.pause();"
+           f"v.addEventListener('seeked',()=>r(1),{{once:true}});v.currentTime={REF_T}}})")
+    time.sleep(1)
+    shown = bt.cell_means(bt.region(bt.screen(), *REF_REGION))
+    cdp.js("new Promise(r=>{const i=document.createElement('img');i.onload=()=>r(1);"
+           "i.style.cssText='width:100vw;height:100vh;object-fit:fill;display:block';"
+           f"i.src='{ref}';document.getElementById('v').replaceWith(i)}})")
+    time.sleep(1)
+    want = bt.cell_means(bt.region(bt.screen(), *REF_REGION))
+    bad = sum(max(abs(a - b) for a, b in zip(p, q)) > CELL_DIFF for p, q in zip(shown, want))
+    return round(bad / len(want), 2)
+
+
 def video(name, env, flags):
-    """Per clip: decoder, CPU of the whole browser, and a picture that is
-    neither white nor black and moves."""
+    """Per clip: decoder, CPU of the whole browser, a picture that is neither
+    white nor black and moves, and whether it is the clip's picture at all."""
     res = {"name": name, "env": env, "flags": flags, "wayland": WAYLAND}
     cdp = bt.start(env, flags)
     time.sleep(3)
@@ -71,12 +105,15 @@ def video(name, env, flags):
             s2 = bt.region_stats(bt.screen(), 0.3, 0.35, 0.7, 0.75)
             q1 = cdp.js(QUALITY)
             cpu = (bt.cgroup_usec() - c0) / 1e6 / (time.time() - t0) * 100
+            wrong = picture(cdp, clip)
+            verdict = "no reference" if wrong is None else "ok" if wrong <= WRONG_SHARE else "WRONG"
             res["video"].append({
-                "clip": clip, "decoder": dec, "platform_decoder": platform, "errors": errors[:5],
+                "clip": clip, "picture": verdict, "decoder": dec, "platform_decoder": platform, "errors": errors[:5],
                 "cpu_pct": round(cpu), "white": round(s2["white"], 2), "black": round(s2["black"], 2),
                 "moving": round(sum(a != b for a, b in zip(s1["sig"], s2["sig"])) / len(s1["sig"]), 2),
                 "frames": q1[1] - q0[1] if q0 and q1 else None,
-                "dropped": q1[2] - q0[2] if q0 and q1 else None})
+                "dropped": q1[2] - q0[2] if q0 and q1 else None,
+                "wrong_cells": wrong})
     except Exception as e:  # keep what was measured
         res["error"] = repr(e)
     finally:
