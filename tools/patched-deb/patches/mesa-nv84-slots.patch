@@ -1,0 +1,404 @@
+Description: Let PBSP and PVP2 work on consecutive H.264 frames at once
+ The VP2 decoder ran each frame through PBSP and then PVP2 with one set of
+ buffers and one semaphore, so the CPU waited for a frame to finish before
+ it queued the next, and the two engines never overlapped. Frames now
+ alternate between two slots, each with its own bitstream, vpring, VP
+ parameters and semaphore, and PVP2 gets its own scratch area instead of
+ the tail of mbring, so no buffer is shared between PBSP on one frame and
+ PVP2 on the one before. At 1080p a frame takes as long as PVP2 alone.
+diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video.c b/src/gallium/drivers/nouveau/nv50/nv84_video.c
+index 5d2d2f3..df73dc4 100644
+--- a/src/gallium/drivers/nouveau/nv50/nv84_video.c
++++ b/src/gallium/drivers/nouveau/nv50/nv84_video.c
+@@ -139,6 +139,7 @@ nv84_decoder_decode_bitstream_h264(struct pipe_video_codec *decoder,
+ 
+    nv84_decoder_bsp(dec, desc, num_buffers, data, num_bytes, target);
+    nv84_decoder_vp_h264(dec, desc, target);
++   dec->slot ^= 1;
+ }
+ 
+ static void
+@@ -238,8 +239,10 @@ nv84_decoder_destroy(struct pipe_video_codec *decoder)
+ {
+    struct nv84_decoder *dec = (struct nv84_decoder *)decoder;
+    struct nouveau_screen *screen = nouveau_screen(decoder->context->screen);
+-   struct nouveau_bo *busy[] = { dec->bsp_data, dec->vp_data, dec->mbring, dec->vpring,
+-                                 dec->bitstream, dec->vp_params, dec->fence };
++   struct nouveau_bo *busy[] = { dec->bsp_data, dec->vp_data, dec->mbring, dec->vp_scratch,
++                                 dec->vpring[0], dec->vpring[1], dec->bitstream[0],
++                                 dec->bitstream[1], dec->vp_params[0], dec->vp_params[1],
++                                 dec->fence[0], dec->fence[1] };
+    unsigned i;
+ 
+    /* The engines may still be decoding: freeing what they read and removing
+@@ -253,10 +256,13 @@ nv84_decoder_destroy(struct pipe_video_codec *decoder)
+    nouveau_bo_ref(NULL, &dec->vp_fw);
+    nouveau_bo_ref(NULL, &dec->vp_data);
+    nouveau_bo_ref(NULL, &dec->mbring);
+-   nouveau_bo_ref(NULL, &dec->vpring);
+-   nouveau_bo_ref(NULL, &dec->bitstream);
+-   nouveau_bo_ref(NULL, &dec->vp_params);
+-   nouveau_bo_ref(NULL, &dec->fence);
++   nouveau_bo_ref(NULL, &dec->vp_scratch);
++   for (i = 0; i < 2; i++) {
++      nouveau_bo_ref(NULL, &dec->vpring[i]);
++      nouveau_bo_ref(NULL, &dec->bitstream[i]);
++      nouveau_bo_ref(NULL, &dec->vp_params[i]);
++      nouveau_bo_ref(NULL, &dec->fence[i]);
++   }
+ 
+    nouveau_object_del(&dec->bsp);
+    nouveau_object_del(&dec->vp);
+@@ -397,15 +403,10 @@ nv84_create_decoder(struct pipe_context *context,
+    if (ret)
+       goto fail;
+    if (is_h264) {
+-      ret = nouveau_bo_new(screen->device, NOUVEAU_BO_VRAM | NOUVEAU_BO_NOSNOOP,
+-                           0,
+-                           2 * (dec->vpring_deblock +
+-                                dec->vpring_residual +
+-                                dec->vpring_ctrl +
+-                                0x1000),
+-                           NULL, &dec->vpring);
+-      if (ret)
+-         goto fail;
++      dec->vpring_size = align(dec->vpring_deblock + dec->vpring_residual +
++                               dec->vpring_ctrl + 0x1000, 0x1000);
++      dec->bitstream_size = align(0x700 + MAX2(0x40000, 0x800 + 0x180 * dec->frame_mbs),
++                                  0x1000);
+       ret = nouveau_bo_new(screen->device, NOUVEAU_BO_VRAM | NOUVEAU_BO_NOSNOOP,
+                            0,
+                            (templ->max_references + 1) * dec->frame_mbs * 0x40 +
+@@ -413,21 +414,30 @@ nv84_create_decoder(struct pipe_context *context,
+                            NULL, &dec->mbring);
+       if (ret)
+          goto fail;
+-      ret = nouveau_bo_new(screen->device, NOUVEAU_BO_GART,
+-                           0, 2 * (0x700 + MAX2(0x40000, 0x800 + 0x180 * dec->frame_mbs)),
+-                           NULL, &dec->bitstream);
+-      if (ret)
+-         goto fail;
+-      ret = BO_MAP(screen, dec->bitstream, NOUVEAU_BO_WR, dec->client);
+-      if (ret)
+-         goto fail;
+-      ret = nouveau_bo_new(screen->device, NOUVEAU_BO_GART,
+-                           0, 0x2000, NULL, &dec->vp_params);
+-      if (ret)
+-         goto fail;
+-      ret = BO_MAP(screen, dec->vp_params, NOUVEAU_BO_WR, dec->client);
++      ret = nouveau_bo_new(screen->device, NOUVEAU_BO_VRAM | NOUVEAU_BO_NOSNOOP,
++                           0, 0x2000, NULL, &dec->vp_scratch);
+       if (ret)
+          goto fail;
++      for (i = 0; i < 2; i++) {
++         ret = nouveau_bo_new(screen->device, NOUVEAU_BO_VRAM | NOUVEAU_BO_NOSNOOP,
++                              0, dec->vpring_size, NULL, &dec->vpring[i]);
++         if (ret)
++            goto fail;
++         ret = nouveau_bo_new(screen->device, NOUVEAU_BO_GART,
++                              0, dec->bitstream_size, NULL, &dec->bitstream[i]);
++         if (ret)
++            goto fail;
++         ret = BO_MAP(screen, dec->bitstream[i], NOUVEAU_BO_WR, dec->client);
++         if (ret)
++            goto fail;
++         ret = nouveau_bo_new(screen->device, NOUVEAU_BO_GART,
++                              0, 0x1000, NULL, &dec->vp_params[i]);
++         if (ret)
++            goto fail;
++         ret = BO_MAP(screen, dec->vp_params[i], NOUVEAU_BO_WR, dec->client);
++         if (ret)
++            goto fail;
++      }
+    }
+    if (is_mpeg12) {
+       ret = nouveau_bo_new(screen->device, NOUVEAU_BO_GART,
+@@ -442,14 +452,16 @@ nv84_create_decoder(struct pipe_context *context,
+          goto fail;
+    }
+ 
+-   ret = nouveau_bo_new(screen->device, NOUVEAU_BO_VRAM,
+-                        0, 0x1000, NULL, &dec->fence);
+-   if (ret)
+-      goto fail;
+-   ret = BO_MAP(screen, dec->fence, NOUVEAU_BO_WR, dec->client);
+-   if (ret)
+-      goto fail;
+-   *(uint32_t *)dec->fence->map = 0;
++   for (i = 0; i < 2; i++) {
++      ret = nouveau_bo_new(screen->device, NOUVEAU_BO_VRAM,
++                           0, 0x1000, NULL, &dec->fence[i]);
++      if (ret)
++         goto fail;
++      ret = BO_MAP(screen, dec->fence[i], NOUVEAU_BO_WR, dec->client);
++      if (ret)
++         goto fail;
++      *(uint32_t *)dec->fence[i]->map = 0;
++   }
+ 
+    if (is_h264) {
+       nouveau_pushbuf_bufctx(bsp_push, dec->bsp_bufctx);
+@@ -497,26 +509,28 @@ nv84_create_decoder(struct pipe_context *context,
+       mip.base.bo = dec->mbring;
+       mip.base.address = dec->mbring->offset;
+       nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 64, 4760, false);
+-      surf.offset = dec->vpring->size / 2 - 0x1000;
++      surf.offset = dec->vpring_size - 0x1000;
+       surf.width = 1024;
+       surf.height = 1;
+       mip.level[0].pitch = surf.width * 4;
+-      mip.base.bo = dec->vpring;
+-      mip.base.address = dec->vpring->offset;
+-      nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 1024, 1, false);
+-      surf.offset = dec->vpring->size - 0x1000;
+-      nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 1024, 1, false);
+-
+-      PUSH_SPACE(nv50->base.pushbuf, 5);
+-      PUSH_REF1(nv50->base.pushbuf, dec->fence, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
++      for (i = 0; i < 2; i++) {
++         mip.base.bo = dec->vpring[i];
++         mip.base.address = dec->vpring[i]->offset;
++         nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 1024, 1, false);
++      }
++
+       /* The clear_render_target is done via 3D engine, so use it to write to a
+        * sempahore to indicate that it's done.
+        */
+-      BEGIN_NV04(nv50->base.pushbuf, NV50_3D(QUERY_ADDRESS_HIGH), 4);
+-      PUSH_DATAh(nv50->base.pushbuf, dec->fence->offset);
+-      PUSH_DATA (nv50->base.pushbuf, dec->fence->offset);
+-      PUSH_DATA (nv50->base.pushbuf, 1);
+-      PUSH_DATA (nv50->base.pushbuf, 0xf010);
++      PUSH_SPACE(nv50->base.pushbuf, 10);
++      for (i = 0; i < 2; i++) {
++         PUSH_REF1(nv50->base.pushbuf, dec->fence[i], NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
++         BEGIN_NV04(nv50->base.pushbuf, NV50_3D(QUERY_ADDRESS_HIGH), 4);
++         PUSH_DATAh(nv50->base.pushbuf, dec->fence[i]->offset);
++         PUSH_DATA (nv50->base.pushbuf, dec->fence[i]->offset);
++         PUSH_DATA (nv50->base.pushbuf, 1);
++         PUSH_DATA (nv50->base.pushbuf, 0xf010);
++      }
+       PUSH_KICK (nv50->base.pushbuf);
+ 
+       PUSH_SPACE(bsp_push, 2 + 12 + 2 + 4 + 3);
+diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video.h b/src/gallium/drivers/nouveau/nv50/nv84_video.h
+index 85d5964..64d0b7d 100644
+--- a/src/gallium/drivers/nouveau/nv50/nv84_video.h
++++ b/src/gallium/drivers/nouveau/nv50/nv84_video.h
+@@ -64,19 +64,19 @@ struct nv84_decoder {
+ 
+    struct nouveau_bo *bsp_fw, *bsp_data;
+    struct nouveau_bo *vp_fw, *vp_data;
+-   struct nouveau_bo *mbring, *vpring;
++   struct nouveau_bo *mbring, *vp_scratch;
+ 
+    /*
+-    * states:
++    * H.264 frames alternate between two slots, each with its own buffers, so
++    * that PBSP parses a frame while PVP2 reconstructs the one before. The
++    * fence of a slot:
+     *  0: init
+     *  1: vpring/mbring cleared, bsp is ready
+     *  2: bsp is done, vp is ready
+-    * and then vp it back to 1
++    * and then vp sets it back to 1
+     */
+-   struct nouveau_bo *fence;
+-
+-   struct nouveau_bo *bitstream;
+-   struct nouveau_bo *vp_params;
++   struct nouveau_bo *vpring[2], *fence[2], *bitstream[2], *vp_params[2];
++   unsigned slot, vpring_size, bitstream_size;
+ 
+    size_t vp_fw2_offset;
+ 
+diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c b/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
+index f988d0a..163a0cb 100644
+--- a/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
++++ b/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
+@@ -97,14 +97,18 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
+    static const uint32_t end[] = {0x0b010000, 0, 0x0b010000, 0};
+    char indexes[17] = {0};
+    struct nouveau_pushbuf *push = dec->bsp_pushbuf;
++   struct nouveau_bo *vpring = dec->vpring[dec->slot];
++   struct nouveau_bo *bitstream = dec->bitstream[dec->slot];
++   struct nouveau_bo *fence = dec->fence[dec->slot];
+    struct nouveau_pushbuf_refn bo_refs[] = {
+-      { dec->vpring, NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM },
++      { vpring, NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM },
+       { dec->mbring, NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM },
+-      { dec->bitstream, NOUVEAU_BO_RDWR | NOUVEAU_BO_GART },
+-      { dec->fence, NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM },
++      { bitstream, NOUVEAU_BO_RDWR | NOUVEAU_BO_GART },
++      { fence, NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM },
+    };
+ 
+-   BO_WAIT(screen, dec->fence, NOUVEAU_BO_RDWR, dec->client);
++   /* The bitstream of this slot was last parsed two frames ago */
++   BO_WAIT(screen, bitstream, NOUVEAU_BO_RDWR, dec->client);
+ 
+    STATIC_ASSERT(sizeof(struct iparm) == 0x530);
+ 
+@@ -189,48 +193,46 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
+    params.ipicparm.deblocking_filter_control_present_flag = desc->pps->deblocking_filter_control_present_flag;
+    params.ipicparm.redundant_pic_cnt_present_flag = desc->pps->redundant_pic_cnt_present_flag;
+ 
+-   memcpy(dec->bitstream->map, &params, sizeof(params));
++   memcpy(bitstream->map, &params, sizeof(params));
+    for (i = 0; i < num_buffers; i++) {
+-      assert(total_bytes + num_bytes[i] < dec->bitstream->size / 2 - 0x700);
+-      memcpy(dec->bitstream->map + 0x700 + total_bytes, data[i], num_bytes[i]);
++      assert(total_bytes + num_bytes[i] < dec->bitstream_size - 0x700);
++      memcpy(bitstream->map + 0x700 + total_bytes, data[i], num_bytes[i]);
+       total_bytes += num_bytes[i];
+    }
+-   memcpy(dec->bitstream->map + 0x700 + total_bytes, end, sizeof(end));
++   memcpy(bitstream->map + 0x700 + total_bytes, end, sizeof(end));
+    total_bytes += sizeof(end);
+    more_params[1] = total_bytes;
+-   memcpy(dec->bitstream->map + 0x600, more_params, sizeof(more_params));
++   memcpy(bitstream->map + 0x600, more_params, sizeof(more_params));
+ 
+    PUSH_SPACE(push, 5 + 21 + 3 + 2 + 4 + 2);
+    PUSH_REFN(push, bo_refs, ARRAY_SIZE(bo_refs));
+ 
+    /* Wait for the fence = 1 */
+    BEGIN_NV04(push, SUBC_BSP(0x10), 4);
+-   PUSH_DATAh(push, dec->fence->offset);
+-   PUSH_DATA (push, dec->fence->offset);
++   PUSH_DATAh(push, fence->offset);
++   PUSH_DATA (push, fence->offset);
+    PUSH_DATA (push, 1);
+    PUSH_DATA (push, 1);
+ 
+-   /* TODO: Use both halves of bitstream/vpring for alternating frames */
+-
+    /* Kick off the BSP */
+    BEGIN_NV04(push, SUBC_BSP(0x400), 20);
+-   PUSH_DATA (push, dec->bitstream->offset >> 8);
+-   PUSH_DATA (push, (dec->bitstream->offset >> 8) + 7);
+-   PUSH_DATA (push, dec->bitstream->size / 2 - 0x700);
+-   PUSH_DATA (push, (dec->bitstream->offset >> 8) + 6);
++   PUSH_DATA (push, bitstream->offset >> 8);
++   PUSH_DATA (push, (bitstream->offset >> 8) + 7);
++   PUSH_DATA (push, dec->bitstream_size - 0x700);
++   PUSH_DATA (push, (bitstream->offset >> 8) + 6);
+    PUSH_DATA (push, 1);
+    PUSH_DATA (push, dec->mbring->offset >> 8);
+    PUSH_DATA (push, dec->frame_size);
+    PUSH_DATA (push, (dec->mbring->offset + dec->frame_size) >> 8);
+-   PUSH_DATA (push, dec->vpring->offset >> 8);
+-   PUSH_DATA (push, dec->vpring->size / 2);
++   PUSH_DATA (push, vpring->offset >> 8);
++   PUSH_DATA (push, dec->vpring_size);
+    PUSH_DATA (push, dec->vpring_residual);
+    PUSH_DATA (push, dec->vpring_ctrl);
+    PUSH_DATA (push, 0);
+    PUSH_DATA (push, dec->vpring_residual);
+    PUSH_DATA (push, dec->vpring_residual + dec->vpring_ctrl);
+    PUSH_DATA (push, dec->vpring_deblock);
+-   PUSH_DATA (push, (dec->vpring->offset + dec->vpring_ctrl +
++   PUSH_DATA (push, (vpring->offset + dec->vpring_ctrl +
+                      dec->vpring_residual + dec->vpring_deblock) >> 8);
+    PUSH_DATA (push, 0x654321);
+    PUSH_DATA (push, 0);
+@@ -245,8 +247,8 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
+ 
+    /* Write fence = 2, intr */
+    BEGIN_NV04(push, SUBC_BSP(0x610), 3);
+-   PUSH_DATAh(push, dec->fence->offset);
+-   PUSH_DATA (push, dec->fence->offset);
++   PUSH_DATAh(push, fence->offset);
++   PUSH_DATA (push, fence->offset);
+    PUSH_DATA (push, 2);
+ 
+    BEGIN_NV04(push, SUBC_BSP(0x304), 1);
+diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video_vp.c b/src/gallium/drivers/nouveau/nv50/nv84_video_vp.c
+index 1e1506e..27910c5 100644
+--- a/src/gallium/drivers/nouveau/nv50/nv84_video_vp.c
++++ b/src/gallium/drivers/nouveau/nv50/nv84_video_vp.c
+@@ -73,13 +73,16 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
+       height = align(dest->base.height, 16);
+ 
+    struct nouveau_pushbuf *push = dec->vp_pushbuf;
++   struct nouveau_bo *vpring = dec->vpring[dec->slot];
++   struct nouveau_bo *vp_params = dec->vp_params[dec->slot];
++   struct nouveau_bo *fence = dec->fence[dec->slot];
+    struct nouveau_pushbuf_refn bo_refs[] = {
+       { dest->interlaced, NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM },
+       { dest->full, NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM },
+-      { dec->vpring, NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM },
+-      { dec->mbring, NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM },
+-      { dec->vp_params, NOUVEAU_BO_RDWR | NOUVEAU_BO_GART },
+-      { dec->fence, NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM },
++      { vpring, NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM },
++      { dec->vp_scratch, NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM },
++      { vp_params, NOUVEAU_BO_RDWR | NOUVEAU_BO_GART },
++      { fence, NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM },
+    };
+    int num_refs = ARRAY_SIZE(bo_refs);
+    bool is_ref = desc->is_reference;
+@@ -144,15 +147,17 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
+       PUSH_REFN(push, bo_refs, ARRAY_SIZE(bo_refs));
+    }
+ 
+-   memcpy(dec->vp_params->map, &param1, sizeof(param1));
+-   memcpy(dec->vp_params->map + 0x400, &param2, sizeof(param2));
++   /* The parameters of this slot were last read two frames ago */
++   BO_WAIT(nouveau_screen(dec->base.context->screen), vp_params, NOUVEAU_BO_RDWR, dec->client);
++   memcpy(vp_params->map, &param1, sizeof(param1));
++   memcpy(vp_params->map + 0x400, &param2, sizeof(param2));
+ 
+    PUSH_REFN(push, bo_refs, num_refs);
+ 
+    /* Wait for BSP to have completed */
+    BEGIN_NV04(push, SUBC_VP(0x10), 4);
+-   PUSH_DATAh(push, dec->fence->offset);
+-   PUSH_DATA (push, dec->fence->offset);
++   PUSH_DATAh(push, fence->offset);
++   PUSH_DATA (push, fence->offset);
+    PUSH_DATA (push, 2);
+    PUSH_DATA (push, 1); /* wait for sem == 2 */
+ 
+@@ -162,13 +167,13 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
+    PUSH_DATA (push, param2.mbs);
+    PUSH_DATA (push, 0x3987654); /* each nibble probably a dma index */
+    PUSH_DATA (push, 0x55001); /* constant */
+-   PUSH_DATA (push, dec->vp_params->offset >> 8);
+-   PUSH_DATA (push, (dec->vpring->offset + dec->vpring_residual) >> 8);
++   PUSH_DATA (push, vp_params->offset >> 8);
++   PUSH_DATA (push, (vpring->offset + dec->vpring_residual) >> 8);
+    PUSH_DATA (push, dec->vpring_ctrl);
+-   PUSH_DATA (push, dec->vpring->offset >> 8);
+-   PUSH_DATA (push, dec->bitstream->size / 2 - 0x700);
+-   PUSH_DATA (push, (dec->mbring->offset + dec->mbring->size - 0x2000) >> 8);
+-   PUSH_DATA (push, (dec->vpring->offset + dec->vpring_ctrl +
++   PUSH_DATA (push, vpring->offset >> 8);
++   PUSH_DATA (push, dec->bitstream_size - 0x700);
++   PUSH_DATA (push, dec->vp_scratch->offset >> 8);
++   PUSH_DATA (push, (vpring->offset + dec->vpring_ctrl +
+                      dec->vpring_residual + dec->vpring_deblock) >> 8);
+    PUSH_DATA (push, 0);
+    PUSH_DATA (push, 0x100008);
+@@ -185,8 +190,8 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
+    /* VP step 2 */
+    BEGIN_NV04(push, SUBC_VP(0x400), 5);
+    PUSH_DATA (push, 0x54530201);
+-   PUSH_DATA (push, (dec->vp_params->offset >> 8) + 0x4);
+-   PUSH_DATA (push, (dec->vpring->offset + dec->vpring_ctrl +
++   PUSH_DATA (push, (vp_params->offset >> 8) + 0x4);
++   PUSH_DATA (push, (vpring->offset + dec->vpring_ctrl +
+                      dec->vpring_residual) >> 8);
+    PUSH_DATA (push, dest->interlaced->offset >> 8);
+    PUSH_DATA (push, dest->interlaced->offset >> 8);
+@@ -205,8 +210,8 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
+ 
+    /* Set the semaphore back to 1 */
+    BEGIN_NV04(push, SUBC_VP(0x610), 3);
+-   PUSH_DATAh(push, dec->fence->offset);
+-   PUSH_DATA (push, dec->fence->offset);
++   PUSH_DATAh(push, fence->offset);
++   PUSH_DATA (push, fence->offset);
+    PUSH_DATA (push, 1);
+ 
+    /* Write to the semaphore location, intr */

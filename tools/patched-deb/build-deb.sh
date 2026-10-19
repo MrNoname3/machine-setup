@@ -27,7 +27,8 @@
 #                       its frames off a timer the frame callbacks re-phase,
 #                       and drops frames of 30 fps video.
 #   mesa                on GeForce 8 to 300 cards: VA surfaces a browser can
-#                       import, safe decoder setup and teardown, nv50 clears
+#                       import, safe decoder setup and teardown, the VP2
+#                       engines working on two frames at once, nv50 clears
 #                       of video surfaces, and Wayland EGL that finds the GPU
 #                       without wl_drm (built with --keep-version).
 #
