@@ -130,7 +130,15 @@ The 9800 GT's VP2 engines (PBSP for H.264, PVP2) use the `nv84_*` files the
 same extraction gives. Mesa's VP2 decoder zeroed its rings with a clear of a
 render target it made up around each ring, which the template surfaces of
 Mesa 25.2 broke, and it tore itself down while the engines could still be
-running; the `mesa-nv84-*` patches fix both.
+running; the `mesa-nv84-*` patches fix both. A browser's GPU process also
+needs `mesa-winsys-object-del.patch`: Mesa deleted its nouveau objects
+through the wrong file descriptor, the kernel kept them, and the VP2
+decoder's probe for PBSP failed when it reused a freed object's address.
+
+With all of these, Brave decodes H.264 on the 9800 GT with about a fifth of
+a core, 720p30 without a dropped frame; at 1080p it keeps up with about 23
+frames a second of a 6 Mbit/s stream, as does Celluloid. The card runs at its
+boot clocks, below its stock ones, while it decodes.
 
 ## Upstream
 
