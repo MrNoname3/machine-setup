@@ -7,10 +7,11 @@ Description: Let the VP3/VP4 engines go idle before the decoder goes away
  before tearing the decoder down.
 --- a/src/gallium/drivers/nouveau/nouveau_vp3_video.c
 +++ b/src/gallium/drivers/nouveau/nouveau_vp3_video.c
-@@ -205,8 +205,19 @@
+@@ -205,8 +205,20 @@
  nouveau_vp3_decoder_destroy(struct pipe_video_codec *decoder)
  {
     struct nouveau_vp3_decoder *dec = (struct nouveau_vp3_decoder *)decoder;
++   struct nouveau_screen *screen = nouveau_screen(decoder->context->screen);
 +   struct nouveau_bo *busy[] = { dec->ref_bo, dec->bitplane_bo, dec->inter_bo[0], dec->inter_bo[1],
 +                                 dec->fw_bo };
     int i;
@@ -19,10 +20,10 @@ Description: Let the VP3/VP4 engines go idle before the decoder goes away
 +    * engine leaves it hung, so wait for every stage's buffers first. */
 +   for (i = 0; i < ARRAY_SIZE(busy); ++i)
 +      if (busy[i])
-+         nouveau_bo_wait(busy[i], NOUVEAU_BO_RDWR, dec->client);
++         BO_WAIT(screen, busy[i], NOUVEAU_BO_RDWR, dec->client);
 +   for (i = 0; i < NOUVEAU_VP3_VIDEO_QDEPTH; ++i)
 +      if (dec->bsp_bo[i])
-+         nouveau_bo_wait(dec->bsp_bo[i], NOUVEAU_BO_RDWR, dec->client);
++         BO_WAIT(screen, dec->bsp_bo[i], NOUVEAU_BO_RDWR, dec->client);
 +
     nouveau_bo_ref(NULL, &dec->ref_bo);
     nouveau_bo_ref(NULL, &dec->bitplane_bo);
