@@ -93,11 +93,13 @@
         - compositor-fd-watch.service
         - compositor-fd-watch.timer
 
+    # What systemctl --global enable makes; the systemd module reports a
+    # global enable as a change on every run.
     - name: Run the check hourly in every user's session
-      ansible.builtin.systemd_service:
-        name: compositor-fd-watch.timer
-        enabled: true
-        scope: global
+      ansible.builtin.file:
+        src: /etc/systemd/user/compositor-fd-watch.timer
+        dest: /etc/systemd/user/timers.target.wants/compositor-fd-watch.timer
+        state: link
 
 - name: Hardware video decoding for Chromium browsers (nvidia-vaapi-driver)
   ansible.builtin.include_tasks: nvidia-vaapi.yml
