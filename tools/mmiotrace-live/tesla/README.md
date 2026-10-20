@@ -149,6 +149,11 @@ running; the `mesa-nv84-*` patches fix both. A browser's GPU process also
 needs `mesa-winsys-object-del.patch`: Mesa deleted its nouveau objects
 through the wrong file descriptor, the kernel kept them, and the VP2
 decoder's probe for PBSP failed when it reused a freed object's address.
+The decoder cleared only the last page of its vpring, which PVP2 reads
+more of than PBSP writes; with VRAM short, a new decoder's ring holds an
+old one's data, and a stream started on a black picture with only the
+moving parts drawn, until its next keyframe.
+`mesa-nv84-vpring-clear.patch` clears the whole ring.
 
 With all of these the VP2 engines decode H.264 on the 9800 GT, and Brave and
 Celluloid show the clip's frames, which

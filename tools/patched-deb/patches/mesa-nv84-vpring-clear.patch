@@ -1,0 +1,29 @@
+Description: Clear the whole vpring when the VP2 decoder is created
+ nv84_create_decoder cleared only the last page of the vpring, but PVP2
+ also reads parts of the ring PBSP leaves untouched on a frame. A ring
+ that inherits memory a previous decoder used then makes the first frames
+ come out wrong, typically a P frame built on a black picture, and with
+ VRAM short that happens often. Clear the whole ring.
+diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video.c b/src/gallium/drivers/nouveau/nv50/nv84_video.c
+index 189c736..b6f4297 100644
+--- a/src/gallium/drivers/nouveau/nv50/nv84_video.c
++++ b/src/gallium/drivers/nouveau/nv50/nv84_video.c
+@@ -514,14 +514,15 @@ nv84_create_decoder(struct pipe_context *context,
+       mip.base.bo = dec->mbring;
+       mip.base.address = dec->mbring->offset;
+       nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 64, 4760, false);
+-      surf.offset = dec->vpring_size - 0x1000;
++      /* PVP2 reads parts of the vpring PBSP leaves untouched */
++      surf.offset = 0;
+       surf.width = 1024;
+-      surf.height = 1;
++      surf.height = dec->vpring_size / 0x1000;
+       mip.level[0].pitch = surf.width * 4;
+       for (i = 0; i < NV84_SLOTS; i++) {
+          mip.base.bo = dec->vpring[i];
+          mip.base.address = dec->vpring[i]->offset;
+-         nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 1024, 1, false);
++         nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 1024, surf.height, false);
+       }
+ 
+       /* The clear_render_target is done via 3D engine, so use it to write to a
