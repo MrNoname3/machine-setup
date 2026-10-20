@@ -5,10 +5,10 @@ Description: Clear the whole vpring when the VP2 decoder is created
  come out wrong, typically a P frame built on a black picture, and with
  VRAM short that happens often. Clear the whole ring.
 diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video.c b/src/gallium/drivers/nouveau/nv50/nv84_video.c
-index 189c736..b6f4297 100644
+index 8803335..66f35de 100644
 --- a/src/gallium/drivers/nouveau/nv50/nv84_video.c
 +++ b/src/gallium/drivers/nouveau/nv50/nv84_video.c
-@@ -514,14 +514,15 @@ nv84_create_decoder(struct pipe_context *context,
+@@ -538,14 +538,15 @@ nv84_create_decoder(struct pipe_context *context,
        mip.base.bo = dec->mbring;
        mip.base.address = dec->mbring->offset;
        nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 64, 4760, false);

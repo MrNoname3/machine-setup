@@ -6,15 +6,23 @@ Description: Let PBSP and PVP2 work on consecutive H.264 frames at once
  parameters and semaphore, and PVP2 gets its own scratch area instead of
  the tail of mbring, so no buffer is shared between PBSP on one frame and
  PVP2 on the ones before. The engines write a semaphore once they are done
- with a frame, after their channel has moved on, so the semaphores count
- up and each channel waits for its engine's write: the channel's fence
- then means the engine is done, before the CPU refills a slot or the kernel
- moves a buffer.
+ with a frame, after their channel has moved on, so the channel's fence
+ says nothing about them: the semaphores count up, and the CPU reads a
+ slot's semaphore before it refills the slot or frees the decoder.
 diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video.c b/src/gallium/drivers/nouveau/nv50/nv84_video.c
-index 5d2d2f3..189c736 100644
+index 5d2d2f3..8803335 100644
 --- a/src/gallium/drivers/nouveau/nv50/nv84_video.c
 +++ b/src/gallium/drivers/nouveau/nv50/nv84_video.c
-@@ -139,6 +139,8 @@ nv84_decoder_decode_bitstream_h264(struct pipe_video_codec *decoder,
+@@ -30,6 +30,8 @@
+ #include "util/u_surface.h"
+ #include "util/vl_zscan_data.h"
+ 
++#include "util/os_time.h"
++
+ #include "nv50/nv84_video.h"
+ 
+ static int
+@@ -139,6 +141,8 @@ nv84_decoder_decode_bitstream_h264(struct pipe_video_codec *decoder,
  
     nv84_decoder_bsp(dec, desc, num_buffers, data, num_bytes, target);
     nv84_decoder_vp_h264(dec, desc, target);
@@ -23,7 +31,30 @@ index 5d2d2f3..189c736 100644
  }
  
  static void
-@@ -238,8 +240,7 @@ nv84_decoder_destroy(struct pipe_video_codec *decoder)
+@@ -233,30 +237,61 @@ nv84_decoder_decode_macroblock(struct pipe_video_codec *decoder,
+    }
+ }
+ 
++/* Waits until the fence of a slot reaches value, as the engines write it; gives
++ * up after two seconds, when the GPU no longer runs. */
++bool
++nv84_decoder_slot_wait(struct nv84_decoder *dec, unsigned slot, uint32_t value)
++{
++   struct nouveau_bo *fence = dec->fence[slot];
++   int64_t end = os_time_get_nano() + 2000000000ll;
++
++   if (nouveau_bo_map(fence, 0, dec->client))
++      return false;
++   while (*(volatile uint32_t *)fence->map < value) {
++      if (os_time_get_nano() > end)
++         return false;
++      os_time_sleep(100);
++   }
++   return true;
++}
++
+ static void
+ nv84_decoder_destroy(struct pipe_video_codec *decoder)
  {
     struct nv84_decoder *dec = (struct nv84_decoder *)decoder;
     struct nouveau_screen *screen = nouveau_screen(decoder->context->screen);
@@ -32,8 +63,12 @@ index 5d2d2f3..189c736 100644
 +   struct nouveau_bo *busy[] = { dec->bsp_data, dec->vp_data, dec->mbring, dec->vp_scratch };
     unsigned i;
  
++   for (i = 0; i < NV84_SLOTS; ++i)
++      if (dec->slot_uses[i])
++         nv84_decoder_slot_wait(dec, i, 2 * dec->slot_uses[i] + 1);
++
     /* The engines may still be decoding: freeing what they read and removing
-@@ -247,16 +248,26 @@ nv84_decoder_destroy(struct pipe_video_codec *decoder)
+     * their objects from under them leaves them hung, so wait for them first. */
     for (i = 0; i < ARRAY_SIZE(busy); ++i)
        if (busy[i])
           BO_WAIT(screen, busy[i], NOUVEAU_BO_RDWR, dec->client);
@@ -64,7 +99,7 @@ index 5d2d2f3..189c736 100644
  
     nouveau_object_del(&dec->bsp);
     nouveau_object_del(&dec->vp);
-@@ -397,15 +408,10 @@ nv84_create_decoder(struct pipe_context *context,
+@@ -397,15 +432,10 @@ nv84_create_decoder(struct pipe_context *context,
     if (ret)
        goto fail;
     if (is_h264) {
@@ -84,7 +119,7 @@ index 5d2d2f3..189c736 100644
        ret = nouveau_bo_new(screen->device, NOUVEAU_BO_VRAM | NOUVEAU_BO_NOSNOOP,
                             0,
                             (templ->max_references + 1) * dec->frame_mbs * 0x40 +
-@@ -413,21 +419,30 @@ nv84_create_decoder(struct pipe_context *context,
+@@ -413,21 +443,30 @@ nv84_create_decoder(struct pipe_context *context,
                             NULL, &dec->mbring);
        if (ret)
           goto fail;
@@ -128,7 +163,7 @@ index 5d2d2f3..189c736 100644
     }
     if (is_mpeg12) {
        ret = nouveau_bo_new(screen->device, NOUVEAU_BO_GART,
-@@ -442,14 +457,16 @@ nv84_create_decoder(struct pipe_context *context,
+@@ -442,14 +481,16 @@ nv84_create_decoder(struct pipe_context *context,
           goto fail;
     }
  
@@ -153,7 +188,7 @@ index 5d2d2f3..189c736 100644
  
     if (is_h264) {
        nouveau_pushbuf_bufctx(bsp_push, dec->bsp_bufctx);
-@@ -497,26 +514,28 @@ nv84_create_decoder(struct pipe_context *context,
+@@ -497,26 +538,28 @@ nv84_create_decoder(struct pipe_context *context,
        mip.base.bo = dec->mbring;
        mip.base.address = dec->mbring->offset;
        nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 64, 4760, false);
@@ -197,19 +232,22 @@ index 5d2d2f3..189c736 100644
  
        PUSH_SPACE(bsp_push, 2 + 12 + 2 + 4 + 3);
 diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video.h b/src/gallium/drivers/nouveau/nv50/nv84_video.h
-index 85d5964..2f2a36c 100644
+index 85d5964..0b6c85f 100644
 --- a/src/gallium/drivers/nouveau/nv50/nv84_video.h
 +++ b/src/gallium/drivers/nouveau/nv50/nv84_video.h
-@@ -55,6 +55,8 @@ struct nv84_video_buffer {
+@@ -55,6 +55,11 @@ struct nv84_video_buffer {
     unsigned frame_num, frame_num_max;
  };
  
 +#define NV84_SLOTS 3
 +
++struct nv84_decoder;
++bool nv84_decoder_slot_wait(struct nv84_decoder *dec, unsigned slot, uint32_t value);
++
  struct nv84_decoder {
     struct pipe_video_codec base;
     struct nouveau_client *client;
-@@ -64,19 +66,19 @@ struct nv84_decoder {
+@@ -64,19 +69,21 @@ struct nv84_decoder {
  
     struct nouveau_bo *bsp_fw, *bsp_data;
     struct nouveau_bo *vp_fw, *vp_data;
@@ -226,7 +264,9 @@ index 85d5964..2f2a36c 100644
 +    * so that PBSP parses a frame while PVP2 reconstructs the ones before. The
 +    * fence of a slot counts up: on the slot's k-th frame PBSP waits for 2k+1
 +    * (rings cleared, or PVP2 done with the slot) and writes 2k+2, then PVP2
-+    * waits for 2k+2 and writes 2k+3.
++    * waits for 2k+2 and writes 2k+3. The engines write it when they are done,
++    * after their channel has moved on, so the CPU reads the fence itself
++    * before it refills a slot.
      */
 -   struct nouveau_bo *fence;
 -
@@ -240,10 +280,10 @@ index 85d5964..2f2a36c 100644
     size_t vp_fw2_offset;
  
 diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c b/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
-index f988d0a..b283f4b 100644
+index f988d0a..8ef73de 100644
 --- a/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
 +++ b/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
-@@ -97,14 +97,19 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
+@@ -97,14 +97,21 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
     static const uint32_t end[] = {0x0b010000, 0, 0x0b010000, 0};
     char indexes[17] = {0};
     struct nouveau_pushbuf *push = dec->bsp_pushbuf;
@@ -262,12 +302,14 @@ index f988d0a..b283f4b 100644
     };
  
 -   BO_WAIT(screen, dec->fence, NOUVEAU_BO_RDWR, dec->client);
-+   /* The bitstream of this slot was last parsed two frames ago */
++   /* The bitstream and parameters of this slot are free once PVP2 is done
++    * with the slot's last frame */
 +   BO_WAIT(screen, bitstream, NOUVEAU_BO_RDWR, dec->client);
++   nv84_decoder_slot_wait(dec, dec->slot, seq + 1);
  
     STATIC_ASSERT(sizeof(struct iparm) == 0x530);
  
-@@ -189,48 +194,46 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
+@@ -189,48 +196,46 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
     params.ipicparm.deblocking_filter_control_present_flag = desc->pps->deblocking_filter_control_present_flag;
     params.ipicparm.redundant_pic_cnt_present_flag = desc->pps->redundant_pic_cnt_present_flag;
  
@@ -287,8 +329,7 @@ index f988d0a..b283f4b 100644
 -   memcpy(dec->bitstream->map + 0x600, more_params, sizeof(more_params));
 +   memcpy(bitstream->map + 0x600, more_params, sizeof(more_params));
  
--   PUSH_SPACE(push, 5 + 21 + 3 + 2 + 4 + 2);
-+   PUSH_SPACE(push, 5 + 21 + 3 + 2 + 4 + 2 + 5);
+    PUSH_SPACE(push, 5 + 21 + 3 + 2 + 4 + 2);
     PUSH_REFN(push, bo_refs, ARRAY_SIZE(bo_refs));
  
 -   /* Wait for the fence = 1 */
@@ -335,7 +376,7 @@ index f988d0a..b283f4b 100644
                       dec->vpring_residual + dec->vpring_deblock) >> 8);
     PUSH_DATA (push, 0x654321);
     PUSH_DATA (push, 0);
-@@ -243,14 +246,23 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
+@@ -243,11 +248,11 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
     BEGIN_NV04(push, SUBC_BSP(0x300), 1);
     PUSH_DATA (push, 0);
  
@@ -351,20 +392,8 @@ index f988d0a..b283f4b 100644
  
     BEGIN_NV04(push, SUBC_BSP(0x304), 1);
     PUSH_DATA (push, 0x101);
-+
-+   /* PBSP writes the fence once it is done, after the channel has moved on:
-+    * hold the channel until then, so that its fence tells the kernel the
-+    * truth about the buffers PBSP uses */
-+   BEGIN_NV04(push, SUBC_BSP(NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH), 4);
-+   PUSH_DATAh(push, fence->offset);
-+   PUSH_DATA (push, fence->offset);
-+   PUSH_DATA (push, seq + 2);
-+   PUSH_DATA (push, NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL);
-    PUSH_KICK (push);
-    return 0;
- }
 diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video_vp.c b/src/gallium/drivers/nouveau/nv50/nv84_video_vp.c
-index 1e1506e..cc51a44 100644
+index 1e1506e..1a4f45a 100644
 --- a/src/gallium/drivers/nouveau/nv50/nv84_video_vp.c
 +++ b/src/gallium/drivers/nouveau/nv50/nv84_video_vp.c
 @@ -73,13 +73,17 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
@@ -389,23 +418,12 @@ index 1e1506e..cc51a44 100644
     };
     int num_refs = ARRAY_SIZE(bo_refs);
     bool is_ref = desc->is_reference;
-@@ -119,7 +123,7 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
-    param2.mb_adaptive_frame_field_flag = desc->pps->sps->mb_adaptive_frame_field_flag;
-    param2.is_reference = desc->is_reference;
- 
--   PUSH_SPACE(push, 5 + 16 + 3 + 2 + 6 + (is_ref ? 2 : 0) + 3 + 2 + 4 + 2);
-+   PUSH_SPACE(push, 5 + 16 + 3 + 2 + 6 + (is_ref ? 2 : 0) + 3 + 2 + 4 + 2 + 5);
- 
-    struct nouveau_bo *ref2_default = dest->full;
- 
-@@ -144,17 +148,19 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
+@@ -144,17 +148,17 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
        PUSH_REFN(push, bo_refs, ARRAY_SIZE(bo_refs));
     }
  
 -   memcpy(dec->vp_params->map, &param1, sizeof(param1));
 -   memcpy(dec->vp_params->map + 0x400, &param2, sizeof(param2));
-+   /* The parameters of this slot were last read two frames ago */
-+   BO_WAIT(nouveau_screen(dec->base.context->screen), vp_params, NOUVEAU_BO_RDWR, dec->client);
 +   memcpy(vp_params->map, &param1, sizeof(param1));
 +   memcpy(vp_params->map + 0x400, &param2, sizeof(param2));
  
@@ -425,7 +443,7 @@ index 1e1506e..cc51a44 100644
  
     /* VP step 1 */
     BEGIN_NV04(push, SUBC_VP(0x400), 15);
-@@ -162,13 +168,13 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
+@@ -162,13 +166,13 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
     PUSH_DATA (push, param2.mbs);
     PUSH_DATA (push, 0x3987654); /* each nibble probably a dma index */
     PUSH_DATA (push, 0x55001); /* constant */
@@ -445,7 +463,7 @@ index 1e1506e..cc51a44 100644
                       dec->vpring_residual + dec->vpring_deblock) >> 8);
     PUSH_DATA (push, 0);
     PUSH_DATA (push, 0x100008);
-@@ -185,8 +191,8 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
+@@ -185,8 +189,8 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
     /* VP step 2 */
     BEGIN_NV04(push, SUBC_VP(0x400), 5);
     PUSH_DATA (push, 0x54530201);
@@ -456,7 +474,7 @@ index 1e1506e..cc51a44 100644
                       dec->vpring_residual) >> 8);
     PUSH_DATA (push, dest->interlaced->offset >> 8);
     PUSH_DATA (push, dest->interlaced->offset >> 8);
-@@ -203,16 +209,23 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
+@@ -203,11 +207,11 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,
     BEGIN_NV04(push, SUBC_VP(0x300), 1);
     PUSH_DATA (push, 0);
  
@@ -472,15 +490,3 @@ index 1e1506e..cc51a44 100644
  
     /* Write to the semaphore location, intr */
     BEGIN_NV04(push, SUBC_VP(0x304), 1);
-    PUSH_DATA (push, 0x101);
- 
-+   /* As for PBSP: hold the channel until PVP2 is really done */
-+   BEGIN_NV04(push, SUBC_VP(NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH), 4);
-+   PUSH_DATAh(push, fence->offset);
-+   PUSH_DATA (push, fence->offset);
-+   PUSH_DATA (push, seq + 3);
-+   PUSH_DATA (push, NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL);
-+
-    for (i = 0; i < 2; i++) {
-       struct nv50_miptree *mt = nv50_miptree(dest->resources[i]);
-       mt->base.status |= NOUVEAU_BUFFER_STATUS_GPU_WRITING;
