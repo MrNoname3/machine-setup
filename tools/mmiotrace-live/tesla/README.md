@@ -149,16 +149,22 @@ running; the `mesa-nv84-*` patches fix both. A browser's GPU process also
 needs `mesa-winsys-object-del.patch`: Mesa deleted its nouveau objects
 through the wrong file descriptor, the kernel kept them, and the VP2
 decoder's probe for PBSP failed when it reused a freed object's address.
+The decoder cleared only the last page of its vpring, which PVP2 reads
+more of than PBSP writes; with VRAM short, a new decoder's ring holds an
+old one's data, and a stream started on a black picture with only the
+moving parts drawn, until its next keyframe.
+`mesa-nv84-vpring-clear.patch` clears the whole ring.
 
 With all of these the VP2 engines decode H.264 on the 9800 GT, and Brave and
 Celluloid show the clip's frames, which
 [browser-test](../../browser-test/)'s picture check compares with a
 reference. Mesa ran PBSP and then PVP2 on each frame, never both at once;
 `mesa-nv84-slots.patch` lets PBSP parse a frame while PVP2 reconstructs the
-one before, and Brave then plays 720p and 1080p at 30 frames a second
-without dropping one. PVP2 alone takes about 20 ms on a 1080p frame, so
-1080p at 60 frames a second does not keep up; enhanced-h264ify's "Block
-60fps" option keeps YouTube at 30.
+ones before, and Brave then plays 720p and 1080p at 30 frames a second
+without dropping one, 720p also at twice the speed and 1080p at one and a
+half. PVP2 alone takes about 20 ms on a 1080p frame, so 1080p at 60 frames
+a second, or at twice the speed, does not keep up; enhanced-h264ify's
+"Block 60fps" option keeps YouTube at 30.
 
 ## Upstream
 
