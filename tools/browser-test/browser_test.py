@@ -11,6 +11,7 @@ XDG_DATA = os.path.join(STATE, "xdg-data")
 RESULTS = os.path.join(STATE, "results")
 MEDIA = os.path.join(STATE, "media")
 BRAVE = os.environ.get("BT_BRAVE", "/opt/brave.com/brave/brave")
+LAUNCHER = os.environ.get("BT_LAUNCHER", "/opt/brave.com/brave/brave-browser")
 PORT = 9333
 WEB_PORT = 8765
 WEB = f"http://127.0.0.1:{WEB_PORT}"
@@ -232,6 +233,30 @@ def browser_flags():
     return []
 
 
+def launcher_args():
+    """The environment and flags the launcher puts on its "$HERE/brave" line,
+    where the brave role adds the host's: the user's own starts get them."""
+    import shlex
+    try:
+        lines = open(LAUNCHER).read().splitlines()
+    except OSError:
+        return {}, []
+    for line in lines:
+        if '"$HERE/brave"' in line and not line.lstrip().startswith("#"):
+            words = shlex.split(line.split("||")[0])
+            i = words.index("$HERE/brave")
+            env = dict(w.split("=", 1) for w in words[:i] if "=" in w)
+            return env, [w for w in words[i + 1:] if w != "$@"]
+    return {}, []
+
+
+def merge_features(flags):
+    """Chromium reads only the last --enable-features: one with all of them."""
+    features = [f for x in flags if x.startswith("--enable-features=") for f in x.split("=", 1)[1].split(",")]
+    rest = [x for x in flags if not x.startswith("--enable-features=")]
+    return rest + ([f"--enable-features={','.join(dict.fromkeys(features))}"] if features else [])
+
+
 # --- staying awake -----------------------------------------------------------
 _INHIBITORS = []
 
@@ -340,16 +365,18 @@ def start(env, flags):
     stop()
     subprocess.run(["systemctl", "--user", "reset-failed", UNIT], capture_output=True)
     seed_profile()
+    host_env, host_flags = launcher_args()
     cmd = ["systemd-run", "--user", "--unit", UNIT, "--collect", "--quiet"]
     # Web apps the browser policy installs write launchers and icons there, and
     # in the user's own data directory they would replace the real profile's.
-    cmd += [f"--setenv={k}={v}" for k, v in {**session_env(), "XDG_DATA_HOME": XDG_DATA, **env}.items()]
+    cmd += [f"--setenv={k}={v}" for k, v in {**session_env(), **host_env, "XDG_DATA_HOME": XDG_DATA, **env}.items()]
     if os.environ.get("BT_STDERR"):
         cmd += ["-p", f"StandardError=truncate:{os.environ['BT_STDERR']}"]
     cmd += [BRAVE, f"--user-data-dir={PROFILE}", f"--remote-debugging-port={PORT}",
             "--no-first-run", "--no-default-browser-check", "--password-store=basic", "--disable-extensions",
             "--autoplay-policy=no-user-gesture-required", "--start-maximized", "--enable-logging=stderr",
-            "--disable-features=BraveRewards,BraveNews", *offline_flags(), *browser_flags(), *flags, page("red")]
+            "--disable-features=BraveRewards,BraveNews", *offline_flags(), *browser_flags(),
+            *merge_features(host_flags + list(flags)), page("red")]
     subprocess.run(cmd, check=True)
     for _ in range(60):
         try:

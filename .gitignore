@@ -18,6 +18,9 @@ host_vars/*/local.yml
 .venv/
 .ansible/
 
+# Python bytecode: it records the absolute path of its source, a home directory included.
+__pycache__/
+
 # Private secret-scan patterns for scripts/check.sh (own domains/MACs/etc.) — never commit.
 .secret-patterns.local
 

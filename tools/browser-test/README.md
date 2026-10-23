@@ -81,6 +81,7 @@ web apps installed by policy put their launchers instead of next to the user's. 
 | `BT_NO_OZONE=1` | on Wayland, Brave runs through Xwayland instead of as a Wayland client |
 | `BT_STDERR` | a file for Brave's log |
 | `BT_BRAVE` | the Brave binary, `/opt/brave.com/brave/brave` by default |
+| `BT_LAUNCHER` | the launcher whose environment and flags the test Brave starts with, as the user's own starts do (the brave role puts the host's there, such as a laptop's `--render-node-override`); `/opt/brave.com/brave/brave-browser` by default |
 | `BT_NETWORK=1` | lets the test browser reach the internet; by default only `127.0.0.1` resolves, so web apps a browser policy installs do not load in the background and skew the CPU figures |
 
 The `stress` actions:
