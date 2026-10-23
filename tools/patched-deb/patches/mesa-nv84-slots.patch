@@ -280,12 +280,12 @@ index 85d5964..0b6c85f 100644
     size_t vp_fw2_offset;
  
 diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c b/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
-index f988d0a..8ef73de 100644
+index e910369..28a4e30 100644
 --- a/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
 +++ b/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
-@@ -97,14 +97,21 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
-    static const uint32_t end[] = {0x0b010000, 0, 0x0b010000, 0};
+@@ -98,14 +98,21 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
     char indexes[17] = {0};
+    bool dest_is_ref = false;
     struct nouveau_pushbuf *push = dec->bsp_pushbuf;
 +   struct nouveau_bo *vpring = dec->vpring[dec->slot];
 +   struct nouveau_bo *bitstream = dec->bitstream[dec->slot];
@@ -309,7 +309,7 @@ index f988d0a..8ef73de 100644
  
     STATIC_ASSERT(sizeof(struct iparm) == 0x530);
  
-@@ -189,48 +196,46 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
+@@ -192,48 +199,46 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
     params.ipicparm.deblocking_filter_control_present_flag = desc->pps->deblocking_filter_control_present_flag;
     params.ipicparm.redundant_pic_cnt_present_flag = desc->pps->redundant_pic_cnt_present_flag;
  
@@ -376,7 +376,7 @@ index f988d0a..8ef73de 100644
                       dec->vpring_residual + dec->vpring_deblock) >> 8);
     PUSH_DATA (push, 0x654321);
     PUSH_DATA (push, 0);
-@@ -243,11 +248,11 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
+@@ -246,11 +251,11 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
     BEGIN_NV04(push, SUBC_BSP(0x300), 1);
     PUSH_DATA (push, 0);
  

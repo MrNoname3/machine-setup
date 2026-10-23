@@ -1,0 +1,62 @@
+Description: Give every VP2 picture a motion-vector slot no reference holds
+ PBSP stores each picture's motion vectors in a slot of mbring, where a
+ later B picture reads them for direct prediction from its co-located
+ picture. A surface got its slot once and kept it, but a slot is free for
+ another surface whenever this one leaves the reference list, so a
+ recycled surface could overwrite the vectors of a reference still in use;
+ non-reference pictures always wrote slot 0. B pictures then predicted
+ from the wrong vectors and differed from a software decoder in moving
+ areas. Each picture now takes its surface's slot only when no reference
+ in use holds it, and a free one otherwise; the second field of a frame
+ keeps the slot of the first.
+diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c b/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
+index f988d0a..e910369 100644
+--- a/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
++++ b/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
+@@ -96,6 +96,7 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
+    int i;
+    static const uint32_t end[] = {0x0b010000, 0, 0x0b010000, 0};
+    char indexes[17] = {0};
++   bool dest_is_ref = false;
+    struct nouveau_pushbuf *push = dec->bsp_pushbuf;
+    struct nouveau_pushbuf_refn bo_refs[] = {
+       { dec->vpring, NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM },
+@@ -136,6 +137,7 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
+       ref->u00 = ref->mvidx = frame->mvidx;
+       ref->field_pic_flag = desc->field_pic_flag;
+       indexes[frame->mvidx] = 1;
++      dest_is_ref |= frame == dest;
+    }
+ 
+    /* Needs to be adjusted if we ever support non-4:2:0 videos */
+@@ -153,19 +155,20 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
+       params.ipicparm.curr_pic_order_cnt = desc->field_order_cnt[0];
+    params.ipicparm.field_order_cnt[0] = desc->field_order_cnt[0];
+    params.ipicparm.field_order_cnt[1] = desc->field_order_cnt[1];
+-   if (desc->is_reference) {
+-      if (dest->mvidx < 0) {
+-         for (i = 0; i < desc->num_ref_frames + 1; i++) {
+-            if (!indexes[i]) {
+-               dest->mvidx = i;
+-               break;
+-            }
++   /* The engines store every picture's motion vectors, for the pictures that
++    * take it as their co-located one: give this one a slot no reference in
++    * use holds. A surface keeps its slot across pictures, which another
++    * surface may have taken since; the second field of a frame shares it. */
++   if (dest->mvidx < 0 || (indexes[dest->mvidx] && !dest_is_ref)) {
++      for (i = 0; i < desc->num_ref_frames + 1; i++) {
++         if (!indexes[i]) {
++            dest->mvidx = i;
++            break;
+          }
+-         assert(i != desc->num_ref_frames + 1);
+       }
+-
+-      params.ipicparm.u1cc = params.ipicparm.curr_mvidx = dest->mvidx;
++      assert(i != desc->num_ref_frames + 1);
+    }
++   params.ipicparm.u1cc = params.ipicparm.curr_mvidx = dest->mvidx;
+ 
+    params.iseqparm.num_ref_frames = desc->num_ref_frames;
+    params.iseqparm.mb_adaptive_frame_field_flag = desc->pps->sps->mb_adaptive_frame_field_flag;
