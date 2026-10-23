@@ -1,0 +1,40 @@
+From ef7c6a2098027fdda9f74dfeb058bfcfe53a2397 Mon Sep 17 00:00:00 2001
+From: Your_Name <you@example.org>
+Date: Fri, 23 Oct 2026 19:46:10 +0200
+Subject: [PATCH] drm/nouveau: clear the channel of a fence found signalled on
+ enable
+
+nouveau_fence_no_signaling() takes a fence that has already signalled off
+its channel's pending list, but leaves fence->channel set. The channel
+teardown clears fence->channel only for the fences still on that list, so
+this one keeps pointing at the channel after it is freed. A buffer can
+still hold the fence in its reservation object: when another channel then
+submits work on that buffer, nouveau_fence_sync() dereferences the freed
+channel. A Wayland compositor that waits on a client's buffers and keeps
+compositing them after the client exits hits this as a NULL pointer
+dereference in nouveau_fence_sync().
+
+Clear fence->channel there too, as nouveau_fence_signal() does.
+
+Assisted-by: Claude:claude-opus-5-5
+---
+ nouveau_fence.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/nouveau_fence.c b/nouveau_fence.c
+index 903d326..4885b2a 100644
+--- a/nouveau_fence.c
++++ b/nouveau_fence.c
+@@ -486,7 +486,9 @@ static bool nouveau_fence_no_signaling(struct dma_fence *f)
+ 	 * just not right away.
+ 	 */
+ 	if (nouveau_fence_is_signaled(f)) {
++		/* Off the pending list, the channel teardown no longer clears it */
+ 		list_del(&fence->head);
++		rcu_assign_pointer(fence->channel, NULL);
+ 
+ 		dma_fence_put(&fence->base);
+ 		return false;
+-- 
+2.56.0
+

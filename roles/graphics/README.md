@@ -34,6 +34,10 @@ the graphics engine's M2MF.
 | GeForce GT 210 | GT218 (`10de:0a65`) | 0011: push buffer reads, without which Mesa 22.3+ hangs the GPU; 0012: the copy engine's channel; 0013: moving a buffer in use | `03` 135/135, `07` 405/324, `0f` 589/500 | [tools/mmiotrace-live/tesla](../../tools/mmiotrace-live/tesla) |
 | GeForce 9800 GT | G92 (`10de:0614`) | 0011–0013 as above; 0014: the video clock, without which H.264 decoding hangs; 0015: the H.264 engine enabled; 0016: the memory PLL bit without which VRAM loses its contents on reclock; 0017: reclocking allowed | `0f` 600/900 | [tools/mmiotrace-live/tesla](../../tools/mmiotrace-live/tesla#geforce-9800-gt) |
 
+`0018` is for every card: a fence nouveau finds already signalled when someone
+starts waiting on it kept a pointer to its channel, so a compositor still
+showing a buffer from a client that has exited could crash in the kernel.
+
 A Tesla card (GeForce 8 to 300) needs more than the kernel module on Mint 22,
 and a host gets all of it by joining the `nouveau_tesla` group in
 `inventory.ini` ([group_vars/nouveau_tesla.yml](../../group_vars/nouveau_tesla.yml)):

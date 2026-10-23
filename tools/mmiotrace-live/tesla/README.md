@@ -168,8 +168,11 @@ a second, or at twice the speed, does not keep up; enhanced-h264ify's
 
 ## Upstream
 
-All seven patches apply to nouveau as in kernel 7.0, `0004` to `0007` to
-mainline as well. Together with the rest of the graphics role's set, on Linux
+All eight patches apply to nouveau as in kernel 7.0, `0004` to `0008` to
+mainline as well. `0008` (`0018` in the role) is not Tesla-specific: it keeps
+a signalled fence from pointing at its channel after the channel is freed,
+which crashed Cinnamon's compositor in `nouveau_fence_sync()` when a browser
+playing GPU-decoded video exited. Together with the rest of the graphics role's set, on Linux
 7.0 at `0f`, the GT218 runs the whole default `glmark2` set with Ubuntu's Mesa
 25.2, and the five scenes above with kisak's 26.2, without a GPU error; the
 9800 GT decodes H.264 and MPEG-2 through VA-API, and survives decodes cut
