@@ -116,6 +116,15 @@ heroic_install_path: /mnt/data/Games/Heroic
 # path, so it has to match exactly. Verified against the live upstreams; see
 # roles/appimages/README.md for how each source was chosen.
 appimages:
+  - name: Xodus Nexus               # Xbox-inspired Microsoft Store game launcher
+    file: xodus_nexus.appimage
+    manager: GithubUpdater
+    config:
+      repo: domsvoboda/xodus-nexus
+      # The other releases publish its backend and runtime; this pattern selects
+      # only the x86_64 launcher AppImage from the launcher release.
+      repo_filename: "Xodus-Nexus-*-x86_64.AppImage"
+      allow_prereleases: false
   - name: FlightCore                 # Northstar (Titanfall 2) mod manager
     file: flightcore.appimage
     manager: GithubUpdater
