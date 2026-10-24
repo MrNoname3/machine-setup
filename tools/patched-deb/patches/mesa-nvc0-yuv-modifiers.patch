@@ -1,0 +1,49 @@
+Description: Accept block-linear NV12 dma-bufs on Fermi and later
+ nvc0 picked a dma-buf's modifiers from the storage kind of its format, and
+ a multi-planar YUV format has none, so NV12 got LINEAR alone. VA-API
+ exports its NV12 surfaces block-linear, though, and the import takes them
+ plane by plane as 8- and 16-bit colour planes, which have that kind; EGL
+ refused them with EGL_BAD_MATCH, and a browser decoding video on the GPU
+ showed a black picture. Multi-planar YUV formats now get the modifiers of
+ such a plane.
+diff --git a/src/gallium/drivers/nouveau/nvc0/nvc0_resource.c b/src/gallium/drivers/nouveau/nvc0/nvc0_resource.c
+index 98339c0..6d6d303 100644
+--- a/src/gallium/drivers/nouveau/nvc0/nvc0_resource.c
++++ b/src/gallium/drivers/nouveau/nvc0/nvc0_resource.c
+@@ -40,6 +40,16 @@ nvc0_resource_destroy(struct pipe_screen *pscreen, struct pipe_resource *res)
+       nv50_miptree_destroy(pscreen, res);
+ }
+ 
++/* A multi-planar YUV image is imported plane by plane, as 8- or 16-bit
++ * colour planes, so its modifiers are those of such a plane. */
++static uint32_t
++nvc0_dmabuf_kind(struct pipe_screen *screen, enum pipe_format format)
++{
++   if (util_format_get_num_planes(format) > 1)
++      format = PIPE_FORMAT_R8_UNORM;
++   return nvc0_choose_tiled_storage_type(screen, format, 0, false);
++}
++
+ static void
+ nvc0_query_dmabuf_modifiers(struct pipe_screen *screen,
+                             enum pipe_format format, int max,
+@@ -47,8 +57,7 @@ nvc0_query_dmabuf_modifiers(struct pipe_screen *screen,
+                             int *count)
+ {
+    const int s = nouveau_screen(screen)->tegra_sector_layout ? 0 : 1;
+-   const uint32_t uc_kind =
+-      nvc0_choose_tiled_storage_type(screen, format, 0, false);
++   const uint32_t uc_kind = nvc0_dmabuf_kind(screen, format);
+    const uint32_t num_uc = uc_kind ? 6 : 0; /* max block height = 32 GOBs */
+    const int num_supported = num_uc + 1; /* LINEAR is always supported */
+    const uint32_t kind_gen = nvc0_get_kind_generation(screen);
+@@ -87,8 +96,7 @@ nvc0_is_dmabuf_modifier_supported(struct pipe_screen *screen,
+                                   bool *external_only)
+ {
+    const int s = nouveau_screen(screen)->tegra_sector_layout ? 0 : 1;
+-   const uint32_t uc_kind =
+-      nvc0_choose_tiled_storage_type(screen, format, 0, false);
++   const uint32_t uc_kind = nvc0_dmabuf_kind(screen, format);
+    const uint32_t num_uc = uc_kind ? 6 : 0; /* max block height = 32 GOBs */
+    const uint32_t kind_gen = nvc0_get_kind_generation(screen);
+    int i;
