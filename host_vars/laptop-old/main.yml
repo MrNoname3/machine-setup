@@ -339,6 +339,8 @@ nouveau_pstate: "0f"
 # M2MF moves evicted buffers faster than the copy engine on this GPU, and games
 # run the same either way.
 nouveau_copy_engines: false
+# The video engines' firmware (graphics role), so the GT 520M decodes video too.
+nouveau_video_firmware: true
 
 # Mesa 26.1+: before it, nvc0's 3D blit leaves the destination surface's sample
 # count uninitialised, and a garbage count overflows a packet header and kills

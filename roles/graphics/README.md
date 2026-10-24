@@ -38,6 +38,14 @@ the graphics engine's M2MF.
 starts waiting on it kept a pointer to its channel, so a compositor still
 showing a buffer from a client that has exited could crash in the kernel.
 
+`nouveau_video_firmware` serves Fermi too: the GT 520M decodes H.264, MPEG-2
+and VC-1 with it, and with `mesa-nvc0-yuv-modifiers.patch` of
+[tools/patched-deb](../../tools/patched-deb/) a browser can show the frames.
+On the laptop Brave still decodes on the Intel GPU, through the
+`--render-node-override` in its `brave_flags`: the GT 520M's video engine
+tops out near 50 frames a second at 1080p, short of 1080p at 60 or 1080p30
+at twice the speed, which the Intel GPU plays.
+
 A Tesla card (GeForce 8 to 300) needs more than the kernel module on Mint 22,
 and a host gets all of it by joining the `nouveau_tesla` group in
 `inventory.ini` ([group_vars/nouveau_tesla.yml](../../group_vars/nouveau_tesla.yml)):
