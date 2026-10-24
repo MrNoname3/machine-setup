@@ -111,6 +111,8 @@ brave_web_apps:
 # decoded on the GPU (tools/patched-deb).
 patched_debs:
   - { source: muffin, binary: libmuffin0 }
+# Launchpad builds them, so this machine builds none of them itself.
+patched_debs_ppa: true
 
 # Brave's Memory Saver on, at its "Moderate" savings level.
 brave_local_state_prefs_extra:
