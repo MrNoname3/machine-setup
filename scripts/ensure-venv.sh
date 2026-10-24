@@ -34,15 +34,40 @@ fi
 # Fast no-op when already satisfied; picks up Renovate bumps of the pins.
 "$VENV/bin/pip" install --quiet -r requirements.txt
 
-# galaxy.ansible.com is occasionally flaky — retry a couple of times before
-# declaring failure (pip already retries its downloads on its own).
+# The collections' own repositories (github.com/ansible-collections/<name>),
+# at their newest release tag, for when Galaxy cannot serve them. Without
+# dependencies, which Galaxy would fetch again: community.general's serves
+# only inventory plugins, and the inventory here is a static file.
+install_from_git() {
+  local name tag reqs
+  reqs="$(mktemp)"
+  echo "collections:" > "$reqs"
+  for name in $("$VENV/bin/python" -c 'import sys, yaml; print(" ".join(c["name"] for c in yaml.safe_load(open(sys.argv[1]))["collections"]))' requirements.yml); do
+    tag="$(git ls-remote --tags --refs "https://github.com/ansible-collections/$name.git" \
+      | sed -n 's#.*refs/tags/\([0-9]*\.[0-9]*\.[0-9]*\)$#\1#p' | sort -V | tail -1)"
+    [ -n "$tag" ] || { rm -f "$reqs"; return 1; }
+    printf '  - name: https://github.com/ansible-collections/%s.git\n    type: git\n    version: %s\n' \
+      "$name" "$tag" >> "$reqs"
+  done
+  "$VENV/bin/ansible-galaxy" collection install --no-deps -r "$reqs" -p .ansible/collections >/dev/null
+  local rc=$?
+  rm -f "$reqs"
+  return $rc
+}
+
+# galaxy.ansible.com is occasionally flaky — retry a couple of times, then
+# take the collections from their repositories (pip already retries its
+# downloads on its own).
 for attempt in 1 2 3; do
   if "$VENV/bin/ansible-galaxy" collection install -r requirements.yml \
     -p .ansible/collections >/dev/null; then
     break
   elif [ "$attempt" = 3 ]; then
-    echo "ERROR: ansible-galaxy collection install failed after 3 attempts" >&2
-    exit 1
+    echo "ansible-galaxy failed 3 times; installing the collections from their git repositories" >&2
+    install_from_git || {
+      echo "ERROR: could not install the collections from Galaxy or git" >&2
+      exit 1
+    }
   else
     echo "ansible-galaxy failed (attempt $attempt), retrying..." >&2
     sleep 5
