@@ -16,6 +16,17 @@
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n\\w+: \"?(?<currentValue>[^\"\\s]+)\"?"
       ],
       "extractVersionTemplate": "^v?(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "The archive versions the PPA's source packages are built from (tools/patched-deb/ppa-sources.yml)",
+      "managerFilePatterns": [
+        "/(^|/)tools/patched-deb/ppa-sources\\.yml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) registryUrl=(?<registryUrl>\\S+)\\n\\s+[\\w.+-]+: \"(?<currentValue>[^\"]+)\""
+      ],
+      "versioningTemplate": "deb"
     }
   ],
   "labels": [
@@ -42,6 +53,20 @@
       ],
       "automerge": true,
       "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "PPA sources: never automerge; after the merge, tools/patched-deb/ppa.sh source and upload publish the rebuild. Archive indexes carry no release dates, so no soak.",
+      "matchFileNames": [
+        "tools/patched-deb/ppa-sources.yml"
+      ],
+      "automerge": false,
+      "minimumReleaseAge": null,
+      "addLabels": [
+        "ppa"
+      ],
+      "prBodyNotes": [
+        "After merging: run `tools/patched-deb/ppa.sh source work/ppa/upload` and `tools/patched-deb/ppa.sh upload work/ppa/upload` on the desktop (the upload asks for the signing key's passphrase). The **PPA sources** check shows whether the patches still apply to the new version."
+      ]
     }
   ]
 }

@@ -59,11 +59,21 @@ tools/patched-deb/ppa.sh source work/ppa/upload   # build the source packages
 tools/patched-deb/ppa.sh upload work/ppa/upload   # sign and upload them
 ```
 
-Both run in a throwaway Ubuntu 24.04 container (podman). A package takes the
-archive's version with `+patched<n>` appended, `<n>` being the number of
-commits that touched its patches, so a new archive version or a changed patch
-uploads a newer one. Mesa and Xwayland build against kisak's PPAs, which the
-PPA lists as dependencies. Muffin builds against Linux Mint's cinnamon-desktop,
+Both run in a throwaway Ubuntu 24.04 container (podman), and build the archive
+versions [ppa-sources.yml](ppa-sources.yml) names. A package takes that
+version with `+patched<n>` appended, `<n>` being the number of commits that
+touched its patches, so a new archive version or a changed patch uploads a
+newer one.
+
+Renovate watches the archives behind ppa-sources.yml and opens a pull request,
+never merged on its own, when one carries a newer version. The **PPA sources**
+workflow builds the source packages for every change here, so the pull request
+shows whether the patches still apply; once it is merged, `ppa.sh source` and
+`upload` publish the rebuild. `ppa.sh check <out-dir>` is that build without a
+container, as root on Ubuntu 24.04.
+
+Mesa and Xwayland build against kisak's PPAs, which the PPA lists as
+dependencies. Muffin builds against Linux Mint's cinnamon-desktop,
 which [ppa:mrnoname3/machine-setup-build-deps](https://launchpad.net/~mrnoname3/+archive/ubuntu/machine-setup-build-deps)
 carries for the build alone; no host adds that one.
 

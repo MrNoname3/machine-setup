@@ -2,7 +2,7 @@
 #
 # build-deb.sh [--keep-version] <source-package> <binary-package>[,<binary-package>...] <out-dir>
 # build-deb.sh --suffix <source-package>
-# build-deb.sh --source <revision> <source-package> <out-dir>
+# build-deb.sh --source <revision> <source-package>[=<version>] <out-dir>
 #
 # Rebuilds a Debian or Ubuntu source package with patches/<source-package>-*.patch
 # applied and copies the named binary packages' .debs into <out-dir>. A patch
@@ -14,9 +14,9 @@
 # "+patched.<hash>" appended, the hash covering the patches, so the same source
 # version with the same patches always builds the same version; --suffix
 # prints that "+patched.<hash>". --source builds an unsigned source package for
-# a PPA of the running release instead, versioned "+patched<revision>", with the
-# patches in debian/patches (or in the tree of a native package). The patches
-# in use:
+# a PPA of the running release instead, from the archive's <version> when one
+# is named, versioned "+patched<revision>", with the patches in debian/patches
+# (or in the tree of a native package). The patches in use:
 #
 #   iwd                 iwd selects PSK-SHA256 on WPA2/WPA3 transition networks
 #                       even on hardware that cannot do management frame
@@ -60,9 +60,14 @@ if [ "${1:-}" = --keep-version ]; then
   KEEP_VERSION=1
   shift
 elif [ "${1:-}" = --source ]; then
-  [ $# -eq 4 ] || die "usage: build-deb.sh --source <revision> <source-package> <out-dir>"
+  [ $# -eq 4 ] || die "usage: build-deb.sh --source <revision> <source-package>[=<version>] <out-dir>"
   REVISION=$2
   set -- "$3" "" "$4"
+fi
+WANT_VERSION=
+if [ -n "$REVISION" ] && [[ $1 == *=* ]]; then
+  WANT_VERSION=${1#*=}
+  set -- "${1%%=*}" "$2" "$3"
 fi
 [ $# -eq 3 ] || die "usage: build-deb.sh [--keep-version] <source-package> <binary-package>[,...] <out-dir>"
 SOURCE=$1 OUT=$(readlink -f "$3")
@@ -80,9 +85,11 @@ fi
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 cd "$WORK"
-apt-get source -qq "$SOURCE" >/dev/null 2>&1 || die "apt-get source $SOURCE failed (is deb-src enabled?)"
+apt-get source -qq "$SOURCE${WANT_VERSION:+=$WANT_VERSION}" >/dev/null 2>&1 ||
+  die "apt-get source $SOURCE${WANT_VERSION:+ $WANT_VERSION} failed (is deb-src enabled?)"
 cd "$SOURCE"-*/
 VERSION=$(dpkg-parsechangelog -S Version)
+[ -z "$WANT_VERSION" ] || [ "$VERSION" = "$WANT_VERSION" ] || die "apt-get source gave $SOURCE $VERSION, not $WANT_VERSION"
 if [ -n "$REVISION" ]; then
   VERSION=$VERSION+patched$REVISION
 elif [ -z "$KEEP_VERSION" ]; then

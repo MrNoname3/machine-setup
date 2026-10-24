@@ -1,0 +1,22 @@
+# yamllint disable rule:line-length
+# The archive versions the PPA's source packages are built from (ppa.sh), each
+# watched through one of its binary packages. Renovate opens a pull request
+# when the archive carries a newer one; CI then checks that the patches still
+# apply, and once it is merged, ppa.sh source and upload publish it.
+
+# Rebuilt with the patches/<source>-*.patch of this directory.
+packages:
+  # renovate: datasource=deb depName=mesa-libgallium registryUrl=https://ppa.launchpadcontent.net/kisak/kisak-mesa/ubuntu?suite=noble&components=main&binaryArch=amd64
+  mesa: "26.2.5~kisak1~n"
+  # renovate: datasource=deb depName=xwayland registryUrl=https://ppa.launchpadcontent.net/kisak/kisak-mesa/ubuntu?suite=noble&components=main&binaryArch=amd64
+  xwayland: "2:24.1.6-1ubuntu0.1~kisak~n"
+  # renovate: datasource=deb depName=i965-va-driver registryUrl=http://archive.ubuntu.com/ubuntu?suite=noble-updates&components=universe&binaryArch=amd64
+  intel-vaapi-driver: "2.4.1+dfsg1-1ubuntu0.2"
+  # renovate: datasource=deb depName=libmuffin0 registryUrl=http://packages.linuxmint.com?suite=zena&components=backport&binaryArch=amd64
+  muffin: "6.6.3+zena"
+
+# Unchanged, into the build-dependency PPA: what the packages above build
+# against and Ubuntu 24.04 carries only older.
+build_deps:
+  # renovate: datasource=deb depName=libcinnamon-desktop4 registryUrl=http://packages.linuxmint.com?suite=zena&components=backport&binaryArch=amd64
+  cinnamon-desktop: "6.6.2+zena"
