@@ -331,6 +331,8 @@ patched_debs:
   # with Mesa's Wayland EGL patch under Mint 22's Muffin.
   - "{{ patched_deb_mesa }}"
   - { source: muffin, binary: libmuffin0 }
+# Launchpad builds them, so this machine builds none of them itself.
+patched_debs_ppa: true
 
 # GT 520M at full clocks: nouveau rebuilt with the GF108 reclocking patches
 # (graphics role). The GPU powers off whenever nothing renders on it, so the
