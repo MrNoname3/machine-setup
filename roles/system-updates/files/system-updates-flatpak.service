@@ -7,5 +7,7 @@ ConditionACPower=true
 
 [Service]
 Type=oneshot
+# Pruning first: an extension it takes for unused while runtimes change is
+# back after the update, which installs every related one.
+ExecStart=/usr/bin/flatpak uninstall --system --unused --noninteractive -y
 ExecStart=/usr/bin/systemd-inhibit --what=sleep:shutdown --why="Updating Flatpaks" /usr/bin/flatpak update --system --noninteractive -y
-ExecStartPost=/usr/bin/flatpak uninstall --system --unused --noninteractive -y
