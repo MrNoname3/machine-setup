@@ -30,7 +30,7 @@ it; the longest matching suffix wins.
 | iwd | [iwd-psk-sha256-needs-mfp.patch](patches/iwd-psk-sha256-needs-mfp.patch) | iwd picks PSK-SHA256 on WPA2/WPA3 networks even when the Wi-Fi chip cannot do management frame protection, and the chip never associates |
 | intel-vaapi-driver | [intel-vaapi-driver-export-unrendered-surface.patch](patches/intel-vaapi-driver-export-unrendered-surface.patch) | the i965 VA-API driver cannot export a surface before anything is decoded into it, so Chromium-based browsers decode video in software |
 | xwayland | [xwayland-guess-compositor-gpu.patch](patches/xwayland-guess-compositor-gpu.patch), and [.23.2](patches/xwayland-guess-compositor-gpu.23.2.patch) for Ubuntu 24.04's own Xwayland | under a compositor that offers only linux-dmabuf v3 and no wl_drm, such as Muffin before 6.8 on a current Mesa, Xwayland finds no GPU and every X client renders in software; the patch takes the boot VGA device |
-| muffin | [muffin-presentation-time.patch](patches/muffin-presentation-time.patch), from [linuxmint/muffin#843](https://github.com/linuxmint/muffin/pull/843) | Muffin before 6.8 has no presentation-time protocol, so Chromium paces its frames off a timer the frame callbacks keep re-phasing, and Brave drops about every eighth frame of a 30 fps video it decodes on the GPU |
+| muffin | [muffin-presentation-time.patch](patches/muffin-presentation-time.patch), from [linuxmint/muffin#843](https://github.com/linuxmint/muffin/pull/843) | Muffin before 6.8 has no presentation-time protocol, so Chromium paces its frames off a timer the frame callbacks keep re-phasing, and Brave drops about every eighth frame of a 30 fps video it decodes on the GPU; [muffin-no-settings-daemon-build-dep.patch](patches/muffin-no-settings-daemon-build-dep.patch) drops a build dependency of the tests, which do not exist, and which on Ubuntu pulls in a cinnamon-desktop library that takes Linux Mint's one over |
 | mesa | [mesa-nv50-clear-template.patch](patches/mesa-nv50-clear-template.patch), [mesa-nvc0-clear-template.patch](patches/mesa-nvc0-clear-template.patch), [mesa-vp3-destroy-wait.patch](patches/mesa-vp3-destroy-wait.patch), [mesa-va-export-interlaced.patch](patches/mesa-va-export-interlaced.patch), [mesa-egl-wayland-guess-gpu.patch](patches/mesa-egl-wayland-guess-gpu.patch), [mesa-nv84-ring-clear.patch](patches/mesa-nv84-ring-clear.patch), [mesa-nv84-destroy-wait.patch](patches/mesa-nv84-destroy-wait.patch), [mesa-nv84-motion-vectors.patch](patches/mesa-nv84-motion-vectors.patch), [mesa-nv84-slots.patch](patches/mesa-nv84-slots.patch), [mesa-nv84-vpring-clear.patch](patches/mesa-nv84-vpring-clear.patch), [mesa-nvc0-yuv-modifiers.patch](patches/mesa-nvc0-yuv-modifiers.patch), [mesa-winsys-object-del.patch](patches/mesa-winsys-object-del.patch), for kisak's 26.2 | on a GeForce 8 or later card: nv50 and nvc0 clears of a VA surface write past it; the VP2 decoder (GeForce 8 and 9) crashes setting up its rings; objects nouveau deletes stay in the kernel, so a browser's GPU process loses H.264 on VP2; a decoder torn down mid-stream hangs the video engine; the VP2 decoder runs its two engines one after the other, too slow for 1080p30, starts a stream on a black picture when its ring reuses memory, and decodes some B frames with another picture's motion vectors; VA-API refuses to export the field-split surfaces the engines decode into, so browsers decode in software; on Fermi and later, EGL refuses the block-linear NV12 surfaces VA-API exports, and a browser decoding on the GPU shows black; and under a compositor without wl_drm, Wayland EGL finds no GPU and renders in software |
 
 ## Where it runs
@@ -46,3 +46,28 @@ it; the longest matching suffix wins.
   carries a newer version, so the held packages keep getting the distribution's
   updates, and puts the archive's build back once the source is no longer
   listed for the host.
+
+## The PPA
+
+[ppa.sh](ppa.sh) builds the source packages of
+[ppa:mrnoname3/machine-setup](https://launchpad.net/~mrnoname3/+archive/ubuntu/machine-setup)
+on the desktop and uploads them, so that Launchpad builds the packages for
+Ubuntu 24.04 and Linux Mint 22, amd64 and i386:
+
+```
+tools/patched-deb/ppa.sh source work/ppa/upload   # build the source packages
+tools/patched-deb/ppa.sh upload work/ppa/upload   # sign and upload them
+```
+
+Both run in a throwaway Ubuntu 24.04 container (podman). A package takes the
+archive's version with `+patched<n>` appended, `<n>` being the number of
+commits that touched its patches, so a new archive version or a changed patch
+uploads a newer one. Mesa and Xwayland build against kisak's PPAs, which the
+PPA lists as dependencies. Muffin builds against Linux Mint's cinnamon-desktop,
+which [ppa:mrnoname3/machine-setup-build-deps](https://launchpad.net/~mrnoname3/+archive/ubuntu/machine-setup-build-deps)
+carries for the build alone; no host adds that one.
+
+The uploads are signed with the OpenPGP key
+`EF66147B218C737F9D35DFC518E1A4A55AAF217D`, which lives in the desktop's
+`~/.gnupg`, with its passphrase in KeePassXC; the container signs through the
+host's gpg-agent.

@@ -2,6 +2,7 @@
 #
 # build-deb.sh [--keep-version] <source-package> <binary-package>[,<binary-package>...] <out-dir>
 # build-deb.sh --suffix <source-package>
+# build-deb.sh --source <revision> <source-package> <out-dir>
 #
 # Rebuilds a Debian or Ubuntu source package with patches/<source-package>-*.patch
 # applied and copies the named binary packages' .debs into <out-dir>. A patch
@@ -12,7 +13,10 @@
 # others must keep matching their version. The version gets
 # "+patched.<hash>" appended, the hash covering the patches, so the same source
 # version with the same patches always builds the same version; --suffix
-# prints that "+patched.<hash>". The patches in use:
+# prints that "+patched.<hash>". --source builds an unsigned source package for
+# a PPA of the running release instead, versioned "+patched<revision>", with the
+# patches in debian/patches (or in the tree of a native package). The patches
+# in use:
 #
 #   iwd                 iwd selects PSK-SHA256 on WPA2/WPA3 transition networks
 #                       even on hardware that cannot do management frame
@@ -51,10 +55,14 @@ if [ "${1:-}" = --suffix ]; then
   suffix "$2"
   exit
 fi
-KEEP_VERSION=
+KEEP_VERSION= REVISION=
 if [ "${1:-}" = --keep-version ]; then
   KEEP_VERSION=1
   shift
+elif [ "${1:-}" = --source ]; then
+  [ $# -eq 4 ] || die "usage: build-deb.sh --source <revision> <source-package> <out-dir>"
+  REVISION=$2
+  set -- "$3" "" "$4"
 fi
 [ $# -eq 3 ] || die "usage: build-deb.sh [--keep-version] <source-package> <binary-package>[,...] <out-dir>"
 SOURCE=$1 OUT=$(readlink -f "$3")
@@ -65,7 +73,8 @@ PATCHES=("$SRC"/patches/"$SOURCE"-*.patch)
 if [ "$(id -u)" = 0 ]; then
   export DEBIAN_FRONTEND=noninteractive
   apt-get install -y -qq --no-install-recommends dpkg-dev fakeroot >/dev/null
-  apt-get build-dep -y -qq "$SOURCE" >/dev/null || die "apt-get build-dep $SOURCE failed (is deb-src enabled?)"
+  [ -n "$REVISION" ] ||
+    apt-get build-dep -y -qq "$SOURCE" >/dev/null || die "apt-get build-dep $SOURCE failed (is deb-src enabled?)"
 fi
 
 WORK=$(mktemp -d)
@@ -74,22 +83,28 @@ cd "$WORK"
 apt-get source -qq "$SOURCE" >/dev/null 2>&1 || die "apt-get source $SOURCE failed (is deb-src enabled?)"
 cd "$SOURCE"-*/
 VERSION=$(dpkg-parsechangelog -S Version)
-[ -n "$KEEP_VERSION" ] || VERSION=$VERSION$SUFFIX
+if [ -n "$REVISION" ]; then
+  VERSION=$VERSION+patched$REVISION
+elif [ -z "$KEEP_VERSION" ]; then
+  VERSION=$VERSION$SUFFIX
+fi
 UPSTREAM=$(dpkg-parsechangelog -S Version | sed -E 's/^[0-9]+://; s/-[^-]*$//')
 
 # A package an older version of the source built stays installed until
 # removed, but there is nothing to rebuild it from.
-mapfile -t BUILDS < <(sed -n 's/^Package:[[:space:]]*//p' debian/control)
-WANTED=()
-for b in "${BINARIES[@]}"; do
-  if printf '%s\n' "${BUILDS[@]}" | grep -qx -- "$b"; then
-    WANTED+=("$b")
-  else
-    printf 'build-deb.sh: %s %s no longer builds %s, skipped\n' "$SOURCE" "$UPSTREAM" "$b" >&2
-  fi
-done
-[ ${#WANTED[@]} -gt 0 ] || die "$SOURCE $UPSTREAM builds none of $2"
-BINARIES=("${WANTED[@]}")
+if [ -z "$REVISION" ]; then
+  mapfile -t BUILDS < <(sed -n 's/^Package:[[:space:]]*//p' debian/control)
+  WANTED=()
+  for b in "${BINARIES[@]}"; do
+    if printf '%s\n' "${BUILDS[@]}" | grep -qx -- "$b"; then
+      WANTED+=("$b")
+    else
+      printf 'build-deb.sh: %s %s no longer builds %s, skipped\n' "$SOURCE" "$UPSTREAM" "$b" >&2
+    fi
+  done
+  [ ${#WANTED[@]} -gt 0 ] || die "$SOURCE $UPSTREAM builds none of $2"
+  BINARIES=("${WANTED[@]}")
+fi
 
 # Per <name>, the variant for the longest matching version prefix, else the plain patch.
 declare -A PICK=() PICKLEN=()
@@ -107,21 +122,53 @@ done
 mapfile -t PATCHES < <(printf '%s\n' "${PICK[@]}" | sort)
 
 # Applied to the tree itself: a native source package ignores debian/patches,
-# and a binary-only build needs no source diff.
+# and a binary-only build needs no source diff. A source package for a PPA
+# carries them in debian/patches, which dpkg-source applies when it builds.
+QUILT=
+[ -z "$REVISION" ] || [ "$(cat debian/source/format 2>/dev/null)" != "3.0 (quilt)" ] || QUILT=1
 for p in "${PATCHES[@]}"; do
   patch -p1 --dry-run -s <"$p" >/dev/null || die "$(basename "$p") does not apply to $(basename "$PWD")"
-  patch -p1 -s <"$p"
+  if [ -n "$QUILT" ]; then
+    mkdir -p debian/patches
+    cp "$p" debian/patches/
+    basename "$p" >>debian/patches/series
+  else
+    patch -p1 -s <"$p"
+  fi
 done
 if [ -z "$KEEP_VERSION" ]; then
+  if [ -n "$REVISION" ]; then
+    DIST=$(. /etc/os-release && echo "$VERSION_CODENAME")
+    CHANGED_BY="${DEBFULLNAME:?DEBFULLNAME is needed for --source} <${DEBEMAIL:?DEBEMAIL is needed for --source}>"
+  else
+    DIST=UNRELEASED CHANGED_BY="machine-setup <machine-setup@localhost>"
+  fi
   {
-    printf '%s (%s) UNRELEASED; urgency=medium\n\n' "$SOURCE" "$VERSION"
+    printf '%s (%s) %s; urgency=medium\n\n' "$SOURCE" "$VERSION" "$DIST"
     for p in "${PATCHES[@]}"; do
       printf '  * %s\n' "$(sed -n 's/^Description: //p' "$p")"
     done
-    printf '\n -- machine-setup <machine-setup@localhost>  %s\n\n' "$(date -R)"
+    printf '\n -- %s  %s\n\n' "$CHANGED_BY" "$(date -R)"
     cat debian/changelog
   } >"$WORK/changelog"
   mv "$WORK/changelog" debian/changelog
+fi
+
+if [ -n "$REVISION" ]; then
+  # The package is ours now; its maintainer is kept as the original one.
+  if ! grep -q '^XSBC-Original-Maintainer:' debian/control; then
+    sed -i '0,/^Maintainer: \(.*\)$/s//Maintainer: \1\nXSBC-Original-Maintainer: \1/' debian/control
+  fi
+  sed -i "0,/^Maintainer: .*$/s//Maintainer: $CHANGED_BY/" debian/control
+  dpkg-buildpackage -S -d -nc -sa -us -uc >"$WORK/build.log" 2>&1 ||
+    { tail -20 "$WORK/build.log"; die "source build failed"; }
+  mkdir -p "$OUT"
+  changes=../${SOURCE}_${VERSION#*:}_source.changes
+  for f in "$changes" $(awk '/^Files:/ { f = 1; next } /^[^ ]/ { f = 0 } f { print "../" $5 }' "$changes"); do
+    cp "$f" "$OUT/"
+  done
+  ls "$OUT/${SOURCE}_${VERSION#*:}.dsc"
+  exit 0
 fi
 
 DEB_BUILD_OPTIONS="nocheck parallel=$(nproc)" dpkg-buildpackage -b -uc -us >"$WORK/build.log" 2>&1 ||

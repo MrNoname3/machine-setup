@@ -1,0 +1,16 @@
+Description: Build without cinnamon-settings-daemon
+ Muffin's test suite, which alone asks for it, defines no tests, and on
+ Ubuntu the daemon pulls in a cinnamon-desktop library that takes Linux
+ Mint's one over, so Muffin built in a PPA would link against the wrong one.
+Author: machine-setup
+Forwarded: not-needed
+--- a/debian/control
++++ b/debian/control
+@@ -11,7 +11,6 @@ Build-Depends:
+         dbus <!nocheck>,
+         dmz-cursor-theme <!nocheck>,
+         gnome-pkg-tools (>= 0.10),
+-        cinnamon-settings-daemon <!nocheck>,
+         gobject-introspection (>= 1.41.3),
+         gtk-doc-tools (>= 1.15),
+         libcairo2-dev (>= 1.10.0),
