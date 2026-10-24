@@ -1,0 +1,65 @@
+---
+# One patched package from the PPA: every binary package of patched_deb.source
+# installed here, on every architecture, at the PPA's version, which the pin
+# makes apt's candidate.
+
+- name: List the installed binary packages built from {{ patched_deb.source }}
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    dpkg-query -W -f='${db:Status-Abbrev}|${binary:Package}|${source:Package}\n'
+    | awk -F'|' -v src={{ patched_deb.source | quote }} '$1 ~ /^.i/ && $3 == src {print $2}' | sort -u
+  args:
+    executable: /bin/bash
+  register: patched_debs_binaries
+  changed_when: false
+  check_mode: false
+
+# A build made here was held; the pin keeps the PPA's in place instead.
+- name: Release the hold on the packages of {{ patched_deb.source }}
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: install
+  loop: "{{ patched_debs_binaries.stdout_lines | union([patched_deb.binary]) }}"
+
+# A build made here can carry a version that compares higher than the PPA's.
+- name: Install the PPA's {{ patched_deb.source }}  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv: >-
+      {{ ['apt-get', 'install', '-y', '-q', '--allow-downgrades']
+         + (patched_debs_binaries.stdout_lines | union([patched_deb.binary])) }}
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  register: patched_debs_ppa_install
+  changed_when: patched_debs_ppa_install.stdout is not search('^0 upgraded, 0 newly installed, (0 downgraded, )?0 to remove', multiline=True)
+  when: not ansible_check_mode
+
+# The native architecture's, as with another one installed dpkg-query prints
+# each version.
+- name: Read the installed version of {{ patched_deb.binary }}
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    dpkg-query -W -f='${db:Status-Abbrev}|${Architecture}|${Version}\n' {{ patched_deb.binary | quote }}
+    | awk -F'|' -v arch="$(dpkg --print-architecture)" '$1 ~ /^.i/ && ($2 == arch || $2 == "all") {print $3}'
+  args:
+    executable: /bin/bash
+  register: patched_debs_installed
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check that the PPA built the installed {{ patched_deb.binary }}
+  ansible.builtin.assert:
+    that: patched_debs_installed.stdout is search('[+]patched[0-9]+$')
+    fail_msg: >-
+      {{ patched_deb.binary }} {{ patched_debs_installed.stdout }} is not the PPA's build;
+      the PPA may lack the archive's newest version: tools/patched-deb/ppa.sh source and upload.
+    quiet: true
+  when: not ansible_check_mode
+
+# Tells release-patched and a later build here that this source is patched.
+- name: Record the patched-build marker of {{ patched_deb.source }}
+  ansible.builtin.copy:
+    dest: /var/lib/patched-debs/{{ patched_deb.source }}
+    content: "ppa {{ patched_debs_installed.stdout }}"
+    mode: "0644"
+  when: not ansible_check_mode

@@ -3,8 +3,9 @@
 # repository's patches (tools/patched-deb), installed and held. It follows the
 # archive: once it carries a newer version, the next run rebuilds that one, so
 # the held package does not miss security updates. Build tools and build
-# dependencies are installed for the build only. It needs root, so a run
-# without it skips the role with a notice.
+# dependencies are installed for the build only. With patched_debs_ppa the
+# sources the PPA carries come from there, built by Launchpad, instead. It
+# needs root, so a run without it skips the role with a notice.
 
 - name: Check whether this run has root
   ansible.builtin.command: id -u
@@ -42,7 +43,7 @@
 
 - name: Put the archive's build back for the sources no longer patched
   ansible.builtin.script:
-    cmd: release-patched {{ item | quote }}
+    cmd: release-patched {{ item | quote }} {{ patched_debs_ppa_uri | quote }}
     executable: /usr/bin/python3
   loop: >-
     {{ patched_debs_markers.files | default([]) | map(attribute='path') | map('basename')
@@ -65,8 +66,77 @@
     - ansible_facts['os_family'] == "Debian"
     - not ansible_check_mode
 
+- name: Pick the sources the PPA provides here
+  ansible.builtin.set_fact:
+    patched_debs_from_ppa: >-
+      {{ (patched_debs + patched_debs_extra) | map(attribute='source')
+         | select('in', patched_debs_ppa_sources) | list
+         if patched_debs_ppa | bool else [] }}
+
+- name: Read the Ubuntu release
+  ansible.builtin.shell: . /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}"
+  register: patched_debs_codename
+  changed_when: false
+  check_mode: false
+  when: ansible_facts['os_family'] == "Debian"
+
+# Pinned above 1000 by source package, so apt takes the PPA's build over a
+# newer one elsewhere and over a build made here.
+- name: Add the PPA and its pin
+  ansible.builtin.copy:
+    dest: "{{ item.dest }}"
+    content: "{{ item.content | default(omit) }}"
+    src: "{{ item.src | default(omit) }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - dest: /etc/apt/keyrings/machine-setup-ppa.asc
+      src: machine-setup-ppa.asc
+    - dest: /etc/apt/sources.list.d/machine-setup-ppa.sources
+      content: |
+        Types: deb
+        URIs: {{ patched_debs_ppa_uri }}
+        Suites: {{ patched_debs_codename.stdout }}
+        Components: main
+        Signed-By: /etc/apt/keyrings/machine-setup-ppa.asc
+    - dest: /etc/apt/preferences.d/machine-setup-ppa
+      content: |
+        Package: {{ patched_debs_from_ppa | map('regex_replace', '^', 'src:') | join(' ') }}
+        Pin: release o=LP-PPA-mrnoname3-machine-setup
+        Pin-Priority: 1001
+  loop_control:
+    label: "{{ item.dest }}"
+  register: patched_debs_ppa_files
+  when:
+    - patched_debs_uid.stdout == "0"
+    - ansible_facts['os_family'] == "Debian"
+    - patched_debs_from_ppa | length > 0
+
+- name: Remove the PPA and its pin
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/preferences.d/machine-setup-ppa
+    - /etc/apt/sources.list.d/machine-setup-ppa.sources
+    - /etc/apt/keyrings/machine-setup-ppa.asc
+  register: patched_debs_ppa_removed
+  when:
+    - patched_debs_uid.stdout == "0"
+    - ansible_facts['os_family'] == "Debian"
+    - patched_debs_from_ppa | length == 0
+
+- name: Read the indexes with the PPA's change
+  ansible.builtin.apt:
+    update_cache: true
+  when:
+    - patched_debs_uid.stdout == "0"
+    - ansible_facts['os_family'] == "Debian"
+    - patched_debs_ppa_files is changed or patched_debs_ppa_removed is changed
+
 - name: Keep each patched package built from the archive's newest version
-  ansible.builtin.include_tasks: package.yml
+  ansible.builtin.include_tasks: "{{ 'package-ppa.yml' if patched_deb.source in patched_debs_from_ppa else 'package.yml' }}"
   loop: "{{ patched_debs + patched_debs_extra }}"
   loop_control:
     loop_var: patched_deb

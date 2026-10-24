@@ -22,3 +22,11 @@ patched_debs_tool: "{{ playbook_dir }}/tools/patched-deb/build-deb.sh"
 # patches they were built with; a run that needs that build again installs it
 # from here instead of building.
 patched_debs_dir: "/home/{{ primary_user }}/.cache/patched-debs"
+
+# Install the packages patched_debs lists from the PPA (tools/patched-deb,
+# "The PPA") instead of building them here; a source the PPA does not carry
+# is still built. The PPA's builds are pinned above every other archive's, so
+# a newer kisak, Ubuntu or Mint version waits for the PPA's rebuild of it.
+patched_debs_ppa: false
+patched_debs_ppa_uri: https://ppa.launchpadcontent.net/mrnoname3/machine-setup/ubuntu
+patched_debs_ppa_sources: [mesa, xwayland, intel-vaapi-driver, muffin]

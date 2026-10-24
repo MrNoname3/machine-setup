@@ -1,14 +1,16 @@
 #!/usr/bin/python3
-"""release-patched SOURCE
+"""release-patched SOURCE [PPA-URI]
 
 Puts the archive's build back for every installed binary package of SOURCE,
 on all architectures: releases the hold and installs each package's newest
-archive version, a downgrade where the patched build was newer."""
+archive version, a downgrade where the patched build was newer. The PPA's
+builds at PPA-URI are patched ones, so they do not count."""
 import os
 import subprocess
 import sys
 
 source = sys.argv[1]
+ppa = sys.argv[2] if len(sys.argv) > 2 else None
 
 
 def run(*args):
@@ -27,7 +29,8 @@ run("apt-mark", "unhold", *packages)
 
 wanted = []
 for package in packages:
-    lines = run("apt-cache", "madison", package).splitlines()
+    lines = [line for line in run("apt-cache", "madison", package).splitlines()
+             if not ppa or ppa not in line]
     if lines:
         wanted.append(f"{package}={lines[0].split('|')[1].strip()}")
 
