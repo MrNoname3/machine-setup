@@ -1,0 +1,5 @@
+#!/bin/sh
+# Update Manager on Xwayland: under Wayland its tray icon's click hides the
+# already hidden window again (GTK keeps the window focused while hidden) and
+# its tray menu does not open.
+GDK_BACKEND=x11 exec /usr/bin/mintupdate "$@"

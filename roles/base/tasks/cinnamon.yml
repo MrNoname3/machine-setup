@@ -134,6 +134,16 @@
     base_wayland: "{{ base_session == 'cinnamon-wayland' }}"
   when: ansible_facts['os_family'] == "Debian"
 
+# The menu entry runs mintupdate from PATH, where /usr/local/bin comes first.
+- name: Run Update Manager on Xwayland in the Wayland session (Cinnamon)
+  ansible.builtin.copy:
+    src: mintupdate
+    dest: /usr/local/bin/mintupdate
+    owner: root
+    group: root
+    mode: "0755"
+  when: ansible_facts['os_family'] == "Debian" and base_session == 'cinnamon-wayland'
+
 # Turn off Cinnamon touchpad multi-finger gestures.
 - name: Disable touchpad gestures (Cinnamon)
   community.general.dconf:
