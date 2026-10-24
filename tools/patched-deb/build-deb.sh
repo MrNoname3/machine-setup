@@ -29,8 +29,8 @@
 #   mesa                on GeForce 8 and later cards: VA surfaces a browser
 #                       can import, safe decoder setup and teardown, the VP2
 #                       engines working on two frames at once and keeping
-#                       each picture's motion vectors apart, nv50 clears
-#                       of video surfaces, and Wayland EGL that finds the GPU
+#                       each picture's motion vectors apart, nv50 and nvc0
+#                       clears of video surfaces, and Wayland EGL that finds the GPU
 #                       without wl_drm (built with --keep-version).
 #
 # Run as root, as in a throwaway container, it installs the build tools and

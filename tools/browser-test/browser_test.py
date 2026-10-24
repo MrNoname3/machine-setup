@@ -17,7 +17,7 @@ WEB_PORT = 8765
 WEB = f"http://127.0.0.1:{WEB_PORT}"
 UNIT, WEB_UNIT = "browser-test", "browser-test-www"
 CLIPS = os.environ.get("CLIPS", "media/h264-1080.mp4,media/vp9-1080.webm,media/h264-720.mp4").split(",")
-GPU_ERRORS = re.compile(r"nouveau .*(DMA_PUSHER|DATA_ERROR|ILLEGAL_MTHD|CACHE_ERROR|TLB flush|fault|timeout)"
+GPU_ERRORS = re.compile(r"nouveau .*(DMA_PUSHER|DATA_ERROR|ILLEGAL_MTHD|CACHE_ERROR|TLB flush|fault|timeout|TRAP|trap)"
                         r"|NVRM: Xid|amdgpu.*(timeout|fault|GPU reset)|i915.*(GPU HANG|reset)")
 
 
