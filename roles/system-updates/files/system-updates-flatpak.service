@@ -1,0 +1,11 @@
+[Unit]
+Description=Update the system's Flatpak apps and runtimes
+Wants=network-online.target
+After=network-online.target
+OnFailure=system-updates-failed@%n.service
+ConditionACPower=true
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemd-inhibit --what=sleep:shutdown --why="Updating Flatpaks" /usr/bin/flatpak update --system --noninteractive -y
+ExecStartPost=/usr/bin/flatpak uninstall --system --unused --noninteractive -y

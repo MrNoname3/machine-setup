@@ -90,7 +90,7 @@ machine-setup/
     ├── journal/         # systemd journal size cap
     ├── zram/            # swap compressed in memory (Mint)
     ├── disk-health/     # SMART watch, self-tests, btrfs scrub, desktop alerts
-    ├── system-updates/  # Mint automatic upgrades + Timeshift snapshots
+    ├── system-updates/  # Mint automatic upgrades (packages, Flatpaks, spices) + Timeshift snapshots
     ├── applied/         # records the applied branch + commit in /etc
     └── etckeeper/       # /etc in git (runs last)
 ```

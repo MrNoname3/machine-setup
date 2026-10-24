@@ -191,3 +191,36 @@
         label: "{{ item.item.automation }}"
       when: not item.stat.exists
       changed_when: true
+
+    # Update Manager's automation upgrades packages only; its window updates
+    # Flatpaks and Cinnamon spices when it runs, and its autostart is off on
+    # these hosts (base_autostart_hidden). Timers do those two instead.
+    - name: Install the units that update Flatpaks and Cinnamon spices
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dir }}/{{ item.src }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - { src: system-updates-flatpak.service, dir: /etc/systemd/system }
+        - { src: system-updates-flatpak.timer, dir: /etc/systemd/system }
+        - { src: system-updates-user.service, dir: /etc/systemd/user }
+        - { src: system-updates-user.timer, dir: /etc/systemd/user }
+      loop_control:
+        label: "{{ item.src }}"
+
+    - name: Enable the daily Flatpak update
+      ansible.builtin.systemd_service:
+        name: system-updates-flatpak.timer
+        daemon_reload: true
+        enabled: true
+        state: started
+
+    # systemctl --global enable, for every user's session manager from its
+    # next start; the systemd module reports a change on every run there.
+    - name: Enable the daily update of the user's Flatpaks and spices
+      ansible.builtin.file:
+        src: /etc/systemd/user/system-updates-user.timer
+        dest: /etc/systemd/user/timers.target.wants/system-updates-user.timer
+        state: link

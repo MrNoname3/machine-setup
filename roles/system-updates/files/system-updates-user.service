@@ -1,0 +1,8 @@
+[Unit]
+Description=Update the user's Flatpak apps and Cinnamon spices
+ConditionACPower=true
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/flatpak update --user --noninteractive -y
+ExecStart=/usr/bin/cinnamon-spice-updater --update-all

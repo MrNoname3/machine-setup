@@ -47,7 +47,8 @@ base_locale:
 
 # Tray applets with nothing to do here: no Evolution or other calendar client;
 # Cinnamon shows the print notifications itself; Update Manager's own
-# automation installs the updates (system-updates role).
+# automation installs the packages, and the system-updates role's timers the
+# Flatpaks and Cinnamon spices.
 base_autostart_hidden:
   - org.gnome.Evolution-alarm-notify
   - mintreport
