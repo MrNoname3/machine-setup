@@ -11,5 +11,8 @@
     "extensions.ignoreRecommendations": true,
     "python.analysis.typeCheckingMode": "strict",
     "C_Cpp.debugShortcut": false,
-    "C_Cpp.intelliSenseEngine": "default"
+    "C_Cpp.intelliSenseEngine": "default",
+    "chatgpt.followUpQueueMode": "steer",
+    "chatgpt.reviewDelivery": "inline",
+    "claudeCode.hideOnboarding": true
 }
