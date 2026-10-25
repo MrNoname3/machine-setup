@@ -2,13 +2,14 @@
 # Codex in the terminal, from the version of the VS Code extension that VS Code
 # itself runs, native or flatpak: its extensions.json names the one directory in
 # use, while a replaced or downgraded version can linger beside it. The extension
-# updates it, so Codex's own update check stays off.
+# updates it, so Codex's own update check stays off. Its shared background server
+# needs a packaged Codex install, which the extension's copy is not.
 set -eu
 for root in "$HOME/.vscode/extensions" "$HOME/.var/app/com.visualstudio.code/data/vscode/extensions"; do
   [ -f "$root/extensions.json" ] || continue
   dir=$(grep -o '"relativeLocation":"openai\.chatgpt-[^"]*"' "$root/extensions.json" | cut -d'"' -f4)
   if [ -n "$dir" ] && [ -x "$root/$dir/bin/linux-x86_64/codex" ]; then
-    exec "$root/$dir/bin/linux-x86_64/codex" -c check_for_update_on_startup=false "$@"
+    exec "$root/$dir/bin/linux-x86_64/codex" --no-daemon -c check_for_update_on_startup=false "$@"
   fi
 done
 echo "codex: the Codex VS Code extension is not installed" >&2
