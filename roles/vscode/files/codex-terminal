@@ -1,0 +1,12 @@
+#!/bin/sh
+# Codex in the terminal, from the newest installed VS Code extension, native or
+# flatpak. The extension updates it, so Codex's own update check stays off.
+set -eu
+for root in "$HOME/.vscode/extensions" "$HOME/.var/app/com.visualstudio.code/data/vscode/extensions"; do
+  dir=$(ls -d "$root"/openai.chatgpt-*/ 2>/dev/null | sort -V | tail -n 1)
+  if [ -n "$dir" ] && [ -x "${dir}bin/linux-x86_64/codex" ]; then
+    exec "${dir}bin/linux-x86_64/codex" -c check_for_update_on_startup=false "$@"
+  fi
+done
+echo "codex: the Codex VS Code extension is not installed" >&2
+exit 1

@@ -126,6 +126,20 @@
     - item in (vscode_installed.stdout_lines | default([]))
   changed_when: true
 
+- name: Ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.local/bin"
+    state: directory
+    mode: "0755"
+  become: false
+
+- name: Run the extension's Codex from the terminal as codex
+  ansible.builtin.copy:
+    src: codex-terminal
+    dest: "/home/{{ primary_user }}/.local/bin/codex"
+    mode: "0755"
+  become: false
+
 - name: Run Claude Code under x86-64 emulation
   ansible.builtin.include_tasks: claude-x86emu.yml
   when:
