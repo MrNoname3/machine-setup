@@ -258,6 +258,6 @@ brew_packages:
   - htop
   - midnight-commander
   - node
-  - anomalyco/tap/opencode       # opencode coding agent, from its vendor's tap
+  - anomalyco/tap/opencode-v2    # opencode coding agent, from its vendor's tap
   - pipx
   - podman-compose
