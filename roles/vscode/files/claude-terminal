@@ -1,15 +1,17 @@
 #!/bin/sh
-# Claude Code in the terminal, from the newest installed VS Code extension,
-# native or flatpak: the same binary as the standalone install, or the shim that
-# runs it under x86-64 emulation where the host needs it. The extension updates
-# it, so Claude's own updater stays off; it would replace this script with a
-# standalone install.
+# Claude Code in the terminal, from the version of the VS Code extension that
+# VS Code itself runs, native or flatpak: its extensions.json names the one
+# directory in use, while a replaced version can linger beside it. That is the
+# same binary as the standalone install, or the shim that runs it under x86-64
+# emulation where the host needs it. The extension updates it, so Claude's own
+# updater stays off; it would replace this script with a standalone install.
 set -eu
 export DISABLE_AUTOUPDATER=1
 for root in "$HOME/.vscode/extensions" "$HOME/.var/app/com.visualstudio.code/data/vscode/extensions"; do
-  dir=$(ls -d "$root"/anthropic.claude-code-*/ 2>/dev/null | sort -V | tail -n 1)
+  [ -f "$root/extensions.json" ] || continue
+  dir=$(grep -o '"relativeLocation":"anthropic\.claude-code-[^"]*"' "$root/extensions.json" | cut -d'"' -f4)
   [ -n "$dir" ] || continue
-  for bin in "$dir"resources/native-binar*/claude "$dir"resources/native-binar*/*/claude; do
+  for bin in "$root/$dir"/resources/native-binar*/claude "$root/$dir"/resources/native-binar*/*/claude; do
     [ -f "$bin" ] && exec "$bin" "$@"
   done
 done
