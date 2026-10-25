@@ -133,12 +133,17 @@
     mode: "0755"
   become: false
 
-- name: Run the extension's Codex from the terminal as codex
+- name: Run the extensions' Codex and Claude Code from the terminal
   ansible.builtin.copy:
-    src: codex-terminal
-    dest: "/home/{{ primary_user }}/.local/bin/codex"
+    src: "{{ item.src }}"
+    dest: "/home/{{ primary_user }}/.local/bin/{{ item.name }}"
     mode: "0755"
   become: false
+  loop:
+    - { src: codex-terminal, name: codex }
+    - { src: claude-terminal, name: claude }
+  loop_control:
+    label: "{{ item.name }}"
 
 - name: Run Claude Code under x86-64 emulation
   ansible.builtin.include_tasks: claude-x86emu.yml

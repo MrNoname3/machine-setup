@@ -1,17 +1,17 @@
 #!/bin/sh
-# Claude Code in the terminal, from the newest installed VS Code extension: the
-# same binary as the standalone install, already behind x86-64 emulation as
-# claude.x86emu. The extension updates it, so Claude's own updater stays off;
-# it would replace this script with a native binary.
+# Claude Code in the terminal, from the newest installed VS Code extension,
+# native or flatpak: the same binary as the standalone install, or the shim that
+# runs it under x86-64 emulation where the host needs it. The extension updates
+# it, so Claude's own updater stays off; it would replace this script with a
+# standalone install.
 set -eu
 export DISABLE_AUTOUPDATER=1
-dir=$(ls -d "$HOME"/.vscode/extensions/anthropic.claude-code-*/ 2>/dev/null | sort -V | tail -n 1)
-if [ -z "$dir" ]; then
-  echo "claude: the Claude Code VS Code extension is not installed" >&2
-  exit 1
-fi
-for bin in "$dir"resources/native-binar*/claude.x86emu "$dir"resources/native-binar*/*/claude.x86emu; do
-  [ -f "$bin" ] && exec "$bin" "$@"
+for root in "$HOME/.vscode/extensions" "$HOME/.var/app/com.visualstudio.code/data/vscode/extensions"; do
+  dir=$(ls -d "$root"/anthropic.claude-code-*/ 2>/dev/null | sort -V | tail -n 1)
+  [ -n "$dir" ] || continue
+  for bin in "$dir"resources/native-binar*/claude "$dir"resources/native-binar*/*/claude; do
+    [ -f "$bin" ] && exec "$bin" "$@"
+  done
 done
-echo "claude: $dir has no claude.x86emu yet; run /usr/local/libexec/claude-x86emu-shim" >&2
+echo "claude: the Claude Code VS Code extension is not installed" >&2
 exit 1
