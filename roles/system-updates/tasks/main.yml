@@ -44,9 +44,13 @@
       ansible.builtin.slurp:
         src: "{{ item }}"
       register: system_updates_timeshift_conf
+      # The lookup runs before the role's when, so it must not fail where
+      # Timeshift is absent.
       with_first_found:
-        - /etc/timeshift/timeshift.json
-        - /etc/timeshift/default.json
+        - files:
+            - /etc/timeshift/timeshift.json
+            - /etc/timeshift/default.json
+          skip: true
 
     # Timeshift rewrites its file itself (snapshot counts, its own layout, an
     # exclude per home), so only the settings below are compared and merged in,
