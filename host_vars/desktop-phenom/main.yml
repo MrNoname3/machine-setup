@@ -25,7 +25,7 @@ roles_enabled:
   - firewall
   - wireguard
   - containers
-  - journal        # cap the systemd journal
+  - journal        # cap the systemd journal and core dumps
   - zram           # swap compressed in memory, before the disk swap
   - disk-health    # SMART watch, self-tests, btrfs scrub
   - system-updates # automatic upgrades, Timeshift snapshot before each

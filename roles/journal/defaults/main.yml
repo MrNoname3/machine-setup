@@ -1,3 +1,6 @@
 ---
 # The most disk space the systemd journal may take (journald's SystemMaxUse).
 journal_max_use: 500M
+
+# The most disk space kept core dumps may take (systemd-coredump's MaxUse).
+journal_coredump_max_use: 1G

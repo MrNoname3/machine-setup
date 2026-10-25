@@ -1,7 +1,7 @@
 ---
-# journal role: cap the systemd journal's disk use. It needs root, so a run
-# without it (the desktop's day-to-day `-e ansible_become=false`) skips the role
-# with a notice.
+# journal role: cap the disk use of the systemd journal and of kept core
+# dumps. It needs root, so a run without it (the desktop's day-to-day
+# `-e ansible_become=false`) skips the role with a notice.
 
 - name: Check whether this run has root
   ansible.builtin.command: id -u
@@ -36,3 +36,25 @@
     mode: "0644"
   when: journal_uid.stdout == "0"
   notify: Restart journald
+
+# systemd-coredump reads its configuration for every crash, so no restart.
+- name: Cap the kept core dumps' disk use
+  when: journal_uid.stdout == "0"
+  block:
+    - name: Ensure the coredump drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/coredump.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Write the core dump cap
+      ansible.builtin.copy:
+        dest: /etc/systemd/coredump.conf.d/size.conf
+        content: |
+          [Coredump]
+          MaxUse={{ journal_coredump_max_use }}
+        owner: root
+        group: root
+        mode: "0644"
