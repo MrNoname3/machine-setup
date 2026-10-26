@@ -229,6 +229,7 @@
       tags: appimages
     - role: brew
       when: "'brew' in (roles_enabled | default([]))"
+      tags: brew
     - role: git
       when: "'git' in (roles_enabled | default([]))"
       tags: git

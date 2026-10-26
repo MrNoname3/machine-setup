@@ -11,3 +11,19 @@
   when:
     - ansible_facts['os_family'] != "Debian"
     - brew_packages | length > 0
+
+- name: Read Homebrew's analytics state
+  ansible.builtin.command: "{{ brew_prefix }}/bin/brew analytics state"
+  register: brew_analytics_state
+  changed_when: false
+  check_mode: false
+  become: false
+  when: ansible_facts['os_family'] != "Debian"
+
+- name: Turn Homebrew's analytics {{ 'on' if brew_analytics | bool else 'off' }}
+  ansible.builtin.command: "{{ brew_prefix }}/bin/brew analytics {{ 'on' if brew_analytics | bool else 'off' }}"
+  become: false
+  changed_when: true
+  when:
+    - ansible_facts['os_family'] != "Debian"
+    - (brew_analytics_state.stdout is search('analytics are enabled')) != (brew_analytics | bool)
