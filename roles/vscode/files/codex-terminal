@@ -8,8 +8,10 @@ set -eu
 for root in "$HOME/.vscode/extensions" "$HOME/.var/app/com.visualstudio.code/data/vscode/extensions"; do
   [ -f "$root/extensions.json" ] || continue
   dir=$(grep -o '"relativeLocation":"openai\.chatgpt-[^"]*"' "$root/extensions.json" | cut -d'"' -f4)
-  if [ -n "$dir" ] && [ -x "$root/$dir/bin/linux-x86_64/codex" ]; then
-    exec "$root/$dir/bin/linux-x86_64/codex" --no-daemon -c check_for_update_on_startup=false "$@"
+  bin="$root/$dir/bin/linux-x86_64"
+  if [ -n "$dir" ] && [ -x "$bin/codex" ]; then
+    # As the extension does: the commands Codex runs find its bundled rg.
+    PATH="$PATH:$bin" exec "$bin/codex" --no-daemon -c check_for_update_on_startup=false "$@"
   fi
 done
 echo "codex: the Codex VS Code extension is not installed" >&2
