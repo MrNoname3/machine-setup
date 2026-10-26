@@ -86,6 +86,7 @@ base_autostart_hidden:
   - blueman
   - print-applet
   - cinnamon-settings-daemon-wacom
+  - geoclue-demo-agent   # nothing asks for the location; it outlives a logout
 base_units_disabled:
   - motd-news.timer             # news for the terminal's login message
   - podman-restart.service      # restarts root containers; there are none here
