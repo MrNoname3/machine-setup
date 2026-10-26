@@ -89,6 +89,7 @@ machine-setup/
     ├── containers/      # rootless Podman
     ├── journal/         # systemd journal size cap
     ├── connectivity-check/ # NetworkManager's connectivity check off (Bazzite)
+    ├── system-services/ # unused system services the image enables, off
     ├── zram/            # swap compressed in memory (Mint)
     ├── disk-health/     # SMART watch, self-tests, btrfs scrub, desktop alerts
     ├── system-updates/  # Mint automatic upgrades (packages, Flatpaks, spices) + Timeshift snapshots
