@@ -213,6 +213,7 @@
   roles:
     - role: base
       when: "'base' in (roles_enabled | default([]))"
+      tags: base
     - role: ssh-access
       when: "'ssh-access' in (roles_enabled | default([]))"
     - role: printers
