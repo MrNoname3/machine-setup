@@ -88,6 +88,7 @@ machine-setup/
     ├── wireguard/       # auto-VPN when away from home
     ├── containers/      # rootless Podman
     ├── journal/         # systemd journal size cap
+    ├── connectivity-check/ # NetworkManager's connectivity check off (Bazzite)
     ├── zram/            # swap compressed in memory (Mint)
     ├── disk-health/     # SMART watch, self-tests, btrfs scrub, desktop alerts
     ├── system-updates/  # Mint automatic upgrades (packages, Flatpaks, spices) + Timeshift snapshots

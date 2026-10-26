@@ -23,6 +23,7 @@ roles_enabled:
   - containers      # rootless Podman user services (stack ships with the image)
   - storage         # encrypted data disks (storage_disks below; needs root)
   - journal         # cap the systemd journal and core dumps (needs root)
+  - connectivity-check  # no captive-portal probe to Fedora (needs root)
   - disk-health     # SMART watch, self-tests, btrfs scrub (needs root)
 
 # primary_user defaults to the running user (group_vars/all.yml); override in

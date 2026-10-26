@@ -1,0 +1,30 @@
+---
+# connectivity-check role: turn off NetworkManager's connectivity check, which
+# fetches a page from the distribution's server every few minutes to spot a
+# captive portal. It needs root, so a run without it skips the role with a
+# notice. On Mint the base role removes the package that turns the check on.
+
+- name: Check whether this run has root
+  ansible.builtin.command: id -u
+  register: connectivity_check_uid
+  changed_when: false
+  check_mode: false
+
+- name: Note that the connectivity check was skipped (no root)
+  ansible.builtin.debug:
+    msg: >-
+      The connectivity-check role needs root, so it was skipped. Run it with:
+      ./scripts/apply.sh {{ inventory_hostname }} --tags connectivity-check -K
+  when: connectivity_check_uid.stdout != "0"
+
+- name: Turn off NetworkManager's connectivity check
+  ansible.builtin.copy:
+    dest: /etc/NetworkManager/conf.d/90-no-connectivity-check.conf
+    content: |
+      [connectivity]
+      enabled=false
+    owner: root
+    group: root
+    mode: "0644"
+  when: connectivity_check_uid.stdout == "0"
+  notify: Reload NetworkManager
