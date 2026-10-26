@@ -28,4 +28,5 @@ set --
 for id in $ids; do
   set -- "$@" --install-extension "$id"
 done
-$code "$@" --force
+# The CLI's own Node deprecation warning says nothing about the extensions.
+NODE_OPTIONS=--no-deprecation $code "$@" --force
