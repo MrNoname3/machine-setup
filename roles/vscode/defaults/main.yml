@@ -26,3 +26,9 @@ vscode_update_extensions: true
 # Run the Claude Code extension's native binary under qemu-user emulation, for
 # a CPU without the instructions it is built for (tasks/claude-x86emu.yml).
 vscode_claude_x86emu: false
+
+# Environment the Claude Code extension and the terminal's Claude Code both
+# read from ~/.claude/settings.json, merged into the user's own settings.
+# DISABLE_ERROR_REPORTING keeps Claude Code's crash reports on the machine.
+vscode_claude_env:
+  DISABLE_ERROR_REPORTING: "1"

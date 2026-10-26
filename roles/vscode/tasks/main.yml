@@ -137,6 +137,33 @@
     mode: "0600"
   become: false
 
+- name: Ensure ~/.claude exists
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.claude"
+    state: directory
+    mode: "0700"
+  become: false
+
+- name: Read Claude Code's settings
+  ansible.builtin.slurp:
+    src: "/home/{{ primary_user }}/.claude/settings.json"
+  register: vscode_claude_settings_file
+  failed_when: false
+  become: false
+
+- name: Set Claude Code's environment in its settings
+  vars:
+    vscode_claude_settings: >-
+      {{ (vscode_claude_settings_file.content | b64decode | from_json)
+         if vscode_claude_settings_file.content is defined else {} }}
+    vscode_claude_merged: "{{ vscode_claude_settings | combine({'env': vscode_claude_env}, recursive=True) }}"
+  ansible.builtin.copy:
+    dest: "/home/{{ primary_user }}/.claude/settings.json"
+    content: "{{ vscode_claude_merged | to_nice_json(indent=2, sort_keys=False) }}"
+    mode: "0644"
+  become: false
+  when: vscode_claude_merged != vscode_claude_settings
+
 # The extension list is additive (extras installed by hand are left alone) and
 # the extensions self-update in-app on both hosts; only the `code` CLI wrapping
 # differs. On Bazzite the flatpak's CLI is reached via `flatpak run --command`.
