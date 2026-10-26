@@ -210,6 +210,35 @@
       failed_when: false # no running session (e.g. fresh install) is fine
       when: kde_panel_launchers | length > 0
 
+    - name: Disable the unwanted system tray entries
+      ansible.builtin.command:
+        argv:
+          - gdbus
+          - call
+          - --session
+          - --dest
+          - org.kde.plasmashell
+          - --object-path
+          - /PlasmaShell
+          - --method
+          - org.kde.PlasmaShell.evaluateScript
+          - >-
+            var off = {{ kde_systray_disabled | to_json }};
+            panels().forEach(function (p) { p.widgets().forEach(function (w) {
+              if (w.type != "org.kde.plasma.systemtray") return;
+              w.currentConfigGroup = ["General"];
+              var items = w.readConfig("extraItems", []);
+              var keep = items.filter(function (i) { return off.indexOf(i) < 0; });
+              if (keep.length == items.length) return;
+              w.writeConfig("extraItems", keep); w.reloadConfig(); print("CHANGED");
+            }); });
+      environment:
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts['user_uid'] }}/bus"
+      register: kde_systray_result
+      changed_when: "'CHANGED' in kde_systray_result.stdout"
+      failed_when: false # no running session (e.g. fresh install) is fine
+      when: kde_systray_disabled | length > 0
+
     - name: Set the default applications (user MIME associations)
       community.general.ini_file:
         path: "{{ kde_conf_dir }}/mimeapps.list"

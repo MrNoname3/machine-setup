@@ -133,6 +133,11 @@ kde_mime_defaults:
 kde_masked_user_units:
   - app-org.kde.kdeconnect.daemon@autostart.service   # KDE Connect
 
+# System tray entries set to Disabled; a loaded entry can start its service
+# over D-Bus even when the autostart is masked.
+kde_systray_disabled:
+  - org.kde.kdeconnect
+
 # The uBlue greeting in new terminals; `ujust toggle-user-motd` flips the same
 # switch file.
 kde_user_motd: false

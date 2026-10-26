@@ -261,6 +261,7 @@
       tags: patched-debs
     - role: kde
       when: "'kde' in (roles_enabled | default([]))"
+      tags: kde
     - role: phosh
       when: "'phosh' in (roles_enabled | default([]))"
     - role: firewall
