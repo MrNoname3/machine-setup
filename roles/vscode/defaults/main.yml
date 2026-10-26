@@ -19,6 +19,10 @@ vscode_extensions:
 vscode_extensions_absent:
   - platformio.platformio-ide
 
+# Update the extensions that are not pinned daily, while VS Code is closed, for
+# the terminal's Claude Code and Codex (files/vscode-update-extensions).
+vscode_update_extensions: true
+
 # Run the Claude Code extension's native binary under qemu-user emulation, for
 # a CPU without the instructions it is built for (tasks/claude-x86emu.yml).
 vscode_claude_x86emu: false

@@ -36,13 +36,6 @@
     state: restarted
   when: x86emu_binfmt.changed  # noqa: no-handler
 
-- name: Ensure the user unit directory exists
-  ansible.builtin.file:
-    path: "/home/{{ primary_user }}/.config/systemd/user"
-    state: directory
-    mode: "0755"
-  become: false
-
 - name: Install the user units that shim new extension versions
   ansible.builtin.copy:
     src: "{{ item }}"

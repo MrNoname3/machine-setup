@@ -1,0 +1,10 @@
+[Unit]
+Description=Update the VS Code extensions that are not pinned
+# Not on battery; a host without power information counts as on AC.
+ConditionACPower=true
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/vscode-update-extensions
+Nice=10
+IOSchedulingClass=idle

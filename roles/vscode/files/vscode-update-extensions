@@ -1,0 +1,31 @@
+#!/bin/sh
+# Updates the VS Code extensions that are not pinned, so the terminal's Claude
+# Code and Codex, which run from them, stay current while VS Code stays closed.
+# The code CLI's own --update-extensions also updates pinned ones. A running
+# VS Code updates its extensions itself, so the run is skipped then.
+set -eu
+if [ -f "$HOME/.vscode/extensions/extensions.json" ]; then
+  code=code
+  list="$HOME/.vscode/extensions/extensions.json"
+elif [ -f "$HOME/.var/app/com.visualstudio.code/data/vscode/extensions/extensions.json" ]; then
+  code="flatpak run --command=code com.visualstudio.code"
+  list="$HOME/.var/app/com.visualstudio.code/data/vscode/extensions/extensions.json"
+else
+  exit 0
+fi
+if pgrep -u "$(id -u)" -x code >/dev/null; then
+  echo "VS Code is running and updates its extensions itself"
+  exit 0
+fi
+ids=$(python3 -c '
+import json, sys
+for e in json.load(open(sys.argv[1])):
+    if not e.get("metadata", {}).get("pinned"):
+        print(e["identifier"]["id"])
+' "$list")
+[ -n "$ids" ] || exit 0
+set --
+for id in $ids; do
+  set -- "$@" --install-extension "$id"
+done
+$code "$@" --force

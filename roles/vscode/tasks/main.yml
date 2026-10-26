@@ -145,6 +145,44 @@
   loop_control:
     label: "{{ item.name }}"
 
+- name: Ensure the user unit directory exists
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.config/systemd/user"
+    state: directory
+    mode: "0755"
+  become: false
+
+- name: Update the unpinned extensions daily while VS Code stays closed
+  when: vscode_update_extensions | bool
+  block:
+    - name: Install the extension update script
+      ansible.builtin.copy:
+        src: vscode-update-extensions
+        dest: "/home/{{ primary_user }}/.local/bin/vscode-update-extensions"
+        mode: "0755"
+      become: false
+
+    - name: Install the extension update units
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "/home/{{ primary_user }}/.config/systemd/user/{{ item }}"
+        mode: "0644"
+      become: false
+      loop:
+        - vscode-update-extensions.service
+        - vscode-update-extensions.timer
+
+    # A check run copies no unit file, so the timer it would enable is unknown.
+    - name: Enable the extension update timer
+      ansible.builtin.systemd_service:
+        name: vscode-update-extensions.timer
+        scope: user
+        enabled: true
+        state: started
+        daemon_reload: true
+      become: false
+      ignore_errors: "{{ ansible_check_mode }}"
+
 - name: Run Claude Code under x86-64 emulation
   ansible.builtin.include_tasks: claude-x86emu.yml
   when:
