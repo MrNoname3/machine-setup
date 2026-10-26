@@ -87,8 +87,11 @@ flatpak_apps:
   - com.synology.SynologyDrive
   - com.visualstudio.code
   - org.keepassxc.KeePassXC
-  - org.mozilla.firefox
   - org.virt_manager.virt-manager
+
+# Bazzite's image installs Firefox; Brave is the browser here.
+flatpak_apps_absent:
+  - org.mozilla.firefox
 
 flatpak_extensions:
   - { name: org.videolan.VLC.Plugin.pause_click, app: org.videolan.VLC, branch: "3-{runtime}" }  # click to pause

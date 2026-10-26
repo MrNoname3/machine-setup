@@ -13,6 +13,20 @@
     state: present
   when: flatpak_apps | length > 0
 
+- name: Remove the Flatpak applications the host does not use
+  community.general.flatpak:
+    name: "{{ flatpak_apps_absent }}"
+    method: system
+    state: absent
+  when: flatpak_apps_absent | length > 0
+
+- name: Remove the data of the removed Flatpak applications
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.var/app/{{ item }}"
+    state: absent
+  become: false
+  loop: "{{ flatpak_apps_absent }}"
+
 - name: Read the runtime of each application that has add-ons
   ansible.builtin.command: flatpak info --system --show-runtime {{ item.app }}
   register: flatpak_ext_runtime
