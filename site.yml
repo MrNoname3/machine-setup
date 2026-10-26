@@ -244,6 +244,7 @@
       tags: heroic
     - role: vscode
       when: "'vscode' in (roles_enabled | default([]))"
+      tags: vscode
     - role: luks-unlock
       when: "'luks-unlock' in (roles_enabled | default([]))"
     - role: keyring
