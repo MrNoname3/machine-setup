@@ -14,5 +14,8 @@
     "C_Cpp.intelliSenseEngine": "default",
     "chatgpt.followUpQueueMode": "steer",
     "chatgpt.reviewDelivery": "inline",
-    "claudeCode.hideOnboarding": true
+    "claudeCode.hideOnboarding": true,
+    "telemetry.telemetryLevel": "off",
+    "workbench.enableExperiments": false,
+    "workbench.settings.enableNaturalLanguageSearch": false
 }

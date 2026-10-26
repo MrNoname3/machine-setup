@@ -98,6 +98,45 @@
   become: false
   when: ansible_facts['os_family'] != "Debian"
 
+# VS Code creates argv.json at its first start with the crash reporter on; the
+# native and the flatpak VS Code both read it from ~/.vscode.
+- name: Ensure ~/.vscode exists
+  ansible.builtin.file:
+    path: "/home/{{ primary_user }}/.vscode"
+    state: directory
+    mode: "0755"
+  become: false
+
+- name: Create VS Code's argv.json with the crash reporter off
+  ansible.builtin.copy:
+    dest: "/home/{{ primary_user }}/.vscode/argv.json"
+    content: |
+      {
+        "enable-crash-reporter": false
+      }
+    mode: "0644"
+    force: false
+  become: false
+
+- name: Turn off VS Code's crash reporter
+  ansible.builtin.lineinfile:
+    path: "/home/{{ primary_user }}/.vscode/argv.json"
+    regexp: '^(\s*"enable-crash-reporter":\s*)true(.*)$'
+    line: '\1false\2'
+    backrefs: true
+  become: false
+
+# The Codex extension and the terminal's Codex share this file, which holds
+# the user's own settings too.
+- name: Turn off Codex's usage analytics
+  community.general.ini_file:
+    path: "/home/{{ primary_user }}/.codex/config.toml"
+    section: analytics
+    option: enabled
+    value: "false"
+    mode: "0600"
+  become: false
+
 # The extension list is additive (extras installed by hand are left alone) and
 # the extensions self-update in-app on both hosts; only the `code` CLI wrapping
 # differs. On Bazzite the flatpak's CLI is reached via `flatpak run --command`.
