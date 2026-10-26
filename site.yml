@@ -220,6 +220,7 @@
       tags: printers
     - role: brave
       when: "'brave' in (roles_enabled | default([]))"
+      tags: brave
     - role: flatpaks
       when: "'flatpaks' in (roles_enabled | default([]))"
       tags: flatpaks
