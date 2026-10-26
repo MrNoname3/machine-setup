@@ -17,16 +17,20 @@ if pgrep -u "$(id -u)" -x code >/dev/null; then
   echo "VS Code is running and updates its extensions itself"
   exit 0
 fi
-ids=$(python3 -c '
+extensions() {
+  python3 -c '
 import json, sys
 for e in json.load(open(sys.argv[1])):
-    if not e.get("metadata", {}).get("pinned"):
-        print(e["identifier"]["id"])
-' "$list")
-[ -n "$ids" ] || exit 0
+    if bool(e.get("metadata", {}).get("pinned")) == (sys.argv[2] == "pinned"):
+        print(e["identifier"]["id"], e["version"])
+' "$list" "$1"
+}
 set --
-for id in $ids; do
+for id in $(extensions unpinned | cut -d' ' -f1); do
   set -- "$@" --install-extension "$id"
 done
-# The CLI's own Node deprecation warning says nothing about the extensions.
-NODE_OPTIONS=--no-deprecation $code "$@" --force
+if [ $# -gt 0 ]; then
+  # The CLI's own Node deprecation warning says nothing about the extensions.
+  NODE_OPTIONS=--no-deprecation $code "$@" --force
+fi
+extensions pinned | sed 's/^/Pinned, not updated: /'
