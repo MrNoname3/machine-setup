@@ -62,7 +62,6 @@ flatpak_apps:
   # Documents / office / media
   - com.calibre_ebook.calibre
   - org.libreoffice.LibreOffice
-  - org.kde.okular
   - org.kde.gwenview
   - org.kde.haruna
   - org.kde.kcalc
@@ -90,9 +89,10 @@ flatpak_apps:
   - org.keepassxc.KeePassXC
   - org.virt_manager.virt-manager
 
-# Bazzite's image installs Firefox; Brave is the browser here.
+# Bazzite's image installs these; Brave is the browser and the PDF viewer here.
 flatpak_apps_absent:
   - org.mozilla.firefox
+  - org.kde.okular
 
 flatpak_extensions:
   - { name: org.videolan.VLC.Plugin.pause_click, app: org.videolan.VLC, branch: "3-{runtime}" }  # click to pause
@@ -261,7 +261,4 @@ brew_packages:
   - flashrom
   - htop
   - midnight-commander
-  - node
   - anomalyco/tap/opencode-v2    # opencode coding agent, from its vendor's tap
-  - pipx
-  - podman-compose
