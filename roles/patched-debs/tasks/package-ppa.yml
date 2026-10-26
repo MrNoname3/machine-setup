@@ -63,3 +63,20 @@
     content: "ppa {{ patched_debs_installed.stdout }}"
     mode: "0644"
   when: not ansible_check_mode
+
+# The PPA's build replaces one made here, so the kept packages go.
+- name: Remove the packages built here of {{ patched_deb.source }}
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    dir={{ patched_debs_dir | quote }}; src={{ patched_deb.source | quote }};
+    for deb in "$dir"/*.deb; do
+      [ -f "$deb" ] || continue;
+      s=$(dpkg-deb -f "$deb" Source Package | head -n 1 | cut -d' ' -f2);
+      [ "$s" = "$src" ] && rm -v "$deb";
+    done;
+    rm -fv "$dir/$src.build"
+  args:
+    executable: /bin/bash
+  register: patched_debs_removed
+  changed_when: patched_debs_removed.stdout | length > 0
+  when: not ansible_check_mode
