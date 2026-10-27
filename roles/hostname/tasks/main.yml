@@ -1,0 +1,22 @@
+# hostname role: give the host a static hostname. Without one, NetworkManager
+# names the host after whatever the router's DNS returns for its address. It
+# needs root, so a run without it skips the role with a notice.
+
+- name: Check whether this run has root
+  ansible.builtin.command: id -u
+  register: hostname_uid
+  changed_when: false
+  check_mode: false
+
+- name: Note that the hostname was left alone (no root)
+  ansible.builtin.debug:
+    msg: >-
+      The hostname role needs root, so it was skipped. Run it with:
+      ./scripts/apply.sh {{ inventory_hostname }} --tags hostname -K
+  when: hostname_uid.stdout != "0"
+
+- name: Set the static hostname
+  ansible.builtin.hostname:
+    name: "{{ system_hostname }}"
+    use: systemd
+  when: hostname_uid.stdout == "0"

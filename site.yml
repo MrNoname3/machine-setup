@@ -282,6 +282,9 @@
     - role: connectivity-check
       when: "'connectivity-check' in (roles_enabled | default([]))"
       tags: connectivity-check
+    - role: hostname
+      when: "'hostname' in (roles_enabled | default([]))"
+      tags: hostname
     - role: system-services
       when: "'system-services' in (roles_enabled | default([]))"
       tags: system-services
