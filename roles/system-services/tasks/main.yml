@@ -1,0 +1,25 @@
+---
+# system-services role: stop and disable the system units an image ships
+# enabled that this host does not use. It needs root, so a run without it skips
+# the role with a notice.
+
+- name: Check whether this run has root
+  ansible.builtin.command: id -u
+  register: system_services_uid
+  changed_when: false
+  check_mode: false
+
+- name: Note that the system services were left alone (no root)
+  ansible.builtin.debug:
+    msg: >-
+      The system-services role needs root, so it was skipped. Run it with:
+      ./scripts/apply.sh {{ inventory_hostname }} --tags system-services -K
+  when: system_services_uid.stdout != "0"
+
+- name: Stop and disable the unused system services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop: "{{ system_services_disabled }}"
+  when: system_services_uid.stdout == "0"

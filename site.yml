@@ -282,6 +282,9 @@
     - role: connectivity-check
       when: "'connectivity-check' in (roles_enabled | default([]))"
       tags: connectivity-check
+    - role: system-services
+      when: "'system-services' in (roles_enabled | default([]))"
+      tags: system-services
     - role: disk-health
       when: "'disk-health' in (roles_enabled | default([]))"
       tags: disk-health
