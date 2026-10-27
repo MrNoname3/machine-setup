@@ -235,6 +235,10 @@ amdgpu_profiles:
 # and change this value (plus re-run the role) to move the default.
 amdgpu_active_profile: efficient
 
+# Seed 0 gives this card a working format on every boot; with a random seed
+# some boots the login screen stutters and drops keystrokes.
+amdgpu_greeter_fixed_hash_seed: true
+
 # Pushes to the Gitea authenticate with a token kept by git's own store helper.
 git_config_extra:
   credential.helper: store

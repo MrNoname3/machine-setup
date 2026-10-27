@@ -640,6 +640,38 @@
         - amdgpu_karg is defined
         - amdgpu_karg.changed
 
+# --- Bazzite desktop: login screen scanout format --------------------------
+- name: Fix the hash seed of the login screen's KWin
+  when: ansible_facts['os_family'] != "Debian"
+  vars:
+    graphics_greeter_dropin: /etc/systemd/user/plasma-login-kwin_wayland.service.d
+  block:
+    - name: Ensure the login screen KWin's drop-in directory exists
+      ansible.builtin.file:
+        path: "{{ graphics_greeter_dropin }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: amdgpu_greeter_fixed_hash_seed | bool
+
+    - name: Write the hash seed drop-in
+      ansible.builtin.copy:
+        dest: "{{ graphics_greeter_dropin }}/50-qt-hash-seed.conf"
+        content: |
+          [Service]
+          Environment=QT_HASH_SEED=0
+        owner: root
+        group: root
+        mode: "0644"
+      when: amdgpu_greeter_fixed_hash_seed | bool
+
+    - name: Remove the hash seed drop-in
+      ansible.builtin.file:
+        path: "{{ graphics_greeter_dropin }}/50-qt-hash-seed.conf"
+        state: absent
+      when: not (amdgpu_greeter_fixed_hash_seed | bool)
+
 # --- Notes ---
 # - nouveau manual reclocking is NOT possible on this GT 520M (GF108/NVC1):
 #   writing /sys/kernel/debug/dri/<bdf>/pstate returns ENOSYS ("Function not
