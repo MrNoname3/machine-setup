@@ -45,6 +45,10 @@ amdgpu_ppfeaturemask: "0xfff7ffff"
 # while still shipping the profiles for later use).
 amdgpu_enable_overdrive: true
 
+# Connectors the Plasma login screen leaves dark whenever another monitor is
+# connected, as in the user's own display settings.
+graphics_greeter_outputs_disabled: []
+
 # Mesa from the kisak-mesa "fresh" PPA instead of the Ubuntu base's (Mint
 # hosts). Turning it off removes the repository but keeps the packages it
 # installed; `sudo ppa-purge ppa:kisak/kisak-mesa` goes back to Ubuntu's.

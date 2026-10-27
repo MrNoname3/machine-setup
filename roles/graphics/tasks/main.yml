@@ -640,6 +640,48 @@
         - amdgpu_karg is defined
         - amdgpu_karg.changed
 
+# --- Bazzite desktop: login screen outputs ---------------------------------
+# The login screen keeps its own KWin output setups, one per set of connected
+# monitors; only the setups with more than one monitor are changed.
+- name: Leave the listed monitors dark on the login screen
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -I
+      - -c
+      - |
+        import json, os, sys
+        path, check, off = sys.argv[1], sys.argv[2] == "check", set(json.loads(sys.argv[3]))
+        if not os.path.exists(path):
+            sys.exit()
+        data = json.load(open(path))
+        outputs = next(s["data"] for s in data if s.get("name") == "outputs")
+        dark = {i for i, o in enumerate(outputs) if o.get("connectorName") in off}
+        changed = False
+        for section in data:
+            if section.get("name") != "setups":
+                continue
+            for setup in section["data"]:
+                if len(setup["outputs"]) < 2:
+                    continue
+                for o in setup["outputs"]:
+                    if o["outputIndex"] in dark and o["enabled"]:
+                        o["enabled"] = False
+                        changed = True
+        if changed and not check:
+            json.dump(data, open(path, "w"), indent=4)
+        if changed:
+            print("CHANGED")
+      - /var/lib/plasmalogin/.config/kwinoutputconfig.json
+      - "{{ 'check' if ansible_check_mode else 'apply' }}"
+      - "{{ graphics_greeter_outputs_disabled | to_json }}"
+  register: graphics_greeter_outputs
+  changed_when: "'CHANGED' in graphics_greeter_outputs.stdout"
+  check_mode: false
+  when:
+    - ansible_facts['os_family'] != "Debian"
+    - graphics_greeter_outputs_disabled | length > 0
+
 # --- Notes ---
 # - nouveau manual reclocking is NOT possible on this GT 520M (GF108/NVC1):
 #   writing /sys/kernel/debug/dri/<bdf>/pstate returns ENOSYS ("Function not

@@ -235,6 +235,11 @@ amdgpu_profiles:
 # and change this value (plus re-run the role) to move the default.
 amdgpu_active_profile: efficient
 
+# The LG on HDMI stays off in the session; lit on the login screen next to the
+# DisplayPort monitor, it made the mouse and keyboard stutter there.
+graphics_greeter_outputs_disabled:
+  - HDMI-A-1
+
 # Pushes to the Gitea authenticate with a token kept by git's own store helper.
 git_config_extra:
   credential.helper: store
