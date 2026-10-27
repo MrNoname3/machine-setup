@@ -45,11 +45,6 @@ amdgpu_ppfeaturemask: "0xfff7ffff"
 # while still shipping the profiles for later use).
 amdgpu_enable_overdrive: true
 
-# Start the login screen's KWin with Qt's hash seed fixed at 0. amdgpu offers
-# RGBA8888 for scanout but rejects it, and KWin picks among equally ranked
-# formats in QHash order, which Qt otherwise randomises on every start.
-amdgpu_greeter_fixed_hash_seed: false
-
 # Mesa from the kisak-mesa "fresh" PPA instead of the Ubuntu base's (Mint
 # hosts). Turning it off removes the repository but keeps the packages it
 # installed; `sudo ppa-purge ppa:kisak/kisak-mesa` goes back to Ubuntu's.
