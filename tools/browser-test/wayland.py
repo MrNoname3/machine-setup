@@ -1,6 +1,7 @@
 """Wayland backend: importing it replaces browser_test's X11 screen reads and
-XTest input with Cinnamon's area screenshot over D-Bus and the virtual
-devices of uinputd.py, and starts Brave as a native Wayland client."""
+XTest input with Cinnamon's area screenshot over D-Bus (Spectacle's on KDE)
+and the virtual devices of uinputd.py, and starts Brave as a native Wayland
+client."""
 import os, socket, struct, subprocess, tempfile, time, zlib
 import browser_test as bt
 
@@ -52,7 +53,29 @@ def _png_rgb(data):
     return w, h, bpp, out
 
 
+def _crop(shot, x, y, w, h):
+    sw, _, bpp, px = shot
+    out = bytearray()
+    for yy in range(y, y + h):
+        out += px[(yy * sw + x) * bpp:(yy * sw + x + w) * bpp]
+    return w, h, bpp, out
+
+
+def area_kde(x, y, w, h):
+    """KWin hands screenshots only to the programs it trusts, Spectacle among
+    them: a shot of the whole screen, cut to the area."""
+    fn = tempfile.mktemp(suffix=".png", dir="/var/tmp")
+    subprocess.run(["spectacle", "--background", "--nonotify", "--fullscreen", "--output", fn],
+                   check=True, capture_output=True)
+    with open(fn, "rb") as f:
+        data = f.read()
+    os.unlink(fn)
+    return _crop(_png_rgb(data), x, y, w, h)
+
+
 def area(x, y, w, h):
+    if "KDE" in os.environ.get("XDG_CURRENT_DESKTOP", ""):
+        return area_kde(x, y, w, h)
     fn = tempfile.mktemp(suffix=".png", dir="/var/tmp")
     subprocess.run(["busctl", "--user", "call", "org.Cinnamon", "/org/Cinnamon", "org.Cinnamon", "ScreenshotArea",
                     "biiiibs", "false", str(x), str(y), str(w), str(h), "false", fn], check=True, capture_output=True)

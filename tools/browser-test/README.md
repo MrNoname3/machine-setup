@@ -5,7 +5,8 @@ machines' GPUs: whether Brave decodes video in hardware with a given set of
 flags, and whether its picture freezes or the GPU faults under ordinary use.
 Each run starts its own Brave, with a fresh profile and the debugging port
 open, as a systemd user unit, so the browser the user has open is not
-touched. It runs on X11, and on Cinnamon's Wayland session.
+touched. It runs on X11, and on the Wayland sessions of Cinnamon and KDE
+Plasma.
 
 [run.py](run.py) has three commands:
 
@@ -47,8 +48,8 @@ ACTIONS=appmenu,select,context,bookmarks tools/browser-test/run.py stress menus 
 ## Setting up
 
 - The clips: [make-media.sh](make-media.sh) encodes them with ffmpeg (H.264
-  at 720p and at 1080p in 25, 30 and 60 fps, VP9 at 1080p). Where ffmpeg is
-  not installed, run it in a throwaway container.
+  at 720p and at 1080p in 25, 30 and 60 fps, VP9 and AV1 at 1080p). Where
+  ffmpeg is not installed, run it in a throwaway container.
 - On X11: `xwd` and `xprop` (Debian's `x11-apps` and `x11-utils`) and libXtst.
 - On Wayland: the virtual input device, from root, for the uid that runs the
   tests, and stopped afterwards:
@@ -58,8 +59,9 @@ ACTIONS=appmenu,select,context,bookmarks tools/browser-test/run.py stress menus 
   sudo systemctl stop uinputd
   ```
 
-  Screen reads go through Cinnamon's `ScreenshotArea` D-Bus call, so the
-  Wayland side needs Cinnamon.
+  Screen reads go through Cinnamon's `ScreenshotArea` D-Bus call, or on KDE
+  through Spectacle, the screenshot tool KWin lets take them (about 3 s a
+  shot); other Wayland desktops are not covered.
 - Reading the kernel log needs membership in `adm` or `systemd-journal`;
   without it, `stress` only watches the screen.
 

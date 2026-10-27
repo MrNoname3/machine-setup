@@ -26,4 +26,5 @@ h264='-c:v libx264 -profile:v high -pix_fmt yuv420p'
   clip h264-720.mp4 1280x720 30 $h264 -b:v 3M
 }
 clip vp9-1080.webm 1920x1080 30 -c:v libvpx-vp9 -b:v 4M -deadline realtime -cpu-used 8 -row-mt 1
+clip av1-1080.webm 1920x1080 30 -c:v libsvtav1 -b:v 3M -preset 10
 ls -l "$dir"
