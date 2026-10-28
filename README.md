@@ -343,8 +343,8 @@ boot, via the bootstrap + playbook.
 
 ### desktop-bazzite (Bazzite)
 
-1. **Install Bazzite (KDE)** on the NVMe system disk; the installer's encryption
-   option is the way to an encrypted system disk. Leave both HDDs and the
+1. **Install Bazzite (KDE)** on the NVMe system disk with the installer's
+   encryption option (the unlock is set up in step 9). Leave both HDDs and the
    Windows SSD untouched.
 2. **First boot** — run the bootstrap one-liner, then
    `./scripts/apply.sh desktop-bazzite -K`. The playbook stops at its manual
@@ -380,3 +380,22 @@ boot, via the bootstrap + playbook.
    it) — enroll the uBlue key once with `ujust enroll-secure-boot-key` and
    confirm it in the MOK screen at the next boot, then switch Secure Boot on in
    the firmware (`ujust bios`).
+9. **System disk unlock** — the encrypted system disk opens at boot from the
+   TPM, without a prompt; two passphrase slots stay as the fallback: a
+   memorised one, stored nowhere, and a generated recovery one in KeePassXC.
+   - The boot prompt types with the Hungarian layout through the kernel
+     argument `vconsole.keymap=hu` (`rpm-ostree kargs
+     --append-if-missing=vconsole.keymap=hu`); the image's initramfs carries
+     every keymap.
+   - `ujust setup-luks-tpm-unlock` enrolls the TPM (no PIN) and asks for one
+     of the passphrases; run again, it replaces the TPM slot, and answering
+     *yes* to the PIN question adds a PIN. `ujust remove-luks-tpm-unlock`
+     takes it off.
+   - The TPM key is bound to PCRs 7 and 14: the Secure Boot state and keys,
+     and the MOK list. A Secure Boot or MOK change, a firmware
+     update (it can clear AMD's firmware TPM) or a new shim from
+     `bootloader-update.service` makes the next boot ask for a passphrase
+     once; type one, then run `ujust setup-luks-tpm-unlock` again. Kernel and
+     image updates do not.
+   - Back up the header after any key change (`roles/storage/README.md`,
+     *Header backups*).
