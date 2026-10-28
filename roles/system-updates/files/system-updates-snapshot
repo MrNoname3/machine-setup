@@ -40,6 +40,13 @@ grep -l "\"comments\" : \"$comment\"" /timeshift/snapshots/*/info.json 2>/dev/nu
   | sed 's|^/timeshift/snapshots/||; s|/info.json$||' \
   | head -n "-$keep" \
   | while read -r name; do
-      timeshift --delete --scripted --snapshot "$name" ||
-        echo "deleting snapshot $name failed (exit $?)" >&2
+      timeshift --delete --scripted --snapshot "$name" && continue
+      rc=$?
+      # Timeshift can crash (SIGSEGV) in its teardown after a finished
+      # deletion, so the snapshot's directory tells whether it is gone.
+      if [ -d "/timeshift/snapshots/$name" ]; then
+        echo "deleting snapshot $name failed (exit $rc)" >&2
+      else
+        echo "deleted snapshot $name (timeshift exited $rc afterwards)"
+      fi
     done
