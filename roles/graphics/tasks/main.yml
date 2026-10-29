@@ -328,11 +328,30 @@
       changed_when: false
       check_mode: false
 
+    # One tree serves a whole kernel series, as in the kernel hook: the newest
+    # tree of this patch set for the running kernel's series, or a new one
+    # named after the running kernel's source.
+    - name: Find the tree for the running kernel's series
+      ansible.builtin.shell: |
+        set -o pipefail
+        series=$(echo "{{ nouveau_patched_srcver.stdout | replace('~', '-') }}" | cut -d. -f1-2)
+        for tree in /usr/src/nouveau-patched-*-{{ nouveau_patched_digest.stdout }}; do
+          [ -f "$tree/dkms.conf" ] || continue
+          ver=${tree#/usr/src/nouveau-patched-}
+          [ "$(echo "${ver%-*}" | cut -d. -f1-2)" = "$series" ] && echo "$ver"
+        done | sort -V | tail -n 1
+      args:
+        executable: /bin/bash
+      register: nouveau_patched_tree
+      changed_when: false
+      check_mode: false
+
     - name: Name the DKMS module version
       ansible.builtin.set_fact:
-        nouveau_patched_base: "nouveau-patched/{{ nouveau_patched_srcver.stdout | replace('~', '-') }}"
+        nouveau_patched_series: "{{ (nouveau_patched_srcver.stdout | replace('~', '-')).split('.')[:2] | join('.') }}"
         nouveau_patched_dkms: >-
-          nouveau-patched/{{ nouveau_patched_srcver.stdout | replace('~', '-') }}-{{ nouveau_patched_digest.stdout }}
+          nouveau-patched/{{ nouveau_patched_tree.stdout
+            or (nouveau_patched_srcver.stdout | replace('~', '-') ~ '-' ~ nouveau_patched_digest.stdout) }}
 
     - name: List the versions DKMS has
       ansible.builtin.command: dkms status nouveau-patched
@@ -340,22 +359,34 @@
       changed_when: false
       check_mode: false
 
-    # The same kernel source with another patch set; other series keep theirs.
-    - name: Pick the builds of other patch sets
+    # DKMS would build every tree of a series for its kernels, each over the
+    # other; other series keep theirs.
+    - name: Pick the other builds of the running kernel's series
       ansible.builtin.set_fact:
         nouveau_patched_stale: >-
           {{ nouveau_patched_versions.stdout_lines
              | map('regex_replace', '[,:].*$', '') | unique
-             | select('match', '^' ~ (nouveau_patched_base | regex_escape) ~ '(-[0-9a-f]{8})?$')
+             | select('match', '^nouveau-patched/' ~ (nouveau_patched_series | regex_escape) ~ '\.')
              | reject('equalto', nouveau_patched_dkms) | list }}
 
-    - name: Remove the builds of other patch sets
+    # The kernels a removed build served get the kept tree instead.
+    - name: Pick the kernels the kept tree is installed for
+      ansible.builtin.set_fact:
+        nouveau_patched_kernels: >-
+          {{ ([ansible_facts['kernel']]
+              + (nouveau_patched_versions.stdout_lines
+                 | select('search', ': installed')
+                 | select('match', '^(' ~ (nouveau_patched_stale | map('regex_escape') | join('|') or 'none') ~ '),')
+                 | map('regex_replace', '^[^,]+, ([^,]+),.*$', '\1') | list))
+             | unique }}
+
+    - name: Remove the other builds of the series
       ansible.builtin.command: dkms remove {{ item }} --all
       loop: "{{ nouveau_patched_stale }}"
       changed_when: true
       notify: Update initramfs
 
-    - name: Remove the source trees of other patch sets
+    - name: Remove the other source trees of the series
       ansible.builtin.file:
         path: "/usr/src/{{ item | replace('/', '-') }}"
         state: absent
@@ -372,17 +403,19 @@
       args:
         creates: "/var/lib/dkms/{{ nouveau_patched_dkms }}/source"
 
-    - name: Check whether the module is installed for the running kernel
-      ansible.builtin.command: >-
-        dkms status {{ nouveau_patched_dkms }} -k {{ ansible_facts['kernel'] }}
+    - name: Check whether the module is installed for its kernels
+      ansible.builtin.command: dkms status {{ nouveau_patched_dkms }} -k {{ item }}
+      loop: "{{ nouveau_patched_kernels }}"
       register: nouveau_patched_status
       changed_when: false
       check_mode: false
 
-    - name: Build and install the module for the running kernel
-      ansible.builtin.command: >-
-        dkms install {{ nouveau_patched_dkms }} -k {{ ansible_facts['kernel'] }}
-      when: "': installed' not in nouveau_patched_status.stdout"
+    - name: Build and install the module for its kernels
+      ansible.builtin.command: dkms install {{ nouveau_patched_dkms }} -k {{ item.item }}
+      loop: "{{ nouveau_patched_status.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: "': installed' not in item.stdout"
       changed_when: true
       notify: Update initramfs
 
