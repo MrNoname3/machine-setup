@@ -1,8 +1,10 @@
 ---
-# zram role (Debian family): swap compressed in memory, used before the disk
-# swap (which stays, at a lower priority). An empty zram device takes no
-# memory; pages go there only under memory pressure. It needs root, so a run
-# without it skips the role with a notice.
+# zram role: swap compressed in memory, used before the disk swap (which
+# stays, at a lower priority). An empty zram device takes no memory; pages go
+# there only under memory pressure. On a Debian-family host the role sets the
+# device up; Fedora's zram-generator-defaults already does that on Bazzite, so
+# there it only tunes swapping for it. It needs root, so a run without it skips
+# the role with a notice.
 
 - name: Check whether this run has root
   ansible.builtin.command: id -u
@@ -18,14 +20,13 @@
   when: zram_uid.stdout != "0"
 
 - name: Set up swap on zram
-  when:
-    - zram_uid.stdout == "0"
-    - ansible_facts['os_family'] == "Debian"
+  when: zram_uid.stdout == "0"
   block:
     - name: Install zram-generator
       ansible.builtin.apt:
         name: systemd-zram-generator
         state: present
+      when: ansible_facts['os_family'] == "Debian"
 
     - name: Configure the zram swap device
       ansible.builtin.copy:
@@ -39,6 +40,7 @@
         group: root
         mode: "0644"
       notify: Reload systemd for zram
+      when: ansible_facts['os_family'] == "Debian"
 
     - name: Tune swapping for swap in memory
       ansible.posix.sysctl:
@@ -55,3 +57,4 @@
         name: systemd-zram-setup@zram0.service
         state: started
         daemon_reload: true
+      when: ansible_facts['os_family'] == "Debian"

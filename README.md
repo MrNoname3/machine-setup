@@ -91,7 +91,7 @@ machine-setup/
     ├── connectivity-check/ # NetworkManager's connectivity check off (Bazzite)
     ├── hostname/        # static hostname (Bazzite ships none)
     ├── system-services/ # unused system services the image enables, off
-    ├── zram/            # swap compressed in memory (Mint)
+    ├── zram/            # swap compressed in memory (Mint; Bazzite: its swap settings)
     ├── disk-health/     # SMART watch, self-tests, btrfs scrub, desktop alerts
     ├── system-updates/  # Mint automatic upgrades (packages, Flatpaks, spices) + Timeshift snapshots
     ├── applied/         # records the applied branch + commit in /etc

@@ -27,6 +27,7 @@ roles_enabled:
   - hostname        # static hostname below (needs root)
   - system-services     # unused services from the image (below; needs root)
   - disk-health     # SMART watch, self-tests, btrfs scrub (needs root)
+  - zram            # swap settings for the image's zram swap (needs root)
 
 # The image sets no static hostname, so without this the host takes the name
 # the router's DNS holds for its address.
