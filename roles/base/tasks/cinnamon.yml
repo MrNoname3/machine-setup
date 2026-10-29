@@ -205,7 +205,7 @@
     cmd: cinnamon-applet-settings {{ item.uuid | quote }} {{ item.settings | to_json | quote }}
     executable: /usr/bin/python3
   environment:
-    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts['user_uid'] }}/bus"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ primary_user_uid }}/bus"
   become: false
   register: base_applet_result
   changed_when: "'CHANGED' in base_applet_result.stdout"

@@ -210,6 +210,20 @@
             - git_origin_now.rc == 0
             - (git_origin_now.stdout | trim) != git_origin_url
 
+    # The facts are gathered with become, so their user_uid is root's; the
+    # tasks that reach the user's session bus need the user's own.
+    - name: Look up the primary user's UID
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ primary_user }}"
+      become: false
+      tags: always
+
+    - name: Keep the primary user's UID
+      ansible.builtin.set_fact:
+        primary_user_uid: "{{ ansible_facts['getent_passwd'][primary_user][1] }}"
+      tags: always
+
   roles:
     - role: base
       when: "'base' in (roles_enabled | default([]))"

@@ -5,7 +5,7 @@
 
 - name: Find the session bus of the primary user
   ansible.builtin.stat:
-    path: "/run/user/{{ ansible_facts['user_uid'] }}/bus"
+    path: "/run/user/{{ primary_user_uid }}/bus"
   register: phosh_session_bus
 
 - name: Apply the Phosh session's dconf settings

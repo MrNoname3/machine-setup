@@ -176,7 +176,7 @@
         gdbus call --session --dest org.kde.KWin
         --object-path /KWin --method org.kde.KWin.reconfigure
       environment:
-        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts['user_uid'] }}/bus"
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ primary_user_uid }}/bus"
       changed_when: false
       failed_when: false # no running session (e.g. fresh install) is fine
       when: kde_im_result is changed or kde_cfg_result is changed
@@ -204,7 +204,7 @@
               w.writeConfig("launchers", want); w.reloadConfig(); print("CHANGED");
             }); });
       environment:
-        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts['user_uid'] }}/bus"
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ primary_user_uid }}/bus"
       register: kde_launchers_result
       changed_when: "'CHANGED' in kde_launchers_result.stdout"
       failed_when: false # no running session (e.g. fresh install) is fine
@@ -233,7 +233,7 @@
               w.writeConfig("extraItems", keep); w.reloadConfig(); print("CHANGED");
             }); });
       environment:
-        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts['user_uid'] }}/bus"
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ primary_user_uid }}/bus"
       register: kde_systray_result
       changed_when: "'CHANGED' in kde_systray_result.stdout"
       failed_when: false # no running session (e.g. fresh install) is fine
