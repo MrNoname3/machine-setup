@@ -253,6 +253,7 @@
       when: "'synology-drive' in (roles_enabled | default([]))"
     - role: steam
       when: "'steam' in (roles_enabled | default([]))"
+      tags: steam
     - role: lutris
       when: "'lutris' in (roles_enabled | default([]))"
       tags: lutris

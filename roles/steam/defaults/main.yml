@@ -20,3 +20,8 @@ steam_protonplus_settings:
   check-updates-on-launch: "true"
   check-updates-on-boot: "false"
   background-updates: "false"
+
+# Environment variables for Steam and everything it starts, set by a `steam`
+# wrapper in ~/.local/bin, which comes first on the session's PATH (Mint);
+# empty removes the wrapper.
+steam_environment: {}

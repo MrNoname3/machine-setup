@@ -294,6 +294,12 @@ firewall_allowed_extra:
   - { port: "27036:27037", proto: tcp, comment: "Steam Remote Play" }
   - { port: "27040", proto: tcp, comment: "Steam local game transfers" }
 
+# The only Vulkan device here is llvmpipe, where Steam's streaming client shows
+# the Intel GPU's tiled video frames striped; its GLES2 renderer takes them
+# through the Intel driver. Without a Vulkan device the client crashes.
+steam_environment:
+  SDL_RENDER_DRIVER: opengles2
+
 # Podman is the only container engine here (no rootful Docker), so it is safe to
 # export DOCKER_HOST to the rootless Podman socket for testcontainers / IDE
 # docker plugins. NOT set on hosts that run a real Docker daemon (e.g. the

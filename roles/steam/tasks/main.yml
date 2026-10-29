@@ -1,6 +1,6 @@
 ---
 # steam role: install Steam (needs i386 multiarch, already enabled) and
-# autostart it minimised to the tray on login.
+# autostart it minimised to the tray on login, with steam_environment set.
 
 - name: Install Steam
   ansible.builtin.apt:
@@ -33,6 +33,36 @@
       Hidden=false
   become: false
   when: ansible_facts['os_family'] == "Debian"
+
+- name: Start Steam with its environment
+  become: false
+  when: ansible_facts['os_family'] == "Debian"
+  block:
+    - name: Ensure ~/.local/bin exists
+      ansible.builtin.file:
+        path: "/home/{{ primary_user }}/.local/bin"
+        state: directory
+        mode: "0755"
+      when: steam_environment | length > 0
+
+    - name: Install the steam wrapper
+      ansible.builtin.copy:
+        dest: "/home/{{ primary_user }}/.local/bin/steam"
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          # Managed by Ansible (steam role): Steam with steam_environment.
+          {% for name, value in steam_environment.items() %}
+          export {{ name }}={{ value | quote }}
+          {% endfor %}
+          exec /usr/games/steam "$@"
+      when: steam_environment | length > 0
+
+    - name: Remove the steam wrapper
+      ansible.builtin.file:
+        path: "/home/{{ primary_user }}/.local/bin/steam"
+        state: absent
+      when: steam_environment | length == 0
 
 # Bazzite ships Steam in the image (no install task); it is launched through the
 # /usr/bin/bazzite-steam wrapper (gamescope/session integration), so the
