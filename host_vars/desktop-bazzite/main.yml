@@ -28,6 +28,7 @@ roles_enabled:
   - system-services     # unused services from the image (below; needs root)
   - disk-health     # SMART watch, self-tests, btrfs scrub (needs root)
   - zram            # swap settings for the image's zram swap (needs root)
+  - firewall        # firewalld: LAN-only services (below; needs root)
 
 # The image sets no static hostname, so without this the host takes the name
 # the router's DNS holds for its address.
@@ -251,6 +252,21 @@ amdgpu_active_profile: efficient
 # DisplayPort monitor, it made the mouse and keyboard stutter there.
 graphics_greeter_outputs_disabled:
   - HDMI-A-1
+
+# Inbound services from the private ranges. No SSH server runs here, so of the
+# defaults only mDNS stays.
+firewall_allowed:
+  - { port: "5353", proto: udp, comment: "mDNS/Avahi (NAS discovery)" }
+
+# Steam's LAN features. The other client's reply to a discovery broadcast
+# arrives on UDP 27036 and matches no outgoing flow.
+firewall_allowed_extra:
+  - { port: "27031:27036", proto: udp, comment: "Steam discovery + Remote Play" }
+  - { port: "27036:27037", proto: tcp, comment: "Steam Remote Play" }
+  - { port: "27040", proto: tcp, comment: "Steam local game transfers" }
+
+firewall_interface_allowed:
+  - { interface: radminvpn0, proto: udp, comment: "Radmin VPN peers and LAN games" }
 
 # Pushes to the Gitea authenticate with a token kept by git's own store helper.
 git_config_extra:

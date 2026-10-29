@@ -280,6 +280,7 @@
       when: "'phosh' in (roles_enabled | default([]))"
     - role: firewall
       when: "'firewall' in (roles_enabled | default([]))"
+      tags: firewall
     - role: storage
       when: "'storage' in (roles_enabled | default([]))"
       tags: storage

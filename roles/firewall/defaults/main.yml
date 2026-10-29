@@ -1,8 +1,8 @@
 ---
-# Inbound firewall (ufw). Default-deny incoming; only the services below are
-# allowed, and ONLY from private (RFC1918) source ranges, so the laptop is never
-# exposed when it gets a public IP away from home. gufw is a GUI over ufw, so all
-# of these rules show up there too.
+# Inbound firewall (ufw, or firewalld on the Fedora family). Default-deny
+# incoming; only the services below are allowed, and ONLY from private (RFC1918)
+# source ranges, so the laptop is never exposed when it gets a public IP away
+# from home. gufw is a GUI over ufw, so all of these rules show up there too.
 firewall_private_ranges:
   - 192.168.0.0/16
   - 10.0.0.0/8
@@ -22,3 +22,9 @@ firewall_allowed_extra: []
 # addresses are not RFC1918 (an interface that does not exist yet is fine).
 # Without `port`, every port of that protocol is allowed.
 firewall_interface_allowed: []
+
+# firewalld: the zone the private ranges are bound to, and the services the
+# default zone keeps for every other source (DHCPv6 replies, as ufw allows).
+firewall_private_zone: private
+firewall_default_zone_services:
+  - dhcpv6-client

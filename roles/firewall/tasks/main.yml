@@ -1,7 +1,8 @@
 ---
-# Uncomplicated Firewall (ufw): default-deny inbound, allow only the listed
-# services and only from private (RFC1918) source ranges. gufw is just a GUI
-# over this, so the rules are visible/editable there.
+# Uncomplicated Firewall (ufw) on the Debian family, firewalld on the Fedora
+# family (firewalld.yml): default-deny inbound, allow only the listed services
+# and only from private (RFC1918) source ranges. gufw is just a GUI over ufw,
+# so the rules are visible/editable there.
 #
 # IMPORTANT ordering: the allow rules (incl. SSH) are added BEFORE the default
 # policy is switched to deny and BEFORE ufw is enabled, so an active SSH session
@@ -55,3 +56,7 @@
   community.general.ufw:
     state: enabled
   when: ansible_facts['os_family'] == "Debian"
+
+- name: Configure firewalld
+  ansible.builtin.include_tasks: firewalld.yml
+  when: ansible_facts['os_family'] != "Debian"

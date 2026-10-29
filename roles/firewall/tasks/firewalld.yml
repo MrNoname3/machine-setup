@@ -1,0 +1,124 @@
+---
+# firewalld (Fedora family), with the policy of the ufw branch. A zone bound to
+# the private ranges holds the allowed ports, so only those sources reach them;
+# the default zone, which takes every other source, keeps only
+# firewall_default_zone_services. Each interface in firewall_interface_allowed
+# gets a zone of its own name. It needs root, so a run without it skips the
+# role with a notice.
+
+- name: Check whether this run has root
+  ansible.builtin.command: id -u
+  register: firewall_uid
+  changed_when: false
+  check_mode: false
+
+- name: Note that the firewall was left alone (no root)
+  ansible.builtin.debug:
+    msg: >-
+      The firewall role needs root, so it was skipped. Run it with:
+      ./scripts/apply.sh {{ inventory_hostname }} --tags firewall -K
+  when: firewall_uid.stdout != "0"
+
+- name: Configure firewalld
+  when: firewall_uid.stdout == "0"
+  block:
+    - name: Create the zones
+      ansible.posix.firewalld:
+        zone: "{{ item }}"
+        state: present
+        permanent: true
+      loop: "{{ [firewall_private_zone] + (firewall_interface_allowed | map(attribute='interface') | list) }}"
+      register: firewall_zones
+
+    # A new zone reaches the running firewall only with a reload.
+    - name: Reload firewalld for the new zones
+      ansible.builtin.command: firewall-cmd --reload
+      changed_when: true
+      when: firewall_zones is changed and not ansible_check_mode
+
+    # A zone created in check mode does not exist yet, so nothing can go in it.
+    - name: Open the allowed services and close the rest
+      when: not (ansible_check_mode and firewall_zones is changed)
+      block:
+        - name: Bind the private ranges to their zone
+          ansible.posix.firewalld:
+            zone: "{{ firewall_private_zone }}"
+            source: "{{ item }}"
+            state: enabled
+            permanent: true
+            immediate: true
+          loop: "{{ firewall_private_ranges }}"
+
+        - name: Allow inbound services from private (RFC1918) ranges only
+          ansible.posix.firewalld:
+            zone: "{{ firewall_private_zone }}"
+            port: "{{ item.port | replace(':', '-') }}/{{ item.proto }}"
+            state: enabled
+            permanent: true
+            immediate: true
+          loop: "{{ firewall_allowed + firewall_allowed_extra }}"
+          loop_control:
+            label: "{{ item.comment }} {{ item.port }}/{{ item.proto }}"
+
+        - name: Bind each listed interface to its zone
+          ansible.posix.firewalld:
+            zone: "{{ item.interface }}"
+            interface: "{{ item.interface }}"
+            state: enabled
+            permanent: true
+            immediate: true
+          loop: "{{ firewall_interface_allowed }}"
+          loop_control:
+            label: "{{ item.interface }}"
+
+        - name: Allow inbound services on specific interfaces, from any source
+          ansible.posix.firewalld:
+            zone: "{{ item.interface }}"
+            port: "{{ item.port | default('1-65535') | replace(':', '-') }}/{{ item.proto }}"
+            state: enabled
+            permanent: true
+            immediate: true
+          loop: "{{ firewall_interface_allowed }}"
+          loop_control:
+            label: "{{ item.comment }} {{ item.port | default('any') }}/{{ item.proto }} on {{ item.interface }}"
+
+        # The allow rules above go in first, so nothing in use is cut off.
+        - name: Read the default zone
+          ansible.builtin.command: firewall-cmd --get-default-zone
+          register: firewall_default_zone
+          changed_when: false
+          check_mode: false
+
+        - name: Read the default zone's services and ports
+          ansible.builtin.command: firewall-cmd --permanent --zone={{ firewall_default_zone.stdout }} --list-{{ item }}
+          loop: [services, ports]
+          register: firewall_default_zone_open
+          changed_when: false
+          check_mode: false
+
+        - name: Keep the default zone's own services
+          ansible.posix.firewalld:
+            zone: "{{ firewall_default_zone.stdout }}"
+            service: "{{ item }}"
+            state: enabled
+            permanent: true
+            immediate: true
+          loop: "{{ firewall_default_zone_services }}"
+
+        - name: Close the default zone's other services
+          ansible.posix.firewalld:
+            zone: "{{ firewall_default_zone.stdout }}"
+            service: "{{ item }}"
+            state: disabled
+            permanent: true
+            immediate: true
+          loop: "{{ firewall_default_zone_open.results[0].stdout.split() | difference(firewall_default_zone_services) }}"
+
+        - name: Close the default zone's ports
+          ansible.posix.firewalld:
+            zone: "{{ firewall_default_zone.stdout }}"
+            port: "{{ item }}"
+            state: disabled
+            permanent: true
+            immediate: true
+          loop: "{{ firewall_default_zone_open.results[1].stdout.split() }}"
