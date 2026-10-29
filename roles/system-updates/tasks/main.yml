@@ -3,8 +3,9 @@
 # removals, with a Timeshift snapshot of the system before every upgrade that
 # has something to install, and a daily one. A failed snapshot stops the
 # upgrade, and a failed snapshot or upgrade becomes a desktop notification
-# through the disk-health role's notifier. It needs root, so a run without it
-# skips the role with a notice.
+# through the disk-health role's notifier. On Bazzite the image's uupd updates
+# the system, and the role only widens its retries (uupd.yml). It needs root,
+# so a run without it skips the role with a notice.
 
 - name: Check whether this run has root
   ansible.builtin.command: id -u
@@ -19,8 +20,16 @@
       ./scripts/apply.sh {{ inventory_hostname }} --tags system-updates -K
   when: system_updates_uid.stdout != "0"
 
+- name: Retry uupd while the machine is busy
+  ansible.builtin.include_tasks: uupd.yml
+  when:
+    - system_updates_uid.stdout == "0"
+    - ansible_facts['os_family'] != "Debian"
+
 - name: Set up automatic upgrades with snapshots
-  when: system_updates_uid.stdout == "0"
+  when:
+    - system_updates_uid.stdout == "0"
+    - ansible_facts['os_family'] == "Debian"
   block:
     - name: Require the disk-health role, whose notifier reports a failure
       ansible.builtin.assert:

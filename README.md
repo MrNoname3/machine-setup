@@ -93,7 +93,7 @@ machine-setup/
     ├── system-services/ # unused system services the image enables, off
     ├── zram/            # swap compressed in memory (Mint; Bazzite: its swap settings)
     ├── disk-health/     # SMART watch, self-tests, btrfs scrub, desktop alerts
-    ├── system-updates/  # Mint automatic upgrades (packages, Flatpaks, spices) + Timeshift snapshots
+    ├── system-updates/  # Mint automatic upgrades (packages, Flatpaks, spices) + Timeshift snapshots; Bazzite: uupd retries
     ├── applied/         # records the applied branch + commit in /etc
     └── etckeeper/       # /etc in git (runs last)
 ```

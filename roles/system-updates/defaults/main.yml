@@ -13,3 +13,10 @@ system_updates_upgrade_snapshots: 2
 # own (flatpak update --commit=).
 system_updates_snapshot_exclude:
   - /var/lib/flatpak/***
+
+# Bazzite: how often uupd tries again while the machine is too busy to update,
+# and for how long after the first try (systemd time spans); the number of
+# starts allowed in that window is at least window / interval + 1.
+system_updates_uupd_retry_interval: 15min
+system_updates_uupd_retry_window: 6h
+system_updates_uupd_retries: 25

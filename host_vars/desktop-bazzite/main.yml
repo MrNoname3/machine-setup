@@ -27,6 +27,7 @@ roles_enabled:
   - hostname        # static hostname below (needs root)
   - system-services     # unused services from the image (below; needs root)
   - disk-health     # SMART watch, self-tests, btrfs scrub (needs root)
+  - system-updates  # uupd retries while the machine is busy (needs root)
   - zram            # swap settings for the image's zram swap (needs root)
   - firewall        # firewalld: LAN-only services (below; needs root)
 

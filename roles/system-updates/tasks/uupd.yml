@@ -1,0 +1,27 @@
+---
+# uupd exits with a failure, without updating, while the network, CPU or
+# memory is busy, as it often is right after boot; a failed update exits with
+# success and notifies on its own. So only the busy case is retried, for a
+# window long enough to outlast a boot's traffic.
+
+- name: Ensure uupd's drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/uupd.service.d
+    state: directory
+    mode: "0755"
+
+- name: Retry uupd for longer while the machine is busy
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/uupd.service.d/retry.conf
+    content: |
+      # Managed by Ansible (system-updates role)
+      [Unit]
+      StartLimitIntervalSec={{ system_updates_uupd_retry_window }}
+      StartLimitBurst={{ system_updates_uupd_retries }}
+
+      [Service]
+      RestartSec={{ system_updates_uupd_retry_interval }}
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd for uupd
