@@ -101,9 +101,15 @@ flatpak_apps_absent:
   - org.kde.okular
 
 # Enabled by the image but unused here. Input Remapper holds no presets;
-# `ujust restore-input-remapper enable` turns it back on (drop it from here too).
+# `ujust restore-input-remapper enable` turns it back on (drop it from here and
+# from kde_masked_user_units_extra too).
 system_services_disabled:
   - input-remapper.service
+
+# Its session autostart loads the presets through the service above, so it
+# would fail at every login.
+kde_masked_user_units_extra:
+  - 'app-input\x2dremapper\x2dautoload@autostart.service'
 
 flatpak_extensions:
   - { name: org.videolan.VLC.Plugin.pause_click, app: org.videolan.VLC, branch: "3-{runtime}" }  # click to pause

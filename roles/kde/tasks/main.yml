@@ -18,7 +18,8 @@
 #     Virtual Keyboard, which injects an accent/emoji candidate popup while
 #     typing on a physical keyboard.
 #   - Default applications (VLC for video, ...) and power-management timeouts.
-#   - Masks the user services that should not start with the session (KDE Connect).
+#   - Masks the user services that should not start with the session (KDE Connect),
+#     and refuses the D-Bus activation of the daemons nothing may start.
 #   - Hides the uBlue greeting in new terminals (kde_user_motd).
 #   - Enables mpris-proxy (BT headset media buttons).
 #
@@ -258,7 +259,28 @@
         name: "{{ item }}"
         scope: user
         masked: true
-      loop: "{{ kde_masked_user_units }}"
+      loop: "{{ kde_masked_user_units + kde_masked_user_units_extra }}"
+
+    # A service file of the same name in the user's data directory overrides
+    # the system one, so an activation request runs /bin/false and fails.
+    - name: Ensure the user's D-Bus service directory exists
+      ansible.builtin.file:
+        path: "/home/{{ primary_user }}/.local/share/dbus-1/services"
+        state: directory
+        mode: "0755"
+      when: kde_dbus_services_disabled | length > 0
+
+    - name: Refuse to start the disabled D-Bus services
+      ansible.builtin.copy:
+        dest: "/home/{{ primary_user }}/.local/share/dbus-1/services/{{ item }}.service"
+        content: |
+          # Managed by Ansible (kde role): {{ item }} is not to be started.
+          [D-BUS Service]
+          Name={{ item }}
+          Exec=/bin/false
+        mode: "0644"
+      loop: "{{ kde_dbus_services_disabled }}"
+      notify: Reload the session bus configuration
 
     - name: Hide the uBlue terminal greeting
       ansible.builtin.copy:

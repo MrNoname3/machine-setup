@@ -136,6 +136,16 @@ kde_mime_defaults:
 kde_masked_user_units:
   - app-org.kde.kdeconnect.daemon@autostart.service   # KDE Connect
 
+# Per-host additions to kde_masked_user_units.
+kde_masked_user_units_extra: []
+
+# Session D-Bus services that nothing may start. The browser integration asks
+# KDE Connect for its devices whenever the browser starts, which starts the
+# daemon over D-Bus despite the masked autostart; with its activation refused,
+# the integration just lists no devices.
+kde_dbus_services_disabled:
+  - org.kde.kdeconnect
+
 # System tray entries set to Disabled; a loaded entry can start its service
 # over D-Bus even when the autostart is masked.
 kde_systray_disabled:
