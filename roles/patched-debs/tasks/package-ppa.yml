@@ -22,10 +22,11 @@
   loop: "{{ patched_debs_binaries.stdout_lines | union([patched_deb.binary]) }}"
 
 # A build made here can carry a version that compares higher than the PPA's.
+# An install that would remove packages fails instead.
 - name: Install the PPA's {{ patched_deb.source }}  # noqa: command-instead-of-module
   ansible.builtin.command:
     argv: >-
-      {{ ['apt-get', 'install', '-y', '-q', '--allow-downgrades']
+      {{ ['apt-get', 'install', '-y', '-q', '--allow-downgrades', '--no-remove']
          + (patched_debs_binaries.stdout_lines | union([patched_deb.binary])) }}
   environment:
     DEBIAN_FRONTEND: noninteractive

@@ -203,14 +203,28 @@
       changed_when: false
       check_mode: false
 
-    # A held Mesa is patched-debs' rebuild, which follows the PPA itself.
-    - name: Upgrade Mesa from the PPA
+    - name: Read the PPA's package index
       ansible.builtin.apt:
-        name: "{{ graphics_mesa_lines | map('split', ' ') | map('first') | list }}"
-        state: latest
-        only_upgrade: true
         update_cache: true
-      when: graphics_mesa_lines | select('search', ' hold$') | length == 0
+      changed_when: false
+
+    # A Mesa that patched-debs provides, held or from its PPA, follows the PPA
+    # itself. Both architectures' Mesa must keep one version: rather than let
+    # apt remove the packages that need it, an upgrade that would split them
+    # fails.
+    - name: Upgrade Mesa from the PPA  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        argv: >-
+          {{ ['apt-get', 'install', '-y', '-q', '--only-upgrade', '--no-remove']
+             + (graphics_mesa_lines | map('split', ' ') | map('first') | list) }}
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+      register: graphics_mesa_upgrade
+      changed_when: graphics_mesa_upgrade.stdout is not search('^0 upgraded, 0 newly installed', multiline=True)
+      when:
+        - graphics_mesa_lines | select('search', ' hold$') | length == 0
+        - "'patched-debs' not in (roles_enabled | default([]))
+           or 'mesa' not in ((patched_debs | default([])) + (patched_debs_extra | default([]))) | map(attribute='source')"
       vars:
         graphics_mesa_lines: "{{ graphics_dpkg_sources.stdout_lines | select('search', ' mesa ') | list }}"
 

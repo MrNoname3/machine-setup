@@ -213,10 +213,11 @@
     # that compares lower than the installed one's. The other architectures'
     # packages follow to the archive's version in the same transaction: a
     # second one may resolve the native packages to the archive's build again.
+    # An install that would remove packages fails instead.
     - name: Install the patched packages of {{ patched_deb.source }}  # noqa: command-instead-of-module
       ansible.builtin.command:
         argv: >-
-          {{ ['apt-get', 'install', '-y', '-q', '--allow-downgrades']
+          {{ ['apt-get', 'install', '-y', '-q', '--allow-downgrades', '--no-remove']
              + (['--reinstall'] if patched_debs_keep | bool else [])
              + patched_debs_debs
              + (patched_debs_others.stdout_lines | default([])
