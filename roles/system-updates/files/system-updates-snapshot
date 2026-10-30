@@ -2,7 +2,7 @@
 # Usage: system-updates-snapshot <count> — runs before Mint's automatic upgrade
 # (ExecStartPre): takes a Timeshift snapshot when there is something to
 # upgrade, and keeps the newest <count> of these snapshots. A failure stops
-# the upgrade.
+# the upgrade, as does an upgrade that would remove packages.
 set -e
 keep=$1
 comment="Before automatic upgrade"
@@ -19,6 +19,16 @@ if [ -z "$updates" ]; then
   exit 0
 fi
 echo "$updates"
+
+# The upgrade runs apt-get install --assume-yes, which removes whatever the new
+# versions conflict with, such as a library whose other architecture stays
+# behind; such an upgrade is not run.
+# shellcheck disable=SC2086
+removals=$(/usr/bin/mintupdate-cli upgrade --dry-run $options | sed -n 's/^Remv \([^ ]*\).*/\1/p')
+if [ -n "$removals" ]; then
+  echo "the upgrade would remove packages, so it is not run:" $removals >&2
+  exit 1
+fi
 
 # Timeshift's hourly check may be taking the daily snapshot right now, and
 # runs one at a time. A shutdown waits for the snapshot, as Mint's upgrade
