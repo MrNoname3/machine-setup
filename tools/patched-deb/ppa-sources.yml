@@ -7,7 +7,7 @@
 # Rebuilt with the patches/<source>-*.patch of this directory.
 packages:
   # renovate: datasource=deb depName=mesa-libgallium registryUrl=https://ppa.launchpadcontent.net/kisak/kisak-mesa/ubuntu?suite=noble&components=main&binaryArch=amd64
-  mesa: "26.2.5~kisak1~n"
+  mesa: "26.2.6~kisak1~n"
   # renovate: datasource=deb depName=xwayland registryUrl=https://ppa.launchpadcontent.net/kisak/kisak-mesa/ubuntu?suite=noble&components=main&binaryArch=amd64
   xwayland: "2:24.1.6-1ubuntu0.1~kisak~n"
   # renovate: datasource=deb depName=i965-va-driver registryUrl=http://archive.ubuntu.com/ubuntu?suite=noble-updates&components=universe&binaryArch=amd64
