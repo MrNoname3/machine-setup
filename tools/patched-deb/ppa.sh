@@ -167,6 +167,9 @@ case $CMD in
       bash "$HERE/ppa.sh" --in-container source "$OUT" "${items[@]}"
     ;;
   upload)
+    # The container signs through the agent's socket, which exists only while
+    # the agent runs.
+    gpgconf --launch gpg-agent
     socket=$(gpgconf --list-dirs agent-extra-socket)
     gpg --export --armor "$KEY" >"$OUT/.key.asc"
     "${run[@]}" -v "$socket:/root/.gnupg/S.gpg-agent" -e KEY="$KEY" "$IMAGE" \
