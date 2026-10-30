@@ -80,8 +80,17 @@
   check_mode: false
   when: ansible_facts['os_family'] == "Debian"
 
+# apt matches a src: pin to another architecture's packages only with that
+# architecture named.
+- name: Read the foreign architectures
+  ansible.builtin.command: dpkg --print-foreign-architectures
+  register: patched_debs_foreign_archs
+  changed_when: false
+  check_mode: false
+  when: ansible_facts['os_family'] == "Debian"
+
 # Pinned above 1000 by source package, so apt takes the PPA's build over a
-# newer one elsewhere and over a build made here.
+# newer one elsewhere and over a build made here, on every architecture.
 - name: Add the PPA and its pin
   ansible.builtin.copy:
     dest: "{{ item.dest }}"
@@ -102,11 +111,13 @@
         Signed-By: /etc/apt/keyrings/machine-setup-ppa.asc
     - dest: /etc/apt/preferences.d/machine-setup-ppa
       content: |
-        Package: {{ patched_debs_from_ppa | map('regex_replace', '^', 'src:') | join(' ') }}
+        Package: {{ patched_debs_from_ppa | product(patched_debs_pin_archs) | map('join') | map('regex_replace', '^', 'src:') | join(' ') }}
         Pin: release o=LP-PPA-mrnoname3-machine-setup
         Pin-Priority: 1001
   loop_control:
     label: "{{ item.dest }}"
+  vars:
+    patched_debs_pin_archs: "{{ [''] + (patched_debs_foreign_archs.stdout_lines | default([]) | map('regex_replace', '^', ':') | list) }}"
   register: patched_debs_ppa_files
   when:
     - patched_debs_uid.stdout == "0"
