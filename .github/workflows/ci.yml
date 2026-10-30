@@ -8,8 +8,7 @@ name: CI
 # (./scripts/check.sh) — so local green means CI green, by construction.
 on:
   push:
-    branches: [main]
-  pull_request:
+    branches: ['**']        # every branch, Renovate's included: main's protection requires this status
   workflow_dispatch:
 
 # Least privilege: these jobs only read the repository. Without this block the
