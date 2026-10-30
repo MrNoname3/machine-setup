@@ -57,6 +57,29 @@
     quiet: true
   when: not ansible_check_mode
 
+# An upgrade would otherwise take another architecture's packages away from
+# the PPA's version, and apt then removes what needs the matching version.
+- name: Read apt's candidates of the packages of {{ patched_deb.source }}
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    LC_ALL=C apt-cache policy {{ patched_debs_binaries.stdout_lines | union([patched_deb.binary]) | map('quote') | join(' ') }}
+    | awk '/^[^ ]/ {pkg = $1} /^  Installed:/ {inst = $2} /^  Candidate:/ && $2 != inst {print pkg, inst, "->", $2}'
+  args:
+    executable: /bin/bash
+  register: patched_debs_candidates
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check that apt keeps every architecture at the PPA's {{ patched_deb.source }}
+  ansible.builtin.assert:
+    that: patched_debs_candidates.stdout | length == 0
+    fail_msg: >-
+      apt would upgrade these away from the PPA's build: {{ patched_debs_candidates.stdout_lines | join('; ') }}.
+      The pin in /etc/apt/preferences.d/machine-setup-ppa does not cover them.
+    quiet: true
+  when: not ansible_check_mode
+
 # Tells release-patched and a later build here that this source is patched.
 - name: Record the patched-build marker of {{ patched_deb.source }}
   ansible.builtin.copy:
