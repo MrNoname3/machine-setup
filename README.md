@@ -43,6 +43,7 @@ machine-setup/
 │   ├── check.sh                 # release gate (CI runs exactly this)
 │   ├── ensure-venv.sh           # bootstraps .venv/ + .ansible/ (gitignored)
 │   ├── luks-header-backup.sh    # LUKS header backups (see roles/storage)
+│   ├── notify.sh                # get the attention of the user at this machine
 │   └── sudo-askpass.sh          # sudo password from a dialog, for runs without a terminal
 ├── tools/                       # standalone tooling — not part of the playbook
 │   ├── gpu-tune/                # measure an AMD GPU undervolt (see its README)

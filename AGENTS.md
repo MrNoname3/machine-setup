@@ -24,6 +24,12 @@ SSH, and only someone at the machine can wake it. Before working on one, run
 `scripts/awake-lock.sh HOST`; run it again after every reboot, and
 `scripts/awake-lock.sh HOST off` when the work is done.
 
+## Call the user when a step waits for them
+
+Before a step that waits for the user — a pkexec dialog, a LUKS passphrase
+after a reboot — run `scripts/notify.sh TITLE TEXT` on the machine they sit
+at, so they notice it without watching the chat.
+
 ## A check shows the result, not that something ran
 
 A test passes on the outcome it is for, compared with a known-good
