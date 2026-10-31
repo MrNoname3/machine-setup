@@ -1,0 +1,10 @@
+[Unit]
+Description=Keep the hard disks' heads loaded after resume
+After=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/disk-health-hdd-power
+
+[Install]
+WantedBy=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target

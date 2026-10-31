@@ -1,0 +1,6 @@
+[Unit]
+Description=Keep the heads of hard disk %I loaded
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/disk-health-hdd-power /dev/%I

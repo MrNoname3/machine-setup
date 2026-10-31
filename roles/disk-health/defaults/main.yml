@@ -10,3 +10,10 @@ disk_health_nvme_temp_crit: 75
 disk_health_selftest_short: weekly
 disk_health_selftest_long: "*-*-15"
 disk_health_scrub: monthly
+
+# Hard disks keep their heads loaded: the highest advanced power management
+# level that never unloads them (hdparm -B) and no standby timer (-S). Every
+# unload wears the load/unload ramp, which is rated for a fixed number of
+# cycles; a disk forgets both settings whenever it powers up.
+disk_health_hdd_apm: 254
+disk_health_hdd_spindown: 0

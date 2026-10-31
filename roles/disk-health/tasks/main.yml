@@ -3,7 +3,8 @@
 # self-tests and scrub every mounted btrfs filesystem, and a problem becomes a
 # desktop notification (replayed at the next login if nobody was logged in).
 # The timers find the drives and filesystems when they run, so a new one is
-# covered without another playbook run. It needs root, so a run without it (the
+# covered without another playbook run. Hard disks keep their heads loaded: no
+# APM unloads and no standby timer. It needs root, so a run without it (the
 # desktop's day-to-day `-e ansible_become=false`) skips the role with a notice.
 
 - name: Check whether this run has root
@@ -34,6 +35,7 @@
         name:
           - smartmontools
           - libnotify-bin
+          - hdparm
         state: present
         install_recommends: false
       when: ansible_facts['os_family'] == "Debian"
@@ -81,6 +83,54 @@
         group: root
         mode: "0755"
       notify: Restart smartd
+
+    # Debian's hdparm applies these to every disk at boot, when one appears and
+    # after resume; without them it sets APM 128 and a 3-minute standby timer
+    # on battery.
+    - name: Keep the hard disks' heads loaded (Debian)
+      ansible.builtin.blockinfile:
+        path: /etc/hdparm.conf
+        insertbefore: BOF
+        marker: "# {mark} disk-health: keep the hard disks' heads loaded"
+        block: |
+          apm = {{ disk_health_hdd_apm }}
+          apm_battery = {{ disk_health_hdd_apm }}
+          spindown_time = {{ disk_health_hdd_spindown }}
+      notify: Apply the hard disks' power settings
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Keep the hard disks' heads loaded
+      when: ansible_facts['os_family'] != "Debian"
+      block:
+        - name: Install the hard disk power script
+          ansible.builtin.template:
+            src: disk-health-hdd-power.j2
+            dest: /usr/local/libexec/disk-health-hdd-power
+            owner: root
+            group: root
+            mode: "0755"
+          notify: Apply the hard disks' power settings
+
+        - name: Install the hard disk power units
+          ansible.builtin.copy:
+            src: "{{ item }}"
+            dest: /etc/systemd/system/{{ item }}
+            owner: root
+            group: root
+            mode: "0644"
+          loop:
+            - disk-health-hdd-power@.service
+            - disk-health-hdd-power-resume.service
+          register: disk_health_hdd_units
+
+        - name: Start a hard disk's unit when the disk appears
+          ansible.builtin.copy:
+            src: 61-disk-health-hdd-power.rules
+            dest: /etc/udev/rules.d/61-disk-health-hdd-power.rules
+            owner: root
+            group: root
+            mode: "0644"
+          notify: Reload the udev rules
 
     - name: Ensure the smartd unit's drop-in directory exists
       ansible.builtin.file:
@@ -168,7 +218,7 @@
       when: >-
         disk_health_units is changed or disk_health_selftest_timers is changed
         or disk_health_scrub_timer is changed or disk_health_old_scrub_units is changed
-        or disk_health_smartd_dropin is changed
+        or disk_health_smartd_dropin is changed or disk_health_hdd_units is changed
 
     - name: Run smartd
       ansible.builtin.systemd_service:
@@ -188,3 +238,12 @@
         name: disk-health-scrub.timer
         enabled: true
         state: started
+
+    # A dry run has not installed the unit yet.
+    - name: Keep the heads loaded after resume
+      ansible.builtin.systemd_service:
+        name: disk-health-hdd-power-resume.service
+        enabled: true
+      when:
+        - ansible_facts['os_family'] != "Debian"
+        - not (ansible_check_mode and disk_health_hdd_units is changed)

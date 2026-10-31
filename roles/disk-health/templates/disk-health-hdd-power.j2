@@ -1,0 +1,17 @@
+#!/bin/sh
+# disk-health-hdd-power [DEVICE...] — keep the heads of every internal hard disk, or of each
+# DEVICE, loaded: APM level {{ disk_health_hdd_apm }} and standby timer {{ disk_health_hdd_spindown }}. A disk without APM gets
+# only the timer; a USB bridge gets neither, as hdparm through one is not safe.
+[ $# -gt 0 ] || for d in /sys/block/sd*; do
+  [ "$(cat "$d/queue/rotational" 2>/dev/null)" = 1 ] && set -- "$@" "/dev/${d##*/}"
+done
+status=0
+for dev in "$@"; do
+  props=$(udevadm info -q property -n "$dev")
+  echo "$props" | grep -qx 'ID_BUS=ata' || continue
+  apm=
+  echo "$props" | grep -qx 'ID_ATA_FEATURE_SET_APM=1' && apm="-B {{ disk_health_hdd_apm }}"
+  # shellcheck disable=SC2086  # apm is one option or none
+  hdparm -q $apm -S {{ disk_health_hdd_spindown }} "$dev" || status=1
+done
+exit $status
