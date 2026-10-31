@@ -29,6 +29,7 @@ roles_enabled:
   - disk-health     # SMART watch, self-tests, btrfs scrub (needs root)
   - system-updates  # uupd retries while the machine is busy (needs root)
   - zram            # swap settings for the image's zram swap (needs root)
+  - system-disk     # TRIM + dm-crypt options of the system SSD (needs root)
   - firewall        # firewalld: LAN-only services (below; needs root)
 
 # The image sets no static hostname, so without this the host takes the name

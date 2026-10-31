@@ -1,0 +1,9 @@
+---
+# dm-crypt options of the encrypted system disk (crypttab spelling): discard
+# passes TRIM through, so the SSD learns which blocks are free; the workqueue
+# pair encrypts in the submitting thread instead of one shared thread, where a
+# desktop fsync would wait behind background writeback.
+system_disk_luks_options:
+  - discard
+  - no-read-workqueue
+  - no-write-workqueue

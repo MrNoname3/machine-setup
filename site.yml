@@ -295,6 +295,9 @@
     - role: journal
       when: "'journal' in (roles_enabled | default([]))"
       tags: journal
+    - role: system-disk
+      when: "'system-disk' in (roles_enabled | default([]))"
+      tags: system-disk
     - role: connectivity-check
       when: "'connectivity-check' in (roles_enabled | default([]))"
       tags: connectivity-check
