@@ -68,3 +68,18 @@ On Bazzite use `pkexec` with the script's full path in place of `sudo`.
   workqueues (also `system-disk`); `folio_wait_writeback` from a page fault is
   a write to a memory-mapped page that is being written out; `btrfs_sync_file`
   under `fdatasync` is a synchronous save, and the synced file names it.
+
+## What did not help
+
+Tried on dm-crypt systems (NVMe with btrfs, SATA SSDs with ext4):
+
+- Throttling the jobs (`io.max`, `--device-write-bps`): the filesystem's
+  commits wait for the throttled data, and the desktop waits for the commits.
+- The io.cost controller with its default model, with or without a low
+  IOWeight for the jobs: the desktop's reads and fsyncs got slower.
+- Another I/O scheduler, BFQ weights, or turning wbt off: no change.
+- The jobs' container storage on a separate btrfs subvolume: no change.
+- Smaller dirty-page limits: little gain once TRIM and the dm-crypt
+  workqueue settings are right, and slower jobs.
+- `--cpuset-cpus`: the cpuset controller is not delegated to the user's
+  systemd instance, so the container does not start.
