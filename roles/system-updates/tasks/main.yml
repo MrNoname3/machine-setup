@@ -144,6 +144,7 @@
         - system-updates-snapshot
         - system-updates-check
         - system-updates-kernels
+        - system-updates-headers
 
     - name: Install the failure report unit
       ansible.builtin.copy:
@@ -180,10 +181,29 @@
         mode: "0644"
       register: system_updates_dropin
 
+    - name: Ensure the autoremove unit's drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/mintupdate-automation-autoremove.service.d
+        state: directory
+        mode: "0755"
+
+    - name: Purge the headers of removed kernels after every automatic autoremove
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/mintupdate-automation-autoremove.service.d/system-updates.conf
+        content: |
+          [Service]
+          ExecStartPost=/usr/local/libexec/system-updates-headers
+        owner: root
+        group: root
+        mode: "0644"
+      register: system_updates_autoremove_dropin
+
     - name: Reload systemd after a unit change
       ansible.builtin.systemd_service:
         daemon_reload: true
-      when: system_updates_failed_unit is changed or system_updates_dropin is changed
+      when: >-
+        system_updates_failed_unit is changed or system_updates_dropin is changed
+        or system_updates_autoremove_dropin is changed
 
     # Update Manager's own switch (Preferences > Automation): a flag file plus
     # the timer, so its window shows the same state.

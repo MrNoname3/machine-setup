@@ -1,0 +1,23 @@
+#!/bin/sh
+# Runs after Mint's weekly autoremove (ExecStartPost). dkms recommends the
+# virtual linux-headers, and apt may satisfy that with the headers of a kernel
+# it has already removed, which keeps them forever. Purges every versioned
+# headers package whose kernel image is gone, unless apt would remove more.
+set -e
+[ -e /var/lib/linuxmint/mintupdate-automatic-removals-enabled ] || exit 0
+installed=$(dpkg-query -W -f='${db:Status-Abbrev}${Package}\n' 'linux-*' | sed -n 's/^ii *//p')
+kernels=$(echo "$installed" | sed -n 's/^linux-image-\([0-9][0-9.]*-[0-9]*\)-.*/\1/p')
+orphans=$(echo "$installed" |
+  sed -n 's/^linux-\(hwe-[0-9.]*-\)\{0,1\}headers-\([0-9][0-9.]*-[0-9]*\)\(-[a-z0-9]*\)\{0,1\}$/\2 &/p' |
+  while read -r version package; do
+    echo "$kernels" | grep -qxF "$version" || echo "$package"
+  done)
+[ -n "$orphans" ] || exit 0
+# shellcheck disable=SC2086  # one package name per word
+others=$(apt-get -s purge $orphans | awk '/^(Purg|Remv) / {print $2}' | grep -vxF "$orphans" || :)
+if [ -n "$others" ]; then
+  echo "kept the headers of removed kernels: purging them would also remove $(echo "$others" | paste -sd' ')" >&2
+  exit 0
+fi
+# shellcheck disable=SC2086
+apt-get purge -y -q $orphans
