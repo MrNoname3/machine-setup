@@ -27,6 +27,7 @@ roles_enabled:
   - containers
   - journal        # cap the systemd journal and core dumps
   - zram           # swap compressed in memory, before the disk swap
+  - system-disk    # dm-crypt options of the system SSD (below)
   - disk-health    # SMART watch, self-tests, btrfs scrub
   - system-updates # automatic upgrades, Timeshift snapshot before each
   - etckeeper
@@ -281,6 +282,12 @@ git_config_extra:
 
 # Remote LUKS unlock (dropbear) uses ip=dhcp: the initramfs gets its address
 # from the DHCP server of whichever network the machine is on.
+
+# The CPU has no AES instructions, so dm-crypt decrypts reads in its
+# workqueue, spread over the cores; writes still skip it.
+system_disk_luks_options:
+  - discard
+  - no-write-workqueue
 
 # --- Machine-local values (see local.yml) ---
 # ssh_port                      hardened SSH port

@@ -25,6 +25,7 @@
   vars:
     system_disk_karg: "rd.luks.options={{ system_disk_luks_options | join(',') }}"
     system_disk_mapping: "{{ system_disk_stack.stdout_lines | select('search', ' crypt$') | map('split') | map('first') | list }}"
+    system_disk_unlisted: "{{ ['discard', 'no-read-workqueue', 'no-write-workqueue'] | difference(system_disk_luks_options) }}"
   block:
     # On Bazzite / is the deployment's composefs; the filesystem is at /sysroot.
     - name: Find the device under the root filesystem
@@ -53,6 +54,14 @@
         opts: "{{ system_disk_luks_options | join(',') }}"
         state: opts_present
       notify: Rebuild the initramfs
+
+    - name: Take the role's options that are not listed out of the entry
+      community.general.crypttab:
+        name: "{{ system_disk_mapping[0] }}"
+        opts: "{{ system_disk_unlisted | join(',') }}"
+        state: opts_absent
+      notify: Rebuild the initramfs
+      when: system_disk_unlisted | length > 0
 
     - name: Put the options on the kernel command line
       when: ansible_facts['os_family'] != "Debian"
@@ -85,14 +94,17 @@
     - name: Report the options that wait for a reboot
       ansible.builtin.debug:
         msg: >-
-          {{ system_disk_mapping[0] }} runs without
-          {{ system_disk_missing | join(', ') }}; the options take effect at
+          {{ system_disk_mapping[0] }} runs with
+          [{{ system_disk_running | join(', ') }}] instead of
+          [{{ system_disk_wanted | join(', ') }}]; the options take effect at
           the next boot.
       vars:
-        system_disk_missing: >-
+        system_disk_flags: "{{ system_disk_table.stdout.split()[8:] }}"
+        system_disk_wanted: >-
           {{ system_disk_luks_options
              | map('regex_replace', '^discard$', 'allow_discards')
-             | map('replace', '-', '_')
-             | reject('in', system_disk_table.stdout.split()[8:])
-             | list }}
-      when: system_disk_missing | length > 0
+             | map('replace', '-', '_') | sort }}
+        system_disk_running: >-
+          {{ system_disk_flags
+             | select('in', ['allow_discards', 'no_read_workqueue', 'no_write_workqueue']) | sort }}
+      when: system_disk_running != system_disk_wanted
