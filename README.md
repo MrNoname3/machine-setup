@@ -90,7 +90,7 @@ machine-setup/
     ├── wireguard/       # auto-VPN when away from home
     ├── containers/      # rootless Podman
     ├── journal/         # systemd journal size cap
-    ├── system-disk/     # encrypted system SSD: TRIM and dm-crypt workqueues (Bazzite)
+    ├── system-disk/     # encrypted system SSD: TRIM and dm-crypt workqueues
     ├── connectivity-check/ # NetworkManager's connectivity check off (Bazzite)
     ├── hostname/        # static hostname (Bazzite ships none)
     ├── system-services/ # unused system services the image enables, off

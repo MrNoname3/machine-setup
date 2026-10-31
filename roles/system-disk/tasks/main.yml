@@ -1,10 +1,11 @@
 ---
-# system-disk role: dm-crypt options of the encrypted system SSD (Bazzite).
-# The image's initramfs unlocks the root from rd.luks.uuid and carries no
-# crypttab, so the options go on the kernel command line, where rd.luks.options
-# without a UUID applies to it; the crypttab entry gets them too, for an
-# initramfs built on the machine. Both take effect at the next boot. It needs
-# root, so a run without it skips the role with a notice.
+# system-disk role: dm-crypt options of the encrypted system SSD, in the
+# root's crypttab entry. Mint builds its initramfs from the crypttab, so it is
+# rebuilt. Bazzite's image initramfs unlocks the root from rd.luks.uuid and
+# carries no crypttab, so there the options go on the kernel command line too,
+# where rd.luks.options without a UUID applies to it. Either way they take
+# effect at the next boot. It needs root, so a run without it skips the role
+# with a notice.
 
 - name: Check whether this run has root
   ansible.builtin.command: id -u
@@ -20,59 +21,63 @@
   when: system_disk_uid.stdout != "0"
 
 - name: Set the system disk's dm-crypt options
-  when:
-    - system_disk_uid.stdout == "0"
-    - ansible_facts['os_family'] != "Debian"
+  when: system_disk_uid.stdout == "0"
   vars:
     system_disk_karg: "rd.luks.options={{ system_disk_luks_options | join(',') }}"
+    system_disk_mapping: "{{ system_disk_stack.stdout_lines | select('search', ' crypt$') | map('split') | map('first') | list }}"
   block:
+    # On Bazzite / is the deployment's composefs; the filesystem is at /sysroot.
     - name: Find the device under the root filesystem
-      ansible.builtin.command: findmnt -nvo SOURCE /sysroot
+      ansible.builtin.shell: findmnt -nvo SOURCE /sysroot || findmnt -nvo SOURCE /
       register: system_disk_source
       changed_when: false
       check_mode: false
 
-    - name: Read its type and device-mapper name
-      ansible.builtin.command: lsblk -ndo TYPE,NAME {{ system_disk_source.stdout }}
-      register: system_disk_dev
+    - name: List the devices it sits on
+      ansible.builtin.command: lsblk -nrso NAME,TYPE {{ system_disk_source.stdout }}
+      register: system_disk_stack
       changed_when: false
       check_mode: false
 
-    - name: Fail unless the root filesystem is on dm-crypt
+    - name: Fail unless the root filesystem is on one dm-crypt mapping
       ansible.builtin.assert:
-        that: system_disk_dev.stdout.split()[0] == "crypt"
+        that: system_disk_mapping | length == 1
         fail_msg: >-
-          The root filesystem is on {{ system_disk_source.stdout }}, not on a
-          dm-crypt device; take system-disk out of roles_enabled.
+          The root filesystem on {{ system_disk_source.stdout }} is not on
+          exactly one dm-crypt mapping; take system-disk out of roles_enabled.
         quiet: true
 
     - name: Add the options to the root's crypttab entry
       community.general.crypttab:
-        name: "{{ system_disk_dev.stdout.split()[1] }}"
+        name: "{{ system_disk_mapping[0] }}"
         opts: "{{ system_disk_luks_options | join(',') }}"
         state: opts_present
+      notify: Rebuild the initramfs
 
-    - name: Read the kernel arguments
-      ansible.builtin.command: rpm-ostree kargs
-      register: system_disk_kargs
-      changed_when: false
-      check_mode: false
-
-    # One rd.luks.options at a time: with two, the last one silently wins.
     - name: Put the options on the kernel command line
-      ansible.builtin.command:
-        argv: >-
-          {{ ['rpm-ostree', 'kargs']
-             + (system_disk_kargs_old | map('regex_replace', '^', '--delete=') | list)
-             + ['--append=' ~ system_disk_karg] }}
-      vars:
-        system_disk_kargs_old: "{{ system_disk_kargs.stdout.split() | select('match', 'rd\\.luks\\.options=') | list }}"
-      when: system_disk_kargs_old != [system_disk_karg]
-      changed_when: true
+      when: ansible_facts['os_family'] != "Debian"
+      block:
+        - name: Read the kernel arguments
+          ansible.builtin.command: rpm-ostree kargs
+          register: system_disk_kargs
+          changed_when: false
+          check_mode: false
+
+        # One rd.luks.options at a time: with two, the last one silently wins.
+        - name: Replace rd.luks.options
+          ansible.builtin.command:
+            argv: >-
+              {{ ['rpm-ostree', 'kargs']
+                 + (system_disk_kargs_old | map('regex_replace', '^', '--delete=') | list)
+                 + ['--append=' ~ system_disk_karg] }}
+          vars:
+            system_disk_kargs_old: "{{ system_disk_kargs.stdout.split() | select('match', 'rd\\.luks\\.options=') | list }}"
+          when: system_disk_kargs_old != [system_disk_karg]
+          changed_when: true
 
     # dmsetup prints the options as dm-crypt's own flags.
     - name: Read the running mapping's flags
-      ansible.builtin.command: dmsetup table {{ system_disk_dev.stdout.split()[1] }}
+      ansible.builtin.command: dmsetup table {{ system_disk_mapping[0] }}
       register: system_disk_table
       changed_when: false
       check_mode: false
@@ -80,7 +85,7 @@
     - name: Report the options that wait for a reboot
       ansible.builtin.debug:
         msg: >-
-          {{ system_disk_dev.stdout.split()[1] }} runs without
+          {{ system_disk_mapping[0] }} runs without
           {{ system_disk_missing | join(', ') }}; the options take effect at
           the next boot.
       vars:

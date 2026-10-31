@@ -1,0 +1,6 @@
+---
+# cryptsetup-initramfs copies the crypttab into the initramfs when it builds it.
+- name: Rebuild the initramfs
+  ansible.builtin.command: update-initramfs -u -k all
+  changed_when: true
+  when: ansible_facts['os_family'] == "Debian"
