@@ -5,8 +5,8 @@ kernel stack, and for a thread inside fsync or fdatasync the file it syncs. One 
 blocked thread per sample. The process names watched come from IOTEST_WATCH (comma-separated)."""
 import json, os, signal, sys, time
 
-WATCH = set(os.environ.get("IOTEST_WATCH") or
-            "kwin_wayland,plasmashell,Xwayland,ksmserver,kded6,cinnamon,Xorg,nemo,brave,firefox,konsole".split(","))
+WATCH = set((os.environ.get("IOTEST_WATCH") or
+             "kwin_wayland,plasmashell,Xwayland,ksmserver,kded6,cinnamon,Xorg,nemo,brave,firefox,konsole").split(","))
 out = open(sys.argv[1], "a", buffering=1)
 stop = []
 for s in (signal.SIGINT, signal.SIGTERM):
