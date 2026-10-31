@@ -1,0 +1,14 @@
+# label load scale scheduler settings [podman options...]
+# Three rounds of both loads, as is and with smaller dirty-page limits, in shuffled order.
+r1-dd dd 6 - - --memory=2g --cpus=3
+r1-build build 2 - - --memory=2g --cpus=3
+r1-dd-dirty dd 6 - vm.dirty_bytes=268435456,vm.dirty_background_bytes=67108864 --memory=2g --cpus=3
+r1-build-dirty build 2 - vm.dirty_bytes=268435456,vm.dirty_background_bytes=67108864 --memory=2g --cpus=3
+r2-build-dirty build 2 - vm.dirty_bytes=268435456,vm.dirty_background_bytes=67108864 --memory=2g --cpus=3
+r2-dd-dirty dd 6 - vm.dirty_bytes=268435456,vm.dirty_background_bytes=67108864 --memory=2g --cpus=3
+r2-build build 2 - - --memory=2g --cpus=3
+r2-dd dd 6 - - --memory=2g --cpus=3
+r3-dd-dirty dd 6 - vm.dirty_bytes=268435456,vm.dirty_background_bytes=67108864 --memory=2g --cpus=3
+r3-dd dd 6 - - --memory=2g --cpus=3
+r3-build build 2 - - --memory=2g --cpus=3
+r3-build-dirty build 2 - vm.dirty_bytes=268435456,vm.dirty_background_bytes=67108864 --memory=2g --cpus=3

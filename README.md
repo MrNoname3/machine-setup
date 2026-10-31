@@ -47,6 +47,7 @@ machine-setup/
 ├── tools/                       # standalone tooling — not part of the playbook
 │   ├── gpu-tune/                # measure an AMD GPU undervolt (see its README)
 │   ├── gtasa-intro/             # GTA San Andreas's intro videos under Proton
+│   ├── io-latency/              # measure how a burst of writes stalls the desktop
 │   ├── mem-tune/                # measure memory latency, bandwidth, capacity
 │   ├── mmiotrace-live/          # Mint live ISO for tracing the NVIDIA 390 driver over SSH
 │   ├── patched-deb/             # Debian/Ubuntu packages rebuilt with our patches (iwd, i965)
