@@ -16,6 +16,7 @@
 # would otherwise look exactly like a setting that improves performance.
 
 set -uo pipefail
+# shellcheck source=common.sh
 . "$(dirname "$0")/common.sh"
 
 CMD_A="${1:?usage: ab-test.sh \"<cmd A>\" \"<cmd B>\" [blocks] [runs] [ms]}"
@@ -49,7 +50,7 @@ for i in $(seq 1 "$BLOCKS"); do
         f+=$4; c+=$7; p+=$6; n++; if($8>j)j=$8; if($9>m)m=$9 }
       END { if(n) printf "%.1f %.0f %d %d %.1f", f/n, c/n, j, m, p/n; else print "0 0 0 0 0" }' \
       "$GT_RESULTS/${LABEL}.tsv" 2>/dev/null)"
-  CSV=$(ls -t "$GT_LOGS"/${LABEL}-run${RUNS}-*.csv 2>/dev/null | head -1)
+  CSV=$(gt_newest "$GT_LOGS/${LABEL}-run${RUNS}"-*.csv)
   VDD=$(awk -F, '!/^[#t]/ && $11>=50 {v+=$4; n++} END {if(n) printf "%.0f", v/n; else print 0}' "$CSV" 2>/dev/null)
 
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \

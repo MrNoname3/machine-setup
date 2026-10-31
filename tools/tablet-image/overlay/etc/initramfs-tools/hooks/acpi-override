@@ -10,6 +10,7 @@ case "$1" in
 prereqs) prereqs; exit 0 ;;
 esac
 
+# shellcheck source=/dev/null
 . /usr/share/initramfs-tools/hook-functions
 
 set -- /usr/lib/firmware/acpi/*.aml

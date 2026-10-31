@@ -7,6 +7,7 @@
 # alongside any workload; every other script here uses it.
 
 set -euo pipefail
+# shellcheck source=common.sh
 . "$(dirname "$0")/common.sh"
 
 LABEL="${1:-run}"

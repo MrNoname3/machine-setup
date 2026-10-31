@@ -44,7 +44,9 @@ mkdir -p "$OUT"
 cp -r "$WORK/linux/$DIR/." "$OUT/"
 # In the tree the driver finds its headers through $(srctree); built on its
 # own they sit next to the Makefile.
+# shellcheck disable=SC2016  # make variables, not shell ones
 sed -i 's|^atomisp = $(srctree)/drivers/staging/media/atomisp/$|atomisp = $(src)/|' "$OUT/Makefile"
+# shellcheck disable=SC2016
 grep -q '^atomisp = $(src)/$' "$OUT/Makefile" || die "Makefile layout changed in $ATOMISP_TAG"
 
 cat >"$OUT/dkms.conf" <<EOF

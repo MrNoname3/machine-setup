@@ -7,6 +7,7 @@
 # offset range and the write syntax are properties of the card and firmware.
 
 set -uo pipefail
+# shellcheck source=common.sh
 . "$(dirname "$0")/common.sh"
 
 D=$(gt_device) || exit 1

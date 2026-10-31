@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ensure the repo-local toolchain: .venv/ (python: ansible-core + ansible-lint,
+# Ensure the repo-local toolchain: .venv/ (python: ansible-core, ansible-lint, shellcheck,
 # pinned in requirements.txt) and .ansible/ (galaxy collections from
 # requirements.yml). Both are gitignored and live inside the checkout, so
 # deleting the repo directory removes the whole toolchain — nothing is

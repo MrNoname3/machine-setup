@@ -33,6 +33,8 @@
 #                build-atomisp.sh (default: \$TI_OUT/dkms)
 #   TI_OVERLAY   a further directory laid over the root file system
 #
+
+# shellcheck disable=SC2016  # the mmdebstrap hooks are expanded by its own shell
 set -euo pipefail
 
 SRC=$(dirname "$(readlink -f "$0")")

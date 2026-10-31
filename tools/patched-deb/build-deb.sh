@@ -55,7 +55,7 @@ if [ "${1:-}" = --suffix ]; then
   suffix "$2"
   exit
 fi
-KEEP_VERSION= REVISION=
+KEEP_VERSION='' REVISION=''
 if [ "${1:-}" = --keep-version ]; then
   KEEP_VERSION=1
   shift
@@ -145,6 +145,7 @@ for p in "${PATCHES[@]}"; do
 done
 if [ -z "$KEEP_VERSION" ]; then
   if [ -n "$REVISION" ]; then
+    # shellcheck source=/dev/null
     DIST=$(. /etc/os-release && echo "$VERSION_CODENAME")
     CHANGED_BY="${DEBFULLNAME:?DEBFULLNAME is needed for --source} <${DEBEMAIL:?DEBEMAIL is needed for --source}>"
   else

@@ -20,6 +20,7 @@
 # margin -- pick the knee. See README.md.
 
 set -uo pipefail
+# shellcheck source=common.sh
 . "$(dirname "$0")/common.sh"
 
 STEP="${1:-20}"
@@ -90,7 +91,7 @@ while :; do
         f+=$4; p+=$6; c+=$7; n++; if($8>j)j=$8; if($9>m)m=$9 }
       END { if(n) printf "%.1f %.1f %.0f %d %d", f/n, p/n, c/n, j, m; else print "0 0 0 0 0" }' \
       "$GT_RESULTS/${LABEL}.tsv" 2>/dev/null)"
-  CSV=$(ls -t "$GT_LOGS"/${LABEL}-run${RUNS}-*.csv 2>/dev/null | head -1)
+  CSV=$(gt_newest "$GT_LOGS/${LABEL}-run${RUNS}"-*.csv)
   VDD=$(awk -F, '!/^[#t]/ && $11>=50 {v+=$4; n++} END {if(n) printf "%.0f", v/n; else print 0}' "$CSV" 2>/dev/null)
 
   { [ "$BRC" != 0 ] || [ -z "$FPS" ] || [ "$FPS" = "0.0" ]; } && VERDICT=BENCHMARK_FAILED
@@ -104,8 +105,8 @@ while :; do
   echo "   ${FPS} fps (${DELTA}%)  ${VDD} mV  ${SCLK} MHz  ${PWR}W  junction ${JUNC}C  -> $VERDICT"
 
   if [ "$VERDICT" != stable ]; then
-    [ -n "$ART" ]  && { echo "   artifacts:"; echo "$ART" | sed 's/^/     /'; }
-    [ -n "$KERN" ] && { echo "   kernel:";    echo "$KERN" | sed 's/^/     /'; }
+    [ -n "$ART" ]  && { echo "   artifacts:"; gt_indent '     ' <<<"$ART"; }
+    [ -n "$KERN" ] && { echo "   kernel:";    gt_indent '     ' <<<"$KERN"; }
     echo "[$(date +%T)] instability at ${OFF} mV -- sweep ends"
     break
   fi

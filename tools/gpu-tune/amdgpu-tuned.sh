@@ -96,8 +96,11 @@ fan_set() {
   [ "$val" -ge "$lo" ] && [ "$val" -le "$hi" ] \
     || { log "REFUSED $name: $val outside ${lo}..${hi}"; return 1; }
   [ -w "$FAN/$file" ] || { log "REFUSED $name: $FAN/$file not writable"; return 1; }
-  echo "$val" > "$FAN/$file" 2>/dev/null && echo c > "$FAN/$file" 2>/dev/null \
-    && log "$name = $val" || { log "FAILED $name=$val"; return 1; }
+  if echo "$val" > "$FAN/$file" 2>/dev/null && echo c > "$FAN/$file" 2>/dev/null; then
+    log "$name = $val"
+  else
+    log "FAILED $name=$val"; return 1
+  fi
 }
 
 write_status() {
@@ -139,8 +142,11 @@ handle() {
       hi=$(( $(cat "$H/power1_cap_max") / 1000000 ))
       [ "$arg" -ge "$lo" ] && [ "$arg" -le "$hi" ] \
         || { log "REFUSED cap: $arg outside driver range ${lo}..${hi} W"; return 1; }
-      echo $(( arg * 1000000 )) > "$H/power1_cap" \
-        && log "cap = ${arg}W" || log "FAILED cap=${arg}"
+      if echo $(( arg * 1000000 )) > "$H/power1_cap"; then
+        log "cap = ${arg}W"
+      else
+        log "FAILED cap=${arg}"
+      fi
       write_status "cap=$arg" ;;
 
     voffset)
@@ -154,8 +160,11 @@ handle() {
         [ "$arg" -ge "$lo" ] && [ "$arg" -le "$hi" ] \
           || { log "REFUSED voffset: $arg outside driver range ${lo}..${hi} mV"; return 1; }
       fi
-      echo "vo $arg" > "$OD" 2>/dev/null && echo c > "$OD" 2>/dev/null \
-        && log "voffset = ${arg}mV" || log "FAILED voffset=${arg}"
+      if echo "vo $arg" > "$OD" 2>/dev/null && echo c > "$OD" 2>/dev/null; then
+        log "voffset = ${arg}mV"
+      else
+        log "FAILED voffset=${arg}"
+      fi
       write_status "voffset=$arg" ;;
 
     # Fan knobs. Ranges match OD_RANGE as RDNA4 reports it; fan_set refuses

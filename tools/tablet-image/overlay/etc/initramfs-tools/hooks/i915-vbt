@@ -4,6 +4,7 @@
 PREREQ=""
 prereqs() { echo "$PREREQ"; }
 case "$1" in prereqs) prereqs; exit 0 ;; esac
+# shellcheck source=/dev/null
 . /usr/share/initramfs-tools/hook-functions
 [ -f /usr/lib/firmware/i915/vbt.bin ] && add_firmware i915/vbt.bin
 exit 0

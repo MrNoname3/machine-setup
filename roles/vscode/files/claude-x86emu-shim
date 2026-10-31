@@ -10,6 +10,7 @@ for bin in "$ext_dir"/anthropic.claude-code-*/resources/native-binar*/claude \
   [ -f "$bin" ] || continue
   [ "$(head -c 4 "$bin" | tail -c 3)" = ELF ] || continue
   mv "$bin" "$bin.x86emu"
+  # shellcheck disable=SC2016  # the shim expands them when it runs
   printf '%s\n' '#!/bin/sh' \
     '# The native build needs instructions this CPU lacks; *.x86emu runs under emulation (binfmt_misc).' \
     'exec "$(dirname "$0")/claude.x86emu" "$@"' >"$bin"

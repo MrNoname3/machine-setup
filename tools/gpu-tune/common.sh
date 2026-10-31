@@ -5,6 +5,8 @@
 # scripts, so this set works on any amdgpu card and survives the card index and
 # hwmon index moving between boots.
 
+# shellcheck disable=SC2034  # the variables are for the scripts that source this file
+
 # --- device discovery ------------------------------------------------------
 # GPU_PCI can be set in the environment to pick a specific card on a multi-GPU
 # machine; otherwise the first amdgpu device wins.
@@ -105,6 +107,15 @@ gt_artifacts() {
   grep -aiE 'artifact' "$@" 2>/dev/null \
     | grep -aivE 'artifact-scanner-interval|scanner *: *(off|disabled)'
 }
+
+# The newest of the given files, by modification time; empty when none exists.
+gt_newest() {
+  # shellcheck disable=SC2012  # the names are this tool's own, without newlines
+  ls -t "$@" 2>/dev/null | head -n 1
+}
+
+# Indents every line of stdin with the given prefix.
+gt_indent() { sed "s/^/$1/"; }
 
 # --- the benchmark ---------------------------------------------------------
 # The flatpak's default command is the GUI launcher, which silently ignores

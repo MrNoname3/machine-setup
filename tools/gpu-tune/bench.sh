@@ -18,6 +18,7 @@
 # across.
 
 set -uo pipefail
+# shellcheck source=common.sh
 . "$(dirname "$0")/common.sh"
 
 LABEL="${1:?usage: bench.sh <label> [runs] [duration_ms]}"
@@ -76,7 +77,7 @@ for i in $(seq 1 "$RUNS"); do
   FPS=$(grep -a 'FPS (min/avg/max)' "$OUT" | grep -oE '[0-9]+ / [0-9]+ / [0-9]+')
   FMIN=$(echo "$FPS" | cut -d' ' -f1); FAVG=$(echo "$FPS" | cut -d' ' -f3); FMAX=$(echo "$FPS" | cut -d' ' -f5)
 
-  CSV=$(ls -t "$GT_LOGS"/${LABEL}-run${i}-*.csv 2>/dev/null | head -1)
+  CSV=$(gt_newest "$GT_LOGS/${LABEL}-run${i}"-*.csv)
   read -r PWR SCLK JMAX MMAX FANMAX <<<"$(awk -F, '!/^[#t]/ && $11>=50 {
         p+=$5; s+=$2; n++; if($8>j)j=$8; if($9>m)m=$9; if($10>f)f=$10 }
       END { if(n) printf "%.1f %.0f %d %d %d", p/n, s/n, j, m, f; else print "0 0 0 0 0" }' "$CSV")"

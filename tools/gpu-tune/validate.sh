@@ -11,6 +11,7 @@
 # percentage.
 
 set -uo pipefail
+# shellcheck source=common.sh
 . "$(dirname "$0")/common.sh"
 
 OFF="${1:?usage: validate.sh <offset_mv> [runs] [duration_ms]}"
@@ -42,13 +43,13 @@ gt_pinger_stop
 echo
 echo "== checks over the whole window =="
 KERN=$(gt_kernel_faults "$START_TS")
-ART=$(gt_artifacts "$GT_RESULTS"/${LABEL}-run*.txt)
+ART=$(gt_artifacts "$GT_RESULTS/${LABEL}"-run*.txt)
 
-if [ -n "$KERN" ]; then echo "  KERNEL FAULT:"; echo "$KERN" | sed 's/^/    /'; else echo "  kernel    : clean"; fi
-if [ -n "$ART" ];  then echo "  ARTIFACTS:";    echo "$ART"  | sed 's/^/    /'; else echo "  artifacts : none"; fi
+if [ -n "$KERN" ]; then echo "  KERNEL FAULT:"; gt_indent '    ' <<<"$KERN"; else echo "  kernel    : clean"; fi
+if [ -n "$ART" ];  then echo "  ARTIFACTS:";    gt_indent '    ' <<<"$ART"; else echo "  artifacts : none"; fi
 echo "  benchmark : exit $BRC"
 
-CSV=$(ls -t "$GT_LOGS"/${LABEL}-run${RUNS}-*.csv 2>/dev/null | head -1)
+CSV=$(gt_newest "$GT_LOGS/${LABEL}-run${RUNS}"-*.csv)
 VDD=$(awk -F, '!/^[#t]/ && $11>=50 {v+=$4; n++} END {if(n) printf "%.0f", v/n; else print 0}' "$CSV" 2>/dev/null)
 echo "  measured  : ${VDD} mV under load  <-- the only proof the offset is live"
 

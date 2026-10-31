@@ -35,7 +35,7 @@ machine-setup/
 ├── machine-setup.code-workspace # portable VS Code workspace
 ├── ansible.cfg                  # local-run defaults
 ├── inventory.ini                # hosts and groups (all use local connection)
-├── requirements.txt             # pinned python toolchain (ansible-core, ansible-lint)
+├── requirements.txt             # pinned python toolchain (ansible-core, ansible-lint, shellcheck)
 ├── requirements.yml             # galaxy collections — both Renovate-managed
 ├── scripts/
 │   ├── apply.sh                 # run the playbook with the repo-local toolchain
@@ -277,6 +277,7 @@ It bootstraps its own toolchain into the gitignored `.venv/` + `.ansible/`
 `requirements.yml`, both Renovate-managed — the same toolchain
 `scripts/apply.sh` uses to run the playbook), then runs: **ansible syntax
 check** → **ansible-lint** (`production` profile, config in `.ansible-lint`) →
+**shellcheck** over every tracked shell script (config in `.shellcheckrc`) →
 **secret scan** over the tracked files (private keys, IPv4s, MACs, UUIDs — with
 the documentation placeholders allowlisted).
 

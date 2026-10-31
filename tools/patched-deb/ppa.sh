@@ -149,6 +149,7 @@ done < <(listed packages)
 
 if [ "$CMD" = check ]; then
   [ "$(id -u)" = 0 ] || die "check runs as root"
+  # shellcheck source=/dev/null
   [ "$(. /etc/os-release && echo "$VERSION_CODENAME")" = noble ] || die "check runs on Ubuntu 24.04"
   in_source "$OUT" "${items[@]}"
   exit
@@ -172,6 +173,7 @@ case $CMD in
     gpgconf --launch gpg-agent
     socket=$(gpgconf --list-dirs agent-extra-socket)
     gpg --export --armor "$KEY" >"$OUT/.key.asc"
+    # shellcheck disable=SC2016  # expanded by the container's shell
     "${run[@]}" -v "$socket:/root/.gnupg/S.gpg-agent" -e KEY="$KEY" "$IMAGE" \
       bash -c 'chmod 700 /root/.gnupg && exec bash "$0" --in-container upload "$1"' \
       "$HERE/ppa.sh" "$OUT"

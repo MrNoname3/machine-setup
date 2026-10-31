@@ -65,6 +65,7 @@ APPLY_ARGS=("$@")
 
 # --- 1. OS detection + prerequisites -----------------------------------------
 [ -r /etc/os-release ] || die "/etc/os-release not found — unsupported system"
+# shellcheck source=/dev/null
 . /etc/os-release
 case "${ID:-} ${ID_LIKE:-}" in
   *bazzite*)

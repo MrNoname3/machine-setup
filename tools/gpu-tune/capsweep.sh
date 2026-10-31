@@ -10,6 +10,7 @@
 # temperatures at no cost in performance compared to a stock card.
 
 set -uo pipefail
+# shellcheck source=common.sh
 . "$(dirname "$0")/common.sh"
 
 OFF="${1:?usage: capsweep.sh <offset_mv> [cap_w...]}"; shift
@@ -55,7 +56,7 @@ for CAP in "${CAPS[@]}"; do
         f+=$4; p+=$6; c+=$7; n++; if($8>j)j=$8; if($9>m)m=$9; if($10>x)x=$10 }
       END { if(n) printf "%.1f %.1f %.0f %d %d %d", f/n, p/n, c/n, j, m, x; else print "0 0 0 0 0 0" }' \
       "$GT_RESULTS/${LABEL}.tsv" 2>/dev/null)"
-  CSV=$(ls -t "$GT_LOGS"/${LABEL}-run2-*.csv 2>/dev/null | head -1)
+  CSV=$(gt_newest "$GT_LOGS/${LABEL}-run2"-*.csv)
   VDD=$(awk -F, '!/^[#t]/ && $11>=50 {v+=$4; n++} END {if(n) printf "%.0f", v/n; else print 0}' "$CSV" 2>/dev/null)
 
   VS=$(awk -v f="$FPS" -v b="$BASE_FPS" 'BEGIN{printf "%+.2f", 100*(f-b)/b}')
