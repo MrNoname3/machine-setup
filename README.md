@@ -39,6 +39,7 @@ machine-setup/
 ├── requirements.yml             # galaxy collections — both Renovate-managed
 ├── scripts/
 │   ├── apply.sh                 # run the playbook with the repo-local toolchain
+│   ├── awake-lock.sh            # keep a remote Mint machine awake during SSH work
 │   ├── check.sh                 # release gate (CI runs exactly this)
 │   ├── ensure-venv.sh           # bootstraps .venv/ + .ansible/ (gitignored)
 │   ├── luks-header-backup.sh    # LUKS header backups (see roles/storage)

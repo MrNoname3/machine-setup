@@ -17,6 +17,13 @@ Two kinds of file stay out of it:
   are secrets or may not be redistributed (vendor firmware, for example);
   those stay where the tool's README says.
 
+## Keep a remote machine awake
+
+A Mint machine suspends after its idle timeout even while it is worked on over
+SSH, and only someone at the machine can wake it. Before working on one, run
+`scripts/awake-lock.sh HOST`; run it again after every reboot, and
+`scripts/awake-lock.sh HOST off` when the work is done.
+
 ## A check shows the result, not that something ran
 
 A test passes on the outcome it is for, compared with a known-good
