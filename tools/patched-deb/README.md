@@ -70,7 +70,7 @@ never merged on its own, when one carries a newer version. The **PPA sources**
 workflow builds the source packages for every change here, so the pull request
 shows whether the patches still apply; once it is merged, `ppa.sh source` and
 `upload` publish the rebuild. `ppa.sh check <out-dir>` is that build without a
-container, as root on Ubuntu 24.04.
+container, as root on any Ubuntu release.
 
 Mesa and Xwayland build against kisak's PPAs, which the PPA lists as
 dependencies. Muffin builds against Linux Mint's cinnamon-desktop,

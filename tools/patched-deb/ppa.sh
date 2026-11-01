@@ -11,8 +11,8 @@
 # that touched its patches, and each under "build_deps" unchanged but for a
 # changelog entry for the release. "upload" signs the ones not uploaded yet
 # with the host's gpg-agent, which asks for the key's passphrase, and uploads
-# them with dput. Both run on the host, with podman. "check" builds them on
-# the machine it runs on, as root on Ubuntu 24.04, such as a CI runner.
+# them with dput. Both run on the host, with podman. "check" builds the same
+# on the machine it runs on, as root on any Ubuntu release, such as a CI runner.
 #
 # Environment:
 #   PPA, BUILD_DEPS_PPA   the two archives (ppa:<owner>/<name>)
@@ -83,7 +83,7 @@ in_source() { # in_source <out-dir> <revision>/<source>=<version>...
   shift
   container_setup ca-certificates dpkg-dev fakeroot patch
   for item in "$@"; do
-    "$HERE/build-deb.sh" --source "${item%%/*}" "${item#*/}" "$out/main"
+    "$HERE/build-deb.sh" --source "${item%%/*}" noble "${item#*/}" "$out/main"
   done
   work=$(mktemp -d)
   while read -r source want; do
@@ -150,7 +150,7 @@ done < <(listed packages)
 if [ "$CMD" = check ]; then
   [ "$(id -u)" = 0 ] || die "check runs as root"
   # shellcheck source=/dev/null
-  [ "$(. /etc/os-release && echo "$VERSION_CODENAME")" = noble ] || die "check runs on Ubuntu 24.04"
+  [ "$(. /etc/os-release && echo "$ID")" = ubuntu ] || die "check runs on Ubuntu"
   in_source "$OUT" "${items[@]}"
   exit
 fi

@@ -2,7 +2,7 @@
 #
 # build-deb.sh [--keep-version] <source-package> <binary-package>[,<binary-package>...] <out-dir>
 # build-deb.sh --suffix <source-package>
-# build-deb.sh --source <revision> <source-package>[=<version>] <out-dir>
+# build-deb.sh --source <revision> <distribution> <source-package>[=<version>] <out-dir>
 #
 # Rebuilds a Debian or Ubuntu source package with patches/<source-package>-*.patch
 # applied and copies the named binary packages' .debs into <out-dir>. A patch
@@ -14,8 +14,8 @@
 # "+patched.<hash>" appended, the hash covering the patches, so the same source
 # version with the same patches always builds the same version; --suffix
 # prints that "+patched.<hash>". --source builds an unsigned source package for
-# a PPA of the running release instead, from the archive's <version> when one
-# is named, versioned "+patched<revision>", with the patches in debian/patches
+# a PPA of <distribution> instead, from the archive's <version> when one is
+# named, versioned "+patched<revision>", with the patches in debian/patches
 # (or in the tree of a native package). The patches in use:
 #
 #   iwd                 iwd selects PSK-SHA256 on WPA2/WPA3 transition networks
@@ -55,14 +55,14 @@ if [ "${1:-}" = --suffix ]; then
   suffix "$2"
   exit
 fi
-KEEP_VERSION='' REVISION=''
+KEEP_VERSION='' REVISION='' DIST=''
 if [ "${1:-}" = --keep-version ]; then
   KEEP_VERSION=1
   shift
 elif [ "${1:-}" = --source ]; then
-  [ $# -eq 4 ] || die "usage: build-deb.sh --source <revision> <source-package>[=<version>] <out-dir>"
-  REVISION=$2
-  set -- "$3" "" "$4"
+  [ $# -eq 5 ] || die "usage: build-deb.sh --source <revision> <distribution> <source-package>[=<version>] <out-dir>"
+  REVISION=$2 DIST=$3
+  set -- "$4" "" "$5"
 fi
 WANT_VERSION=
 if [ -n "$REVISION" ] && [[ $1 == *=* ]]; then
@@ -145,8 +145,6 @@ for p in "${PATCHES[@]}"; do
 done
 if [ -z "$KEEP_VERSION" ]; then
   if [ -n "$REVISION" ]; then
-    # shellcheck source=/dev/null
-    DIST=$(. /etc/os-release && echo "$VERSION_CODENAME")
     CHANGED_BY="${DEBFULLNAME:?DEBFULLNAME is needed for --source} <${DEBEMAIL:?DEBEMAIL is needed for --source}>"
   else
     DIST=UNRELEASED CHANGED_BY="machine-setup <machine-setup@localhost>"
