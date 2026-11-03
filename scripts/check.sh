@@ -26,6 +26,11 @@ step() { printf '\n=== %s ===\n' "$1"; }
 step "toolchain (.venv + collections)"
 ./scripts/ensure-venv.sh
 export ANSIBLE_COLLECTIONS_PATH="$PWD/.ansible/collections"
+# The interpreter .venv is built on: the OS Python or uv's download in .python/.
+"$VENV/bin/python" -c 'import os, sys
+base = os.path.realpath(sys._base_executable)
+print("Python", sys.version.split()[0], "from",
+      os.path.relpath(base) if base.startswith(os.getcwd() + os.sep) else base)'
 "$VENV/bin/ansible-lint" --version
 "$VENV/bin/shellcheck" --version | sed -n 2p
 
