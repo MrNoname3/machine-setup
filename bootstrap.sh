@@ -15,7 +15,8 @@
 #   1. Installs the bare minimum to get going: git + python3-venv (apt on
 #      Debian/Mint; nothing on Bazzite — both ship with the image). Ansible
 #      itself is NOT installed system-wide: scripts/apply.sh bootstraps the
-#      pinned toolchain into the repo-local .venv on first use, so deleting
+#      pinned toolchain into the repo-local .venv on first use (and the
+#      pinned Python into .python, where the OS has another one), so deleting
 #      the repo directory later leaves nothing behind.
 #   2. Clones this repo into ~/Projects/machine-setup, or fast-forwards an
 #      existing clone, on the branch given with --branch (default: main for a

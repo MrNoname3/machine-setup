@@ -34,13 +34,6 @@
   ],
   "packageRules": [
     {
-      "description": "ansible-core 2.22 needs Python 3.13; the Mint 22 hosts build their .venv with Python 3.12",
-      "matchPackageNames": [
-        "ansible-core"
-      ],
-      "allowedVersions": "<2.22"
-    },
-    {
       "description": "Conservative automerge: patch/pin/digest across managers, after a 3-day soak",
       "matchUpdateTypes": [
         "patch",

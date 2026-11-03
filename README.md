@@ -35,13 +35,15 @@ machine-setup/
 ├── machine-setup.code-workspace # portable VS Code workspace
 ├── ansible.cfg                  # local-run defaults
 ├── inventory.ini                # hosts and groups (all use local connection)
+├── .python-version              # Python the toolchain runs on (the OS one, or uv's download)
+├── requirements-uv.txt          # pinned uv, which provides that Python
 ├── requirements.txt             # pinned python toolchain (ansible-core, ansible-lint, shellcheck)
 ├── requirements.yml             # galaxy collections — both Renovate-managed
 ├── scripts/
 │   ├── apply.sh                 # run the playbook with the repo-local toolchain
 │   ├── awake-lock.sh            # keep a remote Mint machine awake during SSH work
 │   ├── check.sh                 # release gate (CI runs exactly this)
-│   ├── ensure-venv.sh           # bootstraps .venv/ + .ansible/ (gitignored)
+│   ├── ensure-venv.sh           # bootstraps .python/ + .venv/ + .ansible/ (gitignored)
 │   ├── luks-header-backup.sh    # LUKS header backups (see roles/storage)
 │   ├── notify.sh                # get the attention of the user at this machine
 │   └── sudo-askpass.sh          # sudo password from a dialog, for runs without a terminal
@@ -125,7 +127,9 @@ away. Idempotent — safe to re-run any time.
 
 Ansible itself is **not** installed system-wide: `scripts/apply.sh` bootstraps
 the pinned toolchain (`requirements.txt` + `requirements.yml`) into the
-gitignored `.venv/` + `.ansible/` on first use. Deleting the repo directory
+gitignored `.venv/` + `.ansible/` on first use. The venv runs on the Python of
+`.python-version`: the OS Python when it is that version, otherwise one that
+uv downloads into the gitignored `.python/`. Deleting the repo directory
 removes the whole toolchain with it.
 
 Non-interactive variant (picks the host and runs immediately):
@@ -272,9 +276,10 @@ Everything CI checks is one script, and CI runs exactly that script:
 ./scripts/check.sh
 ```
 
-It bootstraps its own toolchain into the gitignored `.venv/` + `.ansible/`
-(first run is slower; versions pinned in `requirements.txt` /
-`requirements.yml`, both Renovate-managed — the same toolchain
+It bootstraps its own toolchain into the gitignored `.python/` + `.venv/` +
+`.ansible/` (first run is slower; versions pinned in `.python-version`,
+`requirements-uv.txt`, `requirements.txt` and `requirements.yml`, all
+Renovate-managed — the same toolchain
 `scripts/apply.sh` uses to run the playbook), then runs: **ansible syntax
 check** → **ansible-lint** (`production` profile, config in `.ansible-lint`) →
 **shellcheck** over every tracked shell script (config in `.shellcheckrc`) →

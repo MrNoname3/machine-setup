@@ -16,6 +16,7 @@ host_vars/*/local.yml
 
 # Local CI/lint artifacts (throwaway venv, ansible-lint cache, installed collections)
 .venv/
+.python/
 .ansible/
 
 # Python bytecode: it records the absolute path of its source, a home directory included.

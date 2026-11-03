@@ -5,9 +5,10 @@
 #
 # CI (.github/workflows/ci.yml) runs exactly this script, so a local pass means
 # a CI pass. Steps:
-#   1. toolchain            — scripts/ensure-venv.sh: pinned python tools
-#                             (requirements.txt) + galaxy collections into the
-#                             gitignored .venv/ + .ansible/
+#   1. toolchain            — scripts/ensure-venv.sh: pinned Python and python
+#                             tools (.python-version, requirements*.txt) +
+#                             galaxy collections into the gitignored .python/ +
+#                             .venv/ + .ansible/
 #   2. ansible syntax check
 #   3. ansible-lint         — 'production' profile (see .ansible-lint)
 #   4. shellcheck           — every tracked shell script (see .shellcheckrc)
