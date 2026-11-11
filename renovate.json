@@ -1,22 +1,10 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended",
-    "helpers:pinGitHubActionDigests"
+    "local>MrNoname3/renovate-config",
+    "local>MrNoname3/renovate-config:ansible"
   ],
-  "dependencyDashboard": true,
   "customManagers": [
-    {
-      "customType": "regex",
-      "description": "Versions in role defaults, under a '# renovate: datasource=... depName=...' comment",
-      "managerFilePatterns": [
-        "/(^|/)roles/[^/]+/defaults/main\\.yml$/"
-      ],
-      "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n\\w+: \"?(?<currentValue>[^\"\\s]+)\"?"
-      ],
-      "extractVersionTemplate": "^v?(?<version>.+)$"
-    },
     {
       "customType": "regex",
       "description": "The archive versions the PPA's source packages are built from (tools/patched-deb/ppa-sources.yml)",
@@ -29,31 +17,7 @@
       "versioningTemplate": "deb"
     }
   ],
-  "labels": [
-    "dependencies"
-  ],
   "packageRules": [
-    {
-      "description": "Conservative automerge: patch/pin/digest across managers, after a 3-day soak",
-      "matchUpdateTypes": [
-        "patch",
-        "pin",
-        "digest"
-      ],
-      "automerge": true,
-      "minimumReleaseAge": "3 days"
-    },
-    {
-      "description": "Also automerge GitHub Actions minor updates (same 3-day soak)",
-      "matchManagers": [
-        "github-actions"
-      ],
-      "matchUpdateTypes": [
-        "minor"
-      ],
-      "automerge": true,
-      "minimumReleaseAge": "3 days"
-    },
     {
       "description": "PPA sources: never automerge; after the merge, tools/patched-deb/ppa.sh source and upload publish the rebuild. Archive indexes carry no release dates, so no soak.",
       "matchFileNames": [
