@@ -8,3 +8,8 @@ git_config:
 # Further settings for one host, merged over git_config (a credential helper,
 # say).
 git_config_extra: {}
+
+# The forge's address (https://<host>, no trailing slash), set in
+# host_vars/<host>/local.yml. When set, git reads https://forge.invalid/ as that
+# address: repositories built from repo-template record it as their template's.
+git_forge_url: ""
