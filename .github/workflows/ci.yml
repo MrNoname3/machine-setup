@@ -1,27 +1,25 @@
 name: CI
 
-# Runs on both GitHub Actions and Gitea Actions. Gitea also scans
-# .github/workflows, and this job uses no actions/cache and no github-only
-# guard, so it runs cleanly on either platform.
-#
-# The job just calls the release gate — the same script developers run locally
-# (./scripts/check.sh) — so local green means CI green, by construction.
+# Runs on Gitea Actions, which also reads .github/workflows. The job is the
+# release gate developers run locally, so local green means CI green.
+# Managed by repo-template: changes here are overwritten by its next update.
 on:
   push:
-    branches: ['**']        # every branch, Renovate's included: main's protection requires this status
+    branches: ['**']        # Renovate's branches too: main's protection requires this status
   workflow_dispatch:
 
-# Least privilege: these jobs only read the repository. Without this block the
-# GITHUB_TOKEN inherits the repository default, which may be read-write.
+# Least privilege: the job only reads the repository.
 permissions:
   contents: read
 
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15   # a hung step (e.g. a stalled pip/galaxy download) fails fast instead of idling
+    timeout-minutes: 15   # a hung step (a stalled download) fails instead of idling
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Run the release gate (same script as local runs)
         run: ./scripts/check.sh

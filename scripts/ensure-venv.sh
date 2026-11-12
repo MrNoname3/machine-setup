@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Ensure the repo-local toolchain: .venv/ (python: ansible-core, ansible-lint, shellcheck,
-# pinned in requirements.txt) and .ansible/ (galaxy collections from
-# requirements.yml). .venv/ runs on the Python minor version of .python-version:
-# the OS Python when it is that version, otherwise one that uv (pinned in
-# requirements-uv.txt) downloads into .python/. All three are gitignored and
-# live inside the checkout, so deleting the repo directory removes the whole
-# toolchain — nothing is installed system-wide.
+# Ensure the repo-local toolchain: .venv/ with the tools pinned in
+# requirements.txt, on the Python minor version of .python-version: the OS
+# Python when it is that version, otherwise one that uv (pinned in
+# requirements-uv.txt) downloads into .python/.
+# The Ansible collections of requirements.yml go into .ansible/.
+# All of it is gitignored and lives inside the checkout, so deleting the repo
+# directory removes the whole toolchain: nothing is installed system-wide.
 #
-# Called by scripts/check.sh and scripts/apply.sh; safe to run directly.
+# Called by scripts/check.sh and any other script that needs the toolchain;
+# safe to run directly.
+# Managed by repo-template: changes here are overwritten by its next update.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -16,10 +18,10 @@ VENV=.venv
 TOOLS=.python
 PY_VERSION="$(cat .python-version)"
 
-# venv needs ensurepip; on Debian/Mint that is the python3-venv package.
+# venv needs ensurepip; on Debian, Ubuntu and Mint that is the python3-venv package.
 "$PYTHON" -c 'import ensurepip' 2>/dev/null || {
   echo "ERROR: $PYTHON cannot create a venv (no ensurepip)." >&2
-  echo "On Debian/Mint: sudo apt install python3-venv" >&2
+  echo "On Debian, Ubuntu or Mint: sudo apt install python3-venv" >&2
   exit 1
 }
 
@@ -74,13 +76,12 @@ fi
 
 # The collections' own repositories (github.com/ansible-collections/<name>),
 # at their newest release tag, for when Galaxy cannot serve them. Without
-# dependencies, which Galaxy would fetch again: community.general's serves
-# only inventory plugins, and the inventory here is a static file.
+# dependencies, which Galaxy would fetch again.
 install_from_git() {
   local name tag reqs
   reqs="$(mktemp)"
   echo "collections:" > "$reqs"
-  for name in $("$VENV/bin/python" -c 'import sys, yaml; print(" ".join(c["name"] for c in yaml.safe_load(open(sys.argv[1]))["collections"]))' requirements.yml); do
+  for name in $("$VENV/bin/python" -c 'import sys, yaml; print(" ".join(c["name"] for c in yaml.safe_load(open(sys.argv[1]))["collections"] or []))' requirements.yml); do
     tag="$(git ls-remote --tags --refs "https://github.com/ansible-collections/$name.git" \
       | sed -n 's#.*refs/tags/\([0-9]*\.[0-9]*\.[0-9]*\)$#\1#p' | sort -V | tail -1)"
     [ -n "$tag" ] || { rm -f "$reqs"; return 1; }

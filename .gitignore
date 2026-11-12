@@ -1,28 +1,27 @@
-# Secrets — never commit these to a repo readable from Gitea.
+# Secrets — never commit these, encrypted or not.
 *.key
 *.keyfile
 *.pem
 id_rsa*
 id_ed25519*
 *.kdbx
+# Ansible vault files, and the machine-local values site.yml keeps per host.
 secrets.yml
 *vault*
-
-# Ansible runtime noise
-*.retry
-
-# Machine-local values (prompted + saved by site.yml pre_tasks) — never commit.
 host_vars/*/local.yml
 
-# Local CI/lint artifacts (throwaway venv, ansible-lint cache, installed collections)
+# Repo-local toolchain, built by scripts/ensure-venv.sh.
 .venv/
 .python/
 .ansible/
 
+# Ansible runtime noise
+*.retry
+
 # Python bytecode: it records the absolute path of its source, a home directory included.
 __pycache__/
 
-# Private secret-scan patterns for scripts/check.sh (own domains/MACs/etc.) — never commit.
+# Private secret-scan patterns for scripts/check.sh — never commit.
 .secret-patterns.local
 
 # Working files: an agent's own temp directory is not on the host's filesystem,
