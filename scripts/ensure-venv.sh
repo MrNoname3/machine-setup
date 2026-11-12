@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Ensure the repo-local toolchain: .venv/ with the tools pinned in
-# requirements.txt, on the Python minor version of .python-version: the OS
-# Python when it is that version, otherwise one that uv (pinned in
-# requirements-uv.txt) downloads into .python/.
+# Ensure the repo-local toolchain: .venv/ with the pins of requirements.txt
+# and, where there is one, requirements-dev.txt.
+# It runs on the Python minor version of .python-version: the OS Python when
+# it is that version, otherwise one that uv (pinned in requirements-uv.txt)
+# downloads into .python/.
 # The Ansible collections of requirements.yml go into .ansible/.
 # All of it is gitignored and lives inside the checkout, so deleting the repo
 # directory removes the whole toolchain: nothing is installed system-wide.
@@ -73,8 +74,12 @@ if [ ! -x "$VENV/bin/python" ]; then
   "$VENV/bin/pip" install --quiet --upgrade pip
 fi
 
-# Fast no-op when already satisfied; picks up Renovate bumps of the pins.
-"$VENV/bin/pip" install --quiet -r requirements.txt
+# Fast no-op when already satisfied; picks up Renovate bumps of the pins. A
+# requirements-dev.txt, where there is one, holds the tools beside the
+# project's own dependencies.
+reqs=(-r requirements.txt)
+if [ -f requirements-dev.txt ]; then reqs+=(-r requirements-dev.txt); fi
+"$VENV/bin/pip" install --quiet "${reqs[@]}"
 
 # The collections' own repositories (github.com/ansible-collections/<name>),
 # at their newest release tag, for when Galaxy cannot serve them. Without
