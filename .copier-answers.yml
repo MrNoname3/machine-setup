@@ -1,4 +1,4 @@
-_commit: v0.1.5
+_commit: v0.1.7
 _src_path: https://forge.invalid/MrNoname3/repo-template.git
 ansible: true
 ci_timeout: 15
@@ -9,7 +9,9 @@ description: 'Reproducible, version-controlled setup for my Linux machines, driv
     KeePassXC as SSH agent, WireGuard and more. Machine identifiers stay out of git.'
 galaxy: true
 python_pin: true
+python_project: false
 python_version: '3.14'
 repo_name: machine-setup
 scan_identifiers: true
+shared_gate: true
 visibility: public
