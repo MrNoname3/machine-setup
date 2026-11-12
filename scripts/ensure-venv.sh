@@ -58,10 +58,12 @@ if [ -d "$TOOLS" ] && is_pinned_python "$PYTHON"; then
   rm -rf "$TOOLS" "$VENV"
 fi
 
-# A venv breaks silently when the python it symlinks gets upgraded away, and
-# the pin can move on — probe it instead of trusting that the files exist.
-if [ -d "$VENV" ] && ! is_pinned_python "$VENV/bin/python"; then
-  echo "existing .venv is broken or not on Python $PY_VERSION — rebuilding"
+# A venv breaks silently when the python it symlinks gets upgraded away, or
+# loses its pip, and the pin can move on — probe it instead of trusting that
+# the files exist.
+if [ -d "$VENV" ] && ! { is_pinned_python "$VENV/bin/python" \
+    && "$VENV/bin/python" -m pip --version >/dev/null 2>&1; }; then
+  echo "existing .venv is broken, has no pip, or is not on Python $PY_VERSION — rebuilding"
   rm -rf "$VENV"
 fi
 
