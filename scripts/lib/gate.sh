@@ -115,6 +115,17 @@ gate_secret_scan() {
   secret_scan_end
 }
 
+# The last step of every gate: no tracked file may still hold the conflict
+# markers a merge or a template update left in it.
 gate_done() {
+  step "merge conflict markers"
+  local markers
+  markers="$(git grep -nE -e '^(<<<<<<<|>>>>>>>) ' -- ':(exclude)scripts/lib/gate.sh' || true)"
+  if [ -n "$markers" ]; then
+    printf '%s\n' "$markers"
+    echo "FAIL: unresolved merge conflict in tracked files"
+    exit 1
+  fi
+  echo "OK"
   printf '\nAll checks passed.\n'
 }
