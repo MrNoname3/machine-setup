@@ -38,3 +38,11 @@ file against its expected contents. That a decoder was picked, a picture
 moved or a command exited 0 does not show it worked. What the user sees on a
 test machine's screen is a result too. Write "works" into the repository only
 from a check of the outcome.
+
+## Files the template manages
+
+`scripts/lib/gate.sh`, `scripts/ensure-venv.sh`, `.github/workflows/ci.yml`
+and the other files that say "Managed by repo-template" are overwritten by the
+template's next update. Change them in repo-template; this repository's own
+checks go into `scripts/check.sh`, its own secret-scan exceptions into
+`.secret-allow`.

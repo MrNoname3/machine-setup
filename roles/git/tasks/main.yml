@@ -10,3 +10,11 @@
   loop: "{{ git_config | combine(git_config_extra) | dict2items }}"
   loop_control:
     label: "{{ item.key }}={{ item.value }}"
+
+- name: Read the forge placeholder as the forge's address
+  community.general.git_config:
+    name: "url.{{ git_forge_url }}/.insteadOf"
+    value: https://forge.invalid/
+    scope: global
+  become: false
+  when: git_forge_url | length > 0
