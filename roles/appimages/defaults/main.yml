@@ -36,3 +36,8 @@ appimages_download_dir: "/home/{{ primary_user }}/.cache/appimages-bootstrap"
 # together with a background-portal permission, so turning this on is a manual
 # GUI step (see the role README).
 gearlever_fetch_updates_in_background: false
+
+# Update every AppImage about once a day from a user timer (half an hour after
+# login, then daily), each app on its own, one journal line per app:
+#   journalctl --user -t appimage-update
+appimages_auto_update: true

@@ -130,6 +130,55 @@
     label: "{{ item.item.name }}"
   when: item.content is defined
 
+# --- Automatic updates ----------------------------------------------------
+- name: Update the AppImages from a user timer
+  when:
+    - appimages | length > 0
+    - appimages_auto_update | bool
+  become: false
+  block:
+    - name: Ensure ~/.local/bin and the user unit directory exist
+      ansible.builtin.file:
+        path: "/home/{{ primary_user }}/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop: [.local/bin, .config/systemd/user]
+
+    - name: Install the AppImage update script
+      ansible.builtin.copy:
+        src: appimage-update
+        dest: "/home/{{ primary_user }}/.local/bin/appimage-update"
+        mode: "0755"
+
+    - name: Install the AppImage update units
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "/home/{{ primary_user }}/.config/systemd/user/{{ item }}"
+        mode: "0644"
+      loop:
+        - appimage-update.service
+        - appimage-update.timer
+
+    # A check run copies no unit file, so the timer it would enable is unknown.
+    - name: Enable the AppImage update timer
+      ansible.builtin.systemd_service:
+        name: appimage-update.timer
+        scope: user
+        enabled: true
+        state: started
+        daemon_reload: true
+      ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Stop the AppImage update timer
+  ansible.builtin.systemd_service:
+    name: appimage-update.timer
+    scope: user
+    enabled: false
+    state: stopped
+  become: false
+  failed_when: false # never installed is fine
+  when: not (appimages_auto_update | bool) or appimages | length == 0
+
 # --- Hardware access ------------------------------------------------------
 - name: Grant the local user access to the AppImages' USB hardware
   ansible.builtin.template:

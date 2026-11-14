@@ -1,0 +1,12 @@
+[Unit]
+Description=Update the AppImages about once a day
+
+# Counted from login, past the burst of updates and syncs a session starts
+# with, and from the last run after that; no fixed hour to catch up on.
+[Timer]
+OnStartupSec=30min
+OnUnitActiveSec=1d
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

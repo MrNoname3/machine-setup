@@ -1,0 +1,70 @@
+#!/usr/bin/python3
+# Updates the AppImages Gear Lever manages one at a time, so a failed download
+# leaves the others to go ahead, and prints one line per app for the journal.
+import json
+import os
+import subprocess
+import sys
+import time
+
+GEARLEVER = [
+    "flatpak", "run", "--nosocket=wayland", "--nosocket=x11",
+    "--nosocket=fallback-x11", "it.mijorus.gearlever",
+]
+
+
+def gearlever(*args):
+    return subprocess.run(GEARLEVER + list(args), capture_output=True, text=True)
+
+
+def last_line(result):
+    lines = (result.stdout + result.stderr).strip().splitlines()
+    return lines[-1].strip() if lines else f"exit status {result.returncode}"
+
+
+def version(app):
+    """The version the AppImage reports, else the date of its file."""
+    if app.get("current_version"):
+        return app["current_version"]
+    try:
+        return time.strftime("%Y-%m-%d", time.localtime(os.path.getmtime(app["path"])))
+    except OSError:
+        return "?"
+
+
+# The GUI and the CLI write the same config file, so an open window waits for
+# the next run.
+open_apps = subprocess.run(
+    ["flatpak", "ps", "--columns=application"], capture_output=True, text=True
+).stdout.split()
+if "it.mijorus.gearlever" in open_apps:
+    print("Gear Lever is open; left for the next run")
+    sys.exit(0)
+
+listing = gearlever("--list-updates", "--json")
+if listing.returncode != 0:
+    print(f"Could not check for updates: {last_line(listing)}")
+    sys.exit(1)
+updates = json.loads(listing.stdout)["updates"]
+
+done, failed = [], False
+for app in updates:
+    before = version(app)
+    if app.get("running"):
+        print(f"{app['name']}: running, left at {before}")
+        continue
+    result = gearlever("--update", app["path"], "-y")
+    if result.returncode != 0 or "updated successfully" not in result.stdout:
+        print(f"{app['name']}: update from {before} failed: {last_line(result)}")
+        failed = True
+        continue
+    done.append((app, before))
+
+if done:
+    installed = {
+        a["path"]: a for a in json.loads(gearlever("--list-installed", "--json").stdout)["installed"]
+    }
+    for app, before in done:
+        print(f"{app['name']}: {before} -> {version(installed.get(app['path'], app))}")
+
+sys.exit(1 if failed else 0)

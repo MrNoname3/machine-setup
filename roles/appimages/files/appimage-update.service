@@ -1,0 +1,11 @@
+[Unit]
+Description=Update the AppImages Gear Lever manages
+# Not on battery; a host without power information counts as on AC.
+ConditionACPower=true
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/appimage-update
+SyslogIdentifier=appimage-update
+Nice=10
+IOSchedulingClass=idle

@@ -261,20 +261,34 @@ predecessor's TOML it takes no custom hooks or user scripts. AppImages sit outsi
 every package manager by design — which is exactly why Gear Lever exists, and why
 their update sources could go missing without anything noticing.
 
-Deliberately **not** added here: a systemd user timer running `--update --all -y`
-(or `--fetch-updates`). It would work, and it would match how the rest of the
-machine updates, but AppImage updates stay a manual, deliberate step by choice.
-The commands are in the next section.
+So the role brings its own: see the next section.
 
 ## Checking and applying updates
 
+A user timer (`appimage-update.timer`, on while `appimages_auto_update` is true)
+runs `~/.local/bin/appimage-update` half an hour after login, then about once a
+day, at a random point within an hour. It skips the run while Gear Lever's window
+is open, since the GUI and the CLI write the same config file, and updates each
+app with its own `--update <file>`, so a failed download does not stop the
+others. An app that is running is left for the next run. It prints one line per
+app it touched:
+
 ```sh
-flatpak run it.mijorus.gearlever --list-updates          # what is out of date
-flatpak run it.mijorus.gearlever --update --all -y       # update everything
+journalctl --user -t appimage-update
+# Logic: 2.4.44 -> 2.4.50
+# FlightCore: 2026-10-02 -> 2026-11-14     (no version in the AppImage: file date)
 ```
 
-Updates are never applied by this role — it configures *where* to look, and
-leaves the "when" to you.
+Gear Lever deletes the replaced AppImage, so there is no rollback: going back
+means downloading the older release by hand. Its own log does not help here
+either — it names no versions and is emptied once it passes 5000 lines.
+
+By hand:
+
+```sh
+systemctl --user start appimage-update.service          # one run now
+flatpak run it.mijorus.gearlever --list-updates          # what is out of date
+```
 
 **Radmin VPN** updates in two layers. The AppImage carries Wine and the launcher,
 and pins the Radmin build it was validated with; the Radmin installed in its Wine
