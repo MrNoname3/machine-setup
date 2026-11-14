@@ -129,50 +129,6 @@ from the name Gear Lever gave the file writes a perfectly valid section under a
 hash nothing ever reads — silent, and otherwise indistinguishable from working.
 Apps that are not integrated yet are skipped, and reported separately.
 
-## The desktop entry, and the icon that vanished with it
-
-Gear Lever regenerates an app's desktop entry from the AppImage's *internal* entry
-on every update, copying whatever it finds there — including nothing. Saleae Logic
-2.4.45 ships this as its complete internal entry:
-
-```ini
-[Desktop Entry]
-Version=1.5
-Type=Application
-Name=Logic
-Exec=Logic %U
-X-AppImage-Name=logic
-X-AppImage-Version=2.4.45
-X-AppImage-Arch=x86_64
-```
-
-No `Icon`, no `Comment`, no `Categories`, and the archive contains no icon file at
-all (no `.DirIcon`, nothing under `usr/share/icons` — verified by extracting it).
-2.4.44 had all of them, so this is an upstream packaging regression, and the entry
-looks machine-generated rather than authored. Gear Lever behaved correctly on that
-input and fell back to `Icon=applications-other`, which is how the icon vanished.
-
-This is upstream-specific, not a Gear Lever problem: LM Studio updated in the same
-session kept its `Comment`, `Categories`, `StartupWMClass` and a freshly extracted
-icon, because its AppImage ships a complete internal entry. Only apps that regress
-their own packaging need a `desktop:` block.
-
-The `desktop:` mapping in host_vars puts the missing keys back. Two details make it
-survive:
-
-- **icons are referenced by name, never by path.** `uninstall()` also does
-  `if '/' in icon and os.path.isfile(icon): os.remove(icon)` — a path-referenced
-  icon is *deleted*, not merely dereferenced. So the icon ships in
-  `roles/appimages/files/icons/`, is installed into
-  `~/.local/share/icons/hicolor/256x256/apps/`, and the entry names it
-  (`Icon=logic-appimage`). Gear Lever cannot reach it there;
-- **the repair switches itself off.** It only applies while the entry's `Icon` is
-  *not* an absolute path. Gear Lever writes a path whenever it did extract an icon,
-  so the day upstream fixes its packaging, the guard goes false, the role stops
-  overriding the entry and prints a note saying the `desktop:` block can be
-  dropped. Testing for `applications-other` instead would misfire on the second
-  run, once the role's own icon name is in place.
-
 ## Launch environment
 
 An app that needs environment variables to start lists them under `env:` in
