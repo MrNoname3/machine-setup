@@ -256,11 +256,9 @@ firewall_allowed_extra:
   - { port: "27036:27037", proto: tcp, comment: "Steam Remote Play" }
   - { port: "27040", proto: tcp, comment: "Steam local game transfers" }
 
-firewall_interface_allowed:
-  - { interface: radminvpn0, proto: udp, comment: "Radmin VPN peers and LAN games" }
-
-# Radmin's direct peer link listens on ports it picks anew at each start, on the
-# LAN-side address; closed, it falls back to a slow relay or no link at all.
+# Radmin's launcher puts radminvpn0 in the trusted zone while it runs. Its direct
+# peer link listens on the LAN-side address on ports it picks anew at each start;
+# closed, it falls back to a slow relay or no link at all.
 firewall_default_zone_ports:
   - { port: "1025:65535", proto: tcp, comment: "Radmin VPN direct peer link" }
   - { port: "1025:65535", proto: udp, comment: "Radmin VPN direct peer link" }
