@@ -259,6 +259,12 @@ firewall_allowed_extra:
 firewall_interface_allowed:
   - { interface: radminvpn0, proto: udp, comment: "Radmin VPN peers and LAN games" }
 
+# Radmin's direct peer link listens on ports it picks anew at each start, on the
+# LAN-side address; closed, it falls back to a slow relay or no link at all.
+firewall_default_zone_ports:
+  - { port: "1025:65535", proto: tcp, comment: "Radmin VPN direct peer link" }
+  - { port: "1025:65535", proto: udp, comment: "Radmin VPN direct peer link" }
+
 # Pushes to the Gitea authenticate with a token kept by git's own store helper.
 git_config_extra:
   credential.helper: store
