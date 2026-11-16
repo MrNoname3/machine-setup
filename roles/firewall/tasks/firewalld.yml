@@ -2,7 +2,7 @@
 # firewalld (Fedora family), with the policy of the ufw branch. A zone bound to
 # the private ranges holds the allowed ports, so only those sources reach them;
 # the default zone, which takes every other source, keeps only
-# firewall_default_zone_services and firewall_default_zone_ports. Each interface in firewall_interface_allowed
+# firewall_default_zone_services. Each interface in firewall_interface_allowed
 # gets a zone of its own name. It needs root, so a run without it skips the
 # role with a notice.
 
@@ -105,17 +105,6 @@
             immediate: true
           loop: "{{ firewall_default_zone_services }}"
 
-        - name: Keep the default zone's own ports
-          ansible.posix.firewalld:
-            zone: "{{ firewall_default_zone.stdout }}"
-            port: "{{ item.port | replace(':', '-') }}/{{ item.proto }}"
-            state: enabled
-            permanent: true
-            immediate: true
-          loop: "{{ firewall_default_zone_ports }}"
-          loop_control:
-            label: "{{ item.comment }} {{ item.port }}/{{ item.proto }}"
-
         - name: Close the default zone's other services
           ansible.posix.firewalld:
             zone: "{{ firewall_default_zone.stdout }}"
@@ -125,16 +114,11 @@
             immediate: true
           loop: "{{ firewall_default_zone_open.results[0].stdout.split() | difference(firewall_default_zone_services) }}"
 
-        - name: Close the default zone's other ports
+        - name: Close the default zone's ports
           ansible.posix.firewalld:
             zone: "{{ firewall_default_zone.stdout }}"
             port: "{{ item }}"
             state: disabled
             permanent: true
             immediate: true
-          loop: >-
-            {{ firewall_default_zone_open.results[1].stdout.split()
-               | difference(firewall_default_zone_ports
-                            | map(attribute='port') | map('replace', ':', '-')
-                            | zip(firewall_default_zone_ports | map(attribute='proto'))
-                            | map('join', '/') | list) }}
+          loop: "{{ firewall_default_zone_open.results[1].stdout.split() }}"

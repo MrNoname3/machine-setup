@@ -258,12 +258,8 @@ firewall_allowed_extra:
   - { port: "27036:27037", proto: tcp, comment: "Steam Remote Play" }
   - { port: "27040", proto: tcp, comment: "Steam local game transfers" }
 
-# Radmin's launcher puts radminvpn0 in the trusted zone while it runs. Its direct
-# peer link listens on the LAN-side address on ports it picks anew at each start;
-# closed, it falls back to a slow relay or no link at all.
-firewall_default_zone_ports:
-  - { port: "1025:65535", proto: tcp, comment: "Radmin VPN direct peer link" }
-  - { port: "1025:65535", proto: udp, comment: "Radmin VPN direct peer link" }
+# radminvpn0 needs no rule: Radmin's launcher puts it in the trusted zone while
+# Radmin runs.
 
 # Pushes to the Gitea authenticate with a token kept by git's own store helper.
 git_config_extra:

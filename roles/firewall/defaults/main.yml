@@ -28,7 +28,3 @@ firewall_interface_allowed: []
 firewall_private_zone: private
 firewall_default_zone_services:
   - dhcpv6-client
-
-# firewalld: port/proto the default zone keeps open to every source, same shape
-# as firewall_allowed.
-firewall_default_zone_ports: []
