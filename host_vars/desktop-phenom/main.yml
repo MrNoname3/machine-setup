@@ -255,6 +255,8 @@ appimages:
       repo_filename: "RadminVPN-Linux-x86_64.AppImage"
       # Release candidates are published as pre-releases.
       allow_prereleases: false
+    # The launcher sets the TAP's MAC address and Radmin addresses frames to it.
+    fixed_mac_interfaces: [radminvpn0]
 
 # All UDP on radminvpn0, whose addresses are not RFC1918. Radmin peers check the
 # tunnel on a UDP port the service takes from the kernel at each start, and the

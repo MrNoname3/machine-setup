@@ -192,6 +192,8 @@ appimages:
       repo_filename: "RadminVPN-Linux-x86_64.AppImage"
       # Release candidates are published as pre-releases.
       allow_prereleases: false
+    # The launcher sets the TAP's MAC address and Radmin addresses frames to it.
+    fixed_mac_interfaces: [radminvpn0]
 
 # Radeon RX 9070 XT (Navi 48 / RDNA4) tuning. Every number here was measured on
 # THIS card -- see roles/graphics/README.md for the method and the raw results.

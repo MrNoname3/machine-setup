@@ -155,6 +155,20 @@ user logged in at the machine access to the device, and no one else; the rule
 files the vendors ship use `MODE="0666"` instead, which opens the device to every
 local account. Taking the ids from the vendor's file keeps the two lists in step.
 
+## Network interfaces
+
+An app that creates a network interface and sets its MAC address itself lists
+the interface under `fixed_mac_interfaces:`. The role writes them to
+`/etc/systemd/network/10-appimages-mac.link` with `MACAddressPolicy=none`.
+Without it, udev's `99-default.link` gives the new interface a MAC address of its
+own, and when that lands after the app has set its address, the app keeps
+addressing frames to the old one and the kernel drops every inbound packet.
+
+Radmin VPN's launcher creates `radminvpn0` this way. With the wrong address the
+VPN still connects out, but nothing comes back through it: Radmin shows "Another
+app is blocking the connection", pings over the VPN go unanswered and games
+cannot be joined.
+
 ## The update managers, and why each app uses the one it does
 
 | App | Manager | Source |

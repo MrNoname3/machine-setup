@@ -191,6 +191,17 @@
   when: appimages | selectattr('usb_devices', 'defined') | list | length > 0
   notify: Apply udev rules
 
+- name: Keep udev from replacing the MAC address of the AppImages' interfaces
+  ansible.builtin.template:
+    src: 10-appimages-mac.link.j2
+    dest: /etc/systemd/network/10-appimages-mac.link
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when: appimages | selectattr('fixed_mac_interfaces', 'defined') | list | length > 0
+  notify: Reload udev
+
 # --- Manual gate ----------------------------------------------------------
 # Without appimages_install_missing, integrating an AppImage stays a manual step
 # (multi-hundred-MB binaries), so the role reports what is missing rather than

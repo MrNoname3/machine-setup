@@ -3,7 +3,9 @@
   ansible.builtin.command: udevadm control --reload
   changed_when: true
   become: true
-  listen: Apply udev rules
+  listen:
+    - Apply udev rules
+    - Reload udev
 
 - name: Re-apply udev rules to connected USB devices
   ansible.builtin.command: udevadm trigger --subsystem-match=usb --action=change

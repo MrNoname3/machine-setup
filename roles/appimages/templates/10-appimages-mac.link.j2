@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+# Network interfaces AppImages create with a MAC address of their own (the
+# `fixed_mac_interfaces:` of each app in host_vars). The first matching .link
+# file applies, so this one keeps 99-default.link's MACAddressPolicy=persistent
+# from replacing the address after the app has set it.
+
+[Match]
+OriginalName={{ appimages | selectattr('fixed_mac_interfaces', 'defined') | map(attribute='fixed_mac_interfaces') | flatten | join(' ') }}
+
+[Link]
+MACAddressPolicy=none
