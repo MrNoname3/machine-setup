@@ -74,7 +74,7 @@ kde_lookandfeel: org.kde.breezedark.desktop
 # replaces any other installed version with. Bazzite has no Discover to update
 # KDE Store add-ons, so Renovate proposes each new release instead.
 # renovate: datasource=github-releases depName=rxappdev/RememberWindowPositions
-kde_rwp_version: "7.0.0"
+kde_rwp_version: "7.0.1"
 kde_rwp_package_url: "https://github.com/rxappdev/RememberWindowPositions/releases/download/v{{ kde_rwp_version }}/rememberwindowpositions.kwinscript"
 
 # Windows the script leaves alone, for Window Places to place instead:
