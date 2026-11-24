@@ -146,7 +146,7 @@ same extraction gives. Mesa's VP2 decoder zeroed its rings with a clear of a
 render target it made up around each ring, which the template surfaces of
 Mesa 25.2 broke, and it tore itself down while the engines could still be
 running; the `mesa-nv84-*` patches fix both. A browser's GPU process also
-needs `mesa-winsys-object-del.patch`: Mesa deleted its nouveau objects
+needed a fix Mesa 26.3 carries (`mesa-winsys-object-del.patch` before): Mesa deleted its nouveau objects
 through the wrong file descriptor, the kernel kept them, and the VP2
 decoder's probe for PBSP failed when it reused a freed object's address.
 The decoder cleared only the last page of its vpring, which PVP2 reads
