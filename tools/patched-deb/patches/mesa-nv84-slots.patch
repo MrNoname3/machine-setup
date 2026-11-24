@@ -10,7 +10,6 @@ Description: Let PBSP and PVP2 work on consecutive H.264 frames at once
  says nothing about them: the semaphores count up, and the CPU reads a
  slot's semaphore before it refills the slot or frees the decoder.
 diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video.c b/src/gallium/drivers/nouveau/nv50/nv84_video.c
-index 5d2d2f3..8803335 100644
 --- a/src/gallium/drivers/nouveau/nv50/nv84_video.c
 +++ b/src/gallium/drivers/nouveau/nv50/nv84_video.c
 @@ -30,6 +30,8 @@
@@ -191,7 +190,7 @@ index 5d2d2f3..8803335 100644
 @@ -497,26 +538,28 @@ nv84_create_decoder(struct pipe_context *context,
        mip.base.bo = dec->mbring;
        mip.base.address = dec->mbring->offset;
-       nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 64, 4760, false);
+       nv50_clear_render_target_internal(context, &surf, &color, 0, 0, 64, 4760, false);
 -      surf.offset = dec->vpring->size / 2 - 0x1000;
 +      surf.offset = dec->vpring_size - 0x1000;
        surf.width = 1024;
@@ -199,16 +198,16 @@ index 5d2d2f3..8803335 100644
        mip.level[0].pitch = surf.width * 4;
 -      mip.base.bo = dec->vpring;
 -      mip.base.address = dec->vpring->offset;
--      nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 1024, 1, false);
+-      nv50_clear_render_target_internal(context, &surf, &color, 0, 0, 1024, 1, false);
 -      surf.offset = dec->vpring->size - 0x1000;
--      nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 1024, 1, false);
+-      nv50_clear_render_target_internal(context, &surf, &color, 0, 0, 1024, 1, false);
 -
 -      PUSH_SPACE(nv50->base.pushbuf, 5);
 -      PUSH_REF1(nv50->base.pushbuf, dec->fence, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
 +      for (i = 0; i < NV84_SLOTS; i++) {
 +         mip.base.bo = dec->vpring[i];
 +         mip.base.address = dec->vpring[i]->offset;
-+         nv50_clear_render_target_sf(context, &surf, &color, 0, 0, 1024, 1, false);
++         nv50_clear_render_target_internal(context, &surf, &color, 0, 0, 1024, 1, false);
 +      }
 +
        /* The clear_render_target is done via 3D engine, so use it to write to a
@@ -232,7 +231,6 @@ index 5d2d2f3..8803335 100644
  
        PUSH_SPACE(bsp_push, 2 + 12 + 2 + 4 + 3);
 diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video.h b/src/gallium/drivers/nouveau/nv50/nv84_video.h
-index 85d5964..0b6c85f 100644
 --- a/src/gallium/drivers/nouveau/nv50/nv84_video.h
 +++ b/src/gallium/drivers/nouveau/nv50/nv84_video.h
 @@ -55,6 +55,11 @@ struct nv84_video_buffer {
@@ -280,7 +278,6 @@ index 85d5964..0b6c85f 100644
     size_t vp_fw2_offset;
  
 diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c b/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
-index e910369..28a4e30 100644
 --- a/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
 +++ b/src/gallium/drivers/nouveau/nv50/nv84_video_bsp.c
 @@ -98,14 +98,21 @@ nv84_decoder_bsp(struct nv84_decoder *dec,
@@ -393,7 +390,6 @@ index e910369..28a4e30 100644
     BEGIN_NV04(push, SUBC_BSP(0x304), 1);
     PUSH_DATA (push, 0x101);
 diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video_vp.c b/src/gallium/drivers/nouveau/nv50/nv84_video_vp.c
-index 1e1506e..1a4f45a 100644
 --- a/src/gallium/drivers/nouveau/nv50/nv84_video_vp.c
 +++ b/src/gallium/drivers/nouveau/nv50/nv84_video_vp.c
 @@ -73,13 +73,17 @@ nv84_decoder_vp_h264(struct nv84_decoder *dec,

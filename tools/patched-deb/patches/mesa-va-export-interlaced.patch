@@ -4,28 +4,21 @@ Description: Export a progressive copy of an interlaced VA surface
  software decoding. Export a progressive buffer instead, which the
  processing path weaves from the fields after every decode into the
  surface.
---- a/src/gallium/frontends/va/va_private.h
-+++ b/src/gallium/frontends/va/va_private.h
-@@ -436,6 +436,8 @@
-    vlVaBuffer *coded_buf;
-    struct pipe_fence_handle *fence; /* pipe_video_codec fence */
-    struct pipe_fence_handle *pipe_fence; /* pipe_context fence */
-+   /* Progressive copy of an interlaced buffer, which is what gets exported. */
-+   struct pipe_video_buffer *export_buffer;
-    bool is_dpb;
-    unsigned int strides[3];
-    unsigned int offsets[3];
-@@ -563,6 +565,7 @@
-                                    const uint64_t *modifiers, unsigned int modifiers_count);
- struct pipe_video_buffer *vlVaGetSurfaceBuffer(vlVaDriver *drv, vlVaSurface *surface);
- void vlVaSurfaceFlush(vlVaDriver *drv, vlVaSurface *surf);
-+void vlVaUpdateExportBuffer(vlVaDriver *drv, vlVaSurface *surf);
- void vlVaAddRawHeader(struct util_dynarray *headers, uint8_t type, uint32_t size, uint8_t *buf,
-                       bool is_slice, uint32_t emulation_bytes_start);
- void vlVaGetBufferFeedback(vlVaBuffer *buf);
+diff --git a/src/gallium/frontends/va/picture.c b/src/gallium/frontends/va/picture.c
+--- a/src/gallium/frontends/va/picture.c
++++ b/src/gallium/frontends/va/picture.c
+@@ -362,6 +362,7 @@ vlVaEndPicture(VADriverContextP ctx, VAContextID context_id)
+ 
+ 
+    if (context->decoder->entrypoint == PIPE_VIDEO_ENTRYPOINT_BITSTREAM) {
++      vlVaUpdateExportBuffer(drv, surf);
+       if (context->proc.dst_surface) {
+          if (!context->decoder->process_frame ||
+              context->decoder->process_frame(context->decoder, context->target, &context->proc.vpp) != 0) {
+diff --git a/src/gallium/frontends/va/surface.c b/src/gallium/frontends/va/surface.c
 --- a/src/gallium/frontends/va/surface.c
 +++ b/src/gallium/frontends/va/surface.c
-@@ -105,6 +105,8 @@
+@@ -69,6 +69,8 @@ vlVaDestroySurface(vlVaDriver *drv, vlVaSurface *surf)
  {
     if (surf->buffer)
        surf->buffer->destroy(surf->buffer);
@@ -33,8 +26,8 @@ Description: Export a progressive copy of an interlaced VA surface
 +      surf->export_buffer->destroy(surf->export_buffer);
     if (surf->pipe_fence)
        drv->pipe->screen->fence_reference(drv->pipe->screen, &surf->pipe_fence, NULL);
-    if (surf->ctx) {
-@@ -816,6 +818,26 @@
+    if (surf->fence) {
+@@ -787,6 +789,26 @@ vlVaSurfaceFlush(vlVaDriver *drv, vlVaSurface *surf)
                      drv->has_external_handles ? 0 : PIPE_FLUSH_ASYNC);
  }
  
@@ -61,7 +54,7 @@ Description: Export a progressive copy of an interlaced VA surface
  static void
  vlVaSwitchToProtectedContext(vlVaDriver *drv)
  {
-@@ -1187,6 +1209,7 @@
+@@ -1165,6 +1187,7 @@ vlVaExportSurfaceHandle(VADriverContextP ctx,
  {
     vlVaDriver *drv;
     vlVaSurface *surf;
@@ -69,7 +62,7 @@ Description: Export a progressive copy of an interlaced VA surface
     struct pipe_surface *surfaces;
     struct pipe_screen *screen;
     VAStatus ret;
-@@ -1217,12 +1240,31 @@
+@@ -1195,12 +1218,31 @@ vlVaExportSurfaceHandle(VADriverContextP ctx,
        return VA_STATUS_ERROR_INVALID_SURFACE;
     }
  
@@ -105,7 +98,7 @@ Description: Export a progressive copy of an interlaced VA surface
  
     usage = 0;
     if (flags & VA_EXPORT_SURFACE_WRITE_ONLY)
-@@ -1251,7 +1293,7 @@
+@@ -1229,7 +1271,7 @@ vlVaExportSurfaceHandle(VADriverContextP ctx,
  
  #else
     VADRMPRIMESurfaceDescriptor *desc = descriptor;
@@ -114,7 +107,7 @@ Description: Export a progressive copy of an interlaced VA surface
     desc->width = surf->templat.width;
     desc->height = surf->templat.height;
     desc->num_objects = 0;
-@@ -1315,7 +1357,7 @@
+@@ -1293,7 +1335,7 @@ vlVaExportSurfaceHandle(VADriverContextP ctx,
     }
  
     if (flags & VA_EXPORT_SURFACE_COMPOSED_LAYERS) {
@@ -123,13 +116,23 @@ Description: Export a progressive copy of an interlaced VA surface
        if (drm_format == DRM_FORMAT_INVALID) {
           ret = VA_STATUS_ERROR_UNSUPPORTED_MEMORY_TYPE;
           goto fail;
---- a/src/gallium/frontends/va/picture.c
-+++ b/src/gallium/frontends/va/picture.c
-@@ -428,6 +428,7 @@
- 
- 
-    if (context->decoder->entrypoint == PIPE_VIDEO_ENTRYPOINT_BITSTREAM) {
-+      vlVaUpdateExportBuffer(drv, surf);
-       if (context->proc.dst_surface) {
-          if (!context->decoder->process_frame ||
-              context->decoder->process_frame(context->decoder, context->target, &context->proc.vpp) != 0) {
+diff --git a/src/gallium/frontends/va/va_private.h b/src/gallium/frontends/va/va_private.h
+--- a/src/gallium/frontends/va/va_private.h
++++ b/src/gallium/frontends/va/va_private.h
+@@ -432,6 +432,8 @@ typedef struct vlVaSurface {
+    struct pipe_video_codec *codec;
+    struct pipe_fence_handle *fence; /* pipe_video_codec fence */
+    struct pipe_fence_handle *pipe_fence; /* pipe_context fence */
++   /* Progressive copy of an interlaced buffer, which is what gets exported. */
++   struct pipe_video_buffer *export_buffer;
+    uint32_t *dpb_id;
+    struct pipe_video_buffer **dpb_buffer;
+    unsigned int strides[3];
+@@ -560,6 +562,7 @@ MESAPROC VAStatus vlVaHandleVAProcPipelineParameterBufferType(vlVaDriver *drv, v
+ VAStatus vlVaHandleSurfaceAllocate(vlVaDriver *drv, vlVaSurface *surface, const uint64_t *modifiers, unsigned modifiers_count);
+ struct pipe_video_buffer *vlVaGetSurfaceBuffer(vlVaDriver *drv, vlVaSurface *surface);
+ void vlVaSurfaceFlush(vlVaDriver *drv, vlVaSurface *surf);
++void vlVaUpdateExportBuffer(vlVaDriver *drv, vlVaSurface *surf);
+ void vlVaAddRawHeader(struct util_dynarray *headers, uint8_t type, uint32_t size, uint8_t *buf,
+                       bool is_slice, uint32_t emulation_bytes_start);
+ void vlVaGetBufferFeedback(vlVaBuffer *buf);
