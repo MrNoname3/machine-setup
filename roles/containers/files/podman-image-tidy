@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Remove the images that a newer one of the same repository replaces and no
+# container uses, then the dangling ones. Per repository the highest tag stays
+# (by version) or, with no tag left, the newest copy; local builds (localhost/)
+# are never touched, as they cannot be pulled again. A storage check follows
+# where podman has one, so damage shows as a failed unit.
+#
+#   podman-image-tidy [--dry-run]
+set -euo pipefail
+
+dry=0
+case "${1:-}" in
+  --dry-run) dry=1 ;;
+  "") ;;
+  *) echo "usage: podman-image-tidy [--dry-run]" >&2; exit 2 ;;
+esac
+
+used=" $(podman ps -a --no-trunc --format '{{.ImageID}}' | tr '\n' ' ')"
+keep_repo=""
+
+# One row per name: repository, 1 if tagged, tag, creation (UTC), id. Sorted so
+# that each repository's first row is the one that stays.
+while IFS='|' read -r repo _ tag _ id; do
+  id="${id#sha256:}"
+  case "$repo" in "<none>" | localhost/*) continue ;; esac
+  if [ "$repo" != "$keep_repo" ]; then
+    keep_repo="$repo" keep_id="$id"
+    continue
+  fi
+  [ "$id" = "$keep_id" ] && continue # another name of the image that stays
+  case "$used" in *" $id "*) continue ;; esac
+  ref="$repo:$tag"
+  [ "$tag" = "<none>" ] && ref="$id"
+  if [ "$dry" -eq 1 ]; then
+    echo "would remove $ref"
+  elif podman rmi "$ref" >/dev/null; then
+    echo "removed $ref"
+  else
+    echo "kept $ref: podman could not remove it"
+  fi
+done < <(podman images --no-trunc --format '{{.Repository}}|{{.Tag}}|{{.CreatedAt}}|{{.ID}}' |
+  awk -F'|' -v OFS='|' '{ print $1, ($2 != "<none>"), $2, $3, $4 }' |
+  sort -t'|' -k1,1 -k2,2r -k3,3Vr -k4,4r)
+
+if [ "$dry" -eq 1 ]; then
+  podman images --filter dangling=true --format 'would remove dangling {{.ID}}'
+  exit 0
+fi
+podman image prune -f >/dev/null
+
+if podman system check --help >/dev/null 2>&1; then
+  podman system check --quick
+fi

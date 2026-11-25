@@ -165,3 +165,55 @@
         name: podman-restart.service
         scope: user
         enabled: true
+
+
+# ===========================================================================
+# Every host: a weekly user timer that removes replaced and dangling images, as
+# each pull of a new tag (a CI job image after a version bump) leaves the old
+# one behind.
+# ===========================================================================
+- name: Tidy the Podman images from a user timer
+  when: container_image_tidy | bool
+  become: false
+  block:
+    - name: Ensure ~/.local/bin and the user unit directory exist
+      ansible.builtin.file:
+        path: "/home/{{ primary_user }}/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop: [.local/bin, .config/systemd/user]
+
+    - name: Install the image tidy script
+      ansible.builtin.copy:
+        src: podman-image-tidy
+        dest: "/home/{{ primary_user }}/.local/bin/podman-image-tidy"
+        mode: "0755"
+
+    - name: Install the image tidy units
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "/home/{{ primary_user }}/.config/systemd/user/{{ item }}"
+        mode: "0644"
+      loop:
+        - podman-image-tidy.service
+        - podman-image-tidy.timer
+
+    # A check run copies no unit file, so the timer it would enable is unknown.
+    - name: Enable the image tidy timer
+      ansible.builtin.systemd_service:
+        name: podman-image-tidy.timer
+        scope: user
+        enabled: true
+        state: started
+        daemon_reload: true
+      ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Stop the image tidy timer
+  ansible.builtin.systemd_service:
+    name: podman-image-tidy.timer
+    scope: user
+    enabled: false
+    state: stopped
+  become: false
+  failed_when: false # never installed is fine
+  when: not (container_image_tidy | bool)

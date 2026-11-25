@@ -31,3 +31,7 @@ container_docker_cli: false
 # this would hijack the `docker` CLI away from it. Enable ONLY where Podman is the
 # sole container engine (set container_docker_host_export: true in that host_vars).
 container_docker_host_export: false
+
+# A weekly user timer removes the images a newer one of the same repository
+# replaces and no container uses, and the dangling ones (podman-image-tidy).
+container_image_tidy: true

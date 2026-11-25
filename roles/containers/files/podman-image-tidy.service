@@ -1,0 +1,6 @@
+[Unit]
+Description=Remove replaced and dangling Podman images
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/podman-image-tidy
