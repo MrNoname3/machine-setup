@@ -77,6 +77,10 @@ flatpak_apps:
   - org.kde.kcalc
   - org.kde.filelight
   - org.videolan.VLC
+  # The NAS's Jellyfin. It decodes on the GPU only with Settings > Video >
+  # Hardware Decoding set to Enabled: the default, Copy, needs a VA-API device
+  # of its own, and its mpv can open one only through X11, absent under Wayland.
+  - org.jellyfin.JellyfinDesktop
   - org.gnome.meld
   - org.gnome.SimpleScan          # the Samsung SCX-4x21's scanner
   # 3D printing / EDA / CAD
