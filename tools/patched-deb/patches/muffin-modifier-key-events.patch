@@ -1,0 +1,210 @@
+Description: Pass modifier-only key events on to clients
+ Muffin takes a lone Shift, Ctrl or Alt press for its own keybindings and,
+ under Wayland, never sends it on. Xwayland then delivers no KeyPress for the
+ modifier, and Wine, which keeps its key state from those events, types
+ lower-case letters and reads Ctrl+V as V.
+Author: Michael Webster <262776+mtwebster@users.noreply.github.com>
+Origin: upstream, https://github.com/linuxmint/muffin/commit/68efbd8c54410ad63ca50d8df9b639c46a7e4696
+diff --git a/src/core/events.c b/src/core/events.c
+index 35839bd947..160c088d3f 100644
+--- a/src/core/events.c
++++ b/src/core/events.c
+@@ -29,6 +29,7 @@
+ #include "backends/x11/meta-backend-x11.h"
+ #include "compositor/meta-window-actor-private.h"
+ #include "core/display-private.h"
++#include "core/keybindings-private.h"
+ #include "core/window-private.h"
+ #include "meta/meta-backend.h"
+ 
+@@ -378,12 +379,21 @@ meta_display_handle_event (MetaDisplay        *display,
+    * handled (because it's one of our hot-keys, or because we are
+    * in a keyboard-grabbed mode like moving a window, we don't
+    * want to pass the key event to the compositor or Wayland at all.
++   *
++   * Exception: modifier-only key events should still reach Wayland clients
++   * so they can handle modifier+click combinations (Ctrl+click, etc.).
++   * The keybinding handler just tracks modifier state for overlay key
++   * functionality, which doesn't conflict with clients also receiving
++   * the modifier events.
+    */
+   if (display->event_route != META_EVENT_ROUTE_COMPOSITOR_GRAB &&
+       meta_keybindings_process_event (display, window, event))
+     {
+       bypass_clutter = TRUE;
+-      bypass_wayland = TRUE;
++#ifdef HAVE_WAYLAND
++      if (!(IS_KEY_EVENT (event) && meta_keybindings_is_modifier (event->key.keyval)))
++#endif
++        bypass_wayland = TRUE;
+       goto out;
+     }
+ 
+diff --git a/src/core/keybindings-private.h b/src/core/keybindings-private.h
+index 1d42a8c551..0e35868692 100644
+--- a/src/core/keybindings-private.h
++++ b/src/core/keybindings-private.h
+@@ -139,6 +139,7 @@ void     meta_window_ungrab_all_keys        (MetaWindow  *window,
+ gboolean meta_keybindings_process_event     (MetaDisplay        *display,
+                                              MetaWindow         *window,
+                                              const ClutterEvent *event);
++gboolean meta_keybindings_is_modifier       (xkb_keysym_t        keysym);
+ int      meta_keybindings_get_mouse_zoom_modifiers (MetaDisplay *display);
+ ClutterModifierType meta_display_get_window_grab_modifiers (MetaDisplay *display);
+ 
+diff --git a/src/core/keybindings.c b/src/core/keybindings.c
+index f533d7cf63..7e4cd6903e 100644
+--- a/src/core/keybindings.c
++++ b/src/core/keybindings.c
+@@ -1953,8 +1953,8 @@ meta_display_unfreeze_keyboard (MetaDisplay *display, guint32 timestamp)
+                  XIAsyncDevice, timestamp);
+ }
+ 
+-static gboolean
+-is_modifier (xkb_keysym_t keysym)
++gboolean
++meta_keybindings_is_modifier (xkb_keysym_t keysym)
+ {
+   switch (keysym)
+     {
+@@ -2631,7 +2631,7 @@ process_keyboard_move_grab (MetaDisplay     *display,
+     return TRUE;
+ 
+   /* don't end grab on modifier key presses */
+-  if (is_modifier (event->keyval))
++  if (meta_keybindings_is_modifier (event->keyval))
+     return TRUE;
+ 
+   meta_window_get_frame_rect (window, &frame_rect);
+@@ -2885,7 +2885,7 @@ process_keyboard_resize_grab (MetaDisplay     *display,
+     return TRUE;
+ 
+   /* don't end grab on modifier key presses */
+-  if (is_modifier (event->keyval))
++  if (meta_keybindings_is_modifier (event->keyval))
+     return TRUE;
+ 
+   if (event->keyval == CLUTTER_KEY_Escape)
+diff --git a/src/wayland/meta-wayland-keyboard.c b/src/wayland/meta-wayland-keyboard.c
+index 1f050e689d..e3210fefa7 100644
+--- a/src/wayland/meta-wayland-keyboard.c
++++ b/src/wayland/meta-wayland-keyboard.c
+@@ -529,6 +529,8 @@ meta_wayland_keyboard_enable (MetaWaylandKeyboard *keyboard)
+   MetaBackend *backend = meta_get_backend ();
+   ClutterBackend *clutter_backend = clutter_get_default_backend ();
+ 
++  wl_array_init (&keyboard->pressed_keys);
++
+   keyboard->settings = g_settings_new ("org.gnome.desktop.peripherals.keyboard");
+   g_signal_connect (keyboard->settings, "changed",
+                     G_CALLBACK (settings_changed), keyboard);
+@@ -569,6 +571,8 @@ meta_wayland_keyboard_disable (MetaWaylandKeyboard *keyboard)
+   wl_list_remove (&keyboard->focus_resource_list);
+   wl_list_init (&keyboard->focus_resource_list);
+ 
++  wl_array_release (&keyboard->pressed_keys);
++
+   g_clear_object (&keyboard->settings);
+ }
+ 
+@@ -580,6 +584,45 @@ evdev_code (const ClutterKeyEvent *event)
+   return event->hardware_keycode - 8;
+ }
+ 
++static void
++update_pressed_keys (MetaWaylandKeyboard *keyboard,
++                     uint32_t             evdev_code,
++                     gboolean             is_press)
++{
++  if (is_press)
++    {
++      uint32_t *end = (uint32_t *) ((char *) keyboard->pressed_keys.data +
++                                    keyboard->pressed_keys.size);
++      uint32_t *k;
++
++      for (k = keyboard->pressed_keys.data; k < end; k++)
++        {
++          if (*k == evdev_code)
++            return;
++        }
++
++      k = wl_array_add (&keyboard->pressed_keys, sizeof (*k));
++      if (k)
++        *k = evdev_code;
++    }
++  else
++    {
++      uint32_t *end = (uint32_t *) ((char *) keyboard->pressed_keys.data +
++                                    keyboard->pressed_keys.size);
++      uint32_t *k;
++
++      for (k = keyboard->pressed_keys.data; k < end; k++)
++        {
++          if (*k == evdev_code)
++            {
++              *k = *(end - 1);
++              keyboard->pressed_keys.size -= sizeof (*k);
++              return;
++            }
++        }
++    }
++}
++
+ void
+ meta_wayland_keyboard_update (MetaWaylandKeyboard *keyboard,
+                               const ClutterKeyEvent *event)
+@@ -594,6 +637,8 @@ meta_wayland_keyboard_update (MetaWaylandKeyboard *keyboard,
+        (CLUTTER_EVENT_FLAG_SYNTHETIC | CLUTTER_EVENT_FLAG_INPUT_METHOD)) != 0)
+     return;
+ 
++  update_pressed_keys (keyboard, evdev_code (event), is_press);
++
+   /* If we get a key event but still have pending modifier state
+    * changes from a previous event that didn't get cleared, we need to
+    * send that state right away so that the new key event can be
+@@ -698,30 +743,10 @@ static void
+ broadcast_focus (MetaWaylandKeyboard *keyboard,
+                  struct wl_resource  *resource)
+ {
+-  struct wl_array fake_keys;
+-
+-  /* We never want to send pressed keys to wayland clients on
+-   * enter. The protocol says that we should send them, presumably so
+-   * that clients can trigger their own key repeat routine in case
+-   * they are given focus and a key is physically pressed.
+-   *
+-   * Unfortunately this causes some clients, in particular Xwayland,
+-   * to register key events that they really shouldn't handle,
+-   * e.g. on an Alt+Tab keybinding, where Alt is released before Tab,
+-   * clients would see Tab being pressed on enter followed by a key
+-   * release event for Tab, meaning that Tab would be processed by
+-   * the client when it really shouldn't.
+-   *
+-   * Since the use case for the pressed keys array on enter seems weak
+-   * to us, we'll just fake that there are no pressed keys instead
+-   * which should be spec compliant even if it might not be true.
+-   */
+-  wl_array_init (&fake_keys);
+-
+-  keyboard_send_modifiers (keyboard, resource, keyboard->focus_serial);
+   wl_keyboard_send_enter (resource, keyboard->focus_serial,
+                           keyboard->focus_surface->resource,
+-                          &fake_keys);
++                          &keyboard->pressed_keys);
++  keyboard_send_modifiers (keyboard, resource, keyboard->focus_serial);
+ }
+ 
+ void
+diff --git a/src/wayland/meta-wayland-keyboard.h b/src/wayland/meta-wayland-keyboard.h
+index 6e8a61674e..9ed2a31561 100644
+--- a/src/wayland/meta-wayland-keyboard.h
++++ b/src/wayland/meta-wayland-keyboard.h
+@@ -95,6 +95,8 @@ struct _MetaWaylandKeyboard
+   uint32_t key_up_keycode;
+   uint32_t key_up_serial;
+ 
++  struct wl_array pressed_keys;
++
+   MetaWaylandXkbInfo xkb_info;
+   enum xkb_state_component mods_changed;
+   xkb_mod_mask_t kbd_a11y_latched_mods;
