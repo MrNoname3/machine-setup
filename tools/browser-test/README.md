@@ -34,6 +34,12 @@ Plasma.
   passwordless `sudo`), or when the kernel logs a GPU error, and records the
   round and the action either way. Into `results/stress-NAME.json`.
 
+[combing.py](combing.py) `NAME ROUNDS` opens a clip ROUNDS times and scores
+every frame Brave presents, in the page itself, for mixed-up fields: a
+picture whose two fields come from different pictures scores far above the
+rest. It reads no screenshot, so it sees every frame, and it takes `--env` and
+`--` like `run.py`. Into `results/combing-NAME.json`.
+
 A run keeps the machine from suspending or going idle while it lasts: through
 the desktop's session manager (Cinnamon's or GNOME's, also from an SSH login),
 or else through logind, which allows it only from the local session.
@@ -101,6 +107,12 @@ The `stress` actions:
 | `focus`, `minimise` | another window to the front and back, minimise and restore (X11 only) |
 
 ## What it has shown
+
+- On a 9800 GT (VP2), about one start in forty showed a picture with its
+  fields mixed up for a few seconds; `video` passed, as its single paused
+  frame was whole. `combing.py` caught those starts and none once the decoder
+  cleared its whole VP ring
+  ([mesa-nv84-vpring-clear.patch](../patched-deb/patches/mesa-nv84-vpring-clear.patch)).
 
 - On the Tesla cards Brave picked the hardware decoder, the picture moved and
   no frame dropped, yet it was noise or blocks of stale video: Mesa never
