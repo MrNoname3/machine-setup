@@ -31,7 +31,7 @@ the same, known IP.
    one only exists after boot):
 
    ```sh
-   ssh root@<machine-address>       # or a dedicated ssh-config alias
+   ssh root@<machine-address>       # or the machine's own alias, see below
    ```
 
 3. At the BusyBox prompt run:
@@ -43,13 +43,30 @@ the same, known IP.
    type the LUKS passphrase, the initramfs continues booting, and the SSH
    session drops.
 
-### Host-key warning
+### One ssh name for both
 
 The initramfs has its **own** dropbear host key, different from the booted
-system's OpenSSH key — same address, two identities. Keep a dedicated ssh-config
-alias for the unlock (separate `known_hosts` entry / port 22 vs the hardened
-port), otherwise ssh will scream about a changed host key every time you switch
-between the two.
+system's OpenSSH key — same address, two identities. A `Match` block can send
+the machine's usual alias to dropbear whenever port 22 answers, which only
+happens while the initramfs waits. The two keys stay apart on their own, since
+`known_hosts` records a non-default port with the address:
+
+```sshconfig
+Match originalhost <alias> exec "timeout 0.5 bash -c '</dev/tcp/%h/22' 2>/dev/null"
+    Port 22
+    User root
+    RequestTTY yes
+    RemoteCommand cryptroot-unlock
+
+Host <alias>
+    HostName <machine-address>
+    Port <hardened-port>
+```
+
+The `Match` block goes above the `Host` block, as ssh keeps the first value it
+reads. `ssh <alias>` then asks for the passphrase at boot and logs in otherwise. To
+run another command in the initramfs, override the unlock:
+`ssh -o RemoteCommand=none <alias> '…'`.
 
 ## Scope notes
 
