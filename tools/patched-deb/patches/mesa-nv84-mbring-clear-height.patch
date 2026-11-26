@@ -1,0 +1,19 @@
+Description: Clear only the mbring the VP2 decoder allocated
+ nv84_create_decoder sizes the mbring by the stream's reference count but
+ cleared a fixed 4760 rows of it, which runs past its end for streams
+ with few references, such as 720p with three: the 3D engine then writes
+ over whatever follows the mbring, or faults and hangs PGRAPH. Clear the
+ rows the mbring has.
+diff --git a/src/gallium/drivers/nouveau/nv50/nv84_video.c b/src/gallium/drivers/nouveau/nv50/nv84_video.c
+index 0869c3319fc..562620a4bfb 100644
+--- a/src/gallium/drivers/nouveau/nv50/nv84_video.c
++++ b/src/gallium/drivers/nouveau/nv50/nv84_video.c
+@@ -494,7 +494,7 @@ nv84_create_decoder(struct pipe_context *context,
+       mip.base.domain = NOUVEAU_BO_VRAM;
+       mip.base.bo = dec->mbring;
+       mip.base.address = dec->mbring->offset;
+-      nv50_clear_render_target_internal(context, &surf, &color, 0, 0, 64, 4760, false);
++      nv50_clear_render_target_internal(context, &surf, &color, 0, 0, 64, surf.height, false);
+       surf.offset = dec->vpring->size / 2 - 0x1000;
+       surf.width = 1024;
+       surf.height = 1;
