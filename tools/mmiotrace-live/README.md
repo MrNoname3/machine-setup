@@ -164,6 +164,33 @@ pinned commit, as root in a throwaway container; nouveau exposes the GPU's
 VBIOS as `/sys/kernel/debug/dri/<n>/vbios.rom`. A VBIOS is the board maker's
 firmware, so it stays out of the repository.
 
+## Tracing video decoding
+
+mmiotrace sees only the kernel's register accesses. The video decoder of
+NVIDIA's driver lives in its VDPAU library and hands the engines their work
+through buffers it maps, which valgrind-mmt records: every write the program
+makes to memory mapped from the driver, and the driver's ioctls.
+[mmt-build.sh](mmt-build.sh) builds it and envytools' `demmt` for the 340
+image, in a throwaway Ubuntu 20.04 container. On the live system, with
+`nvidia` loaded (`modprobe --ignore-install nvidia`), mpv installed, and an X
+server on the card started from [xorg-nvidia.conf](xorg-nvidia.conf) the way
+[trace-clocks.sh](trace-clocks.sh) starts it:
+
+```
+DISPLAY=:1 /opt/mmt/bin/valgrind --tool=mmt --mmt-trace-nvidia-ioctls --log-file=clip.log \
+  mpv --no-config --hwdec=vdpau-copy --vo=null --frames=12 clip.mp4
+RNN_PATH=/opt/mmt/share/envytools/rnndb:/opt/mmt/share/envytools/rnndb-generated \
+  /opt/mmt/bin/demmt -m 92 -c 0 -p 0 -l clip.log > clip.txt
+```
+
+`demmt` cannot tell mpv's channels apart, but each write shows as
+`w <buffer>:<offset>, <value>`. On a Tesla card the H.264 parameters for
+PBSP are the block nouveau calls `struct iparm`, at the start of one buffer;
+[tesla/vp2-iparm.py](tesla/vp2-iparm.py) prints it per picture, with
+nouveau's field names. A recording holds the clip's pictures and nothing
+that identifies the card, but compare what the blob decodes against software
+decoding before reading anything into it.
+
 ## Reading a falcon's firmware
 
 The GPU's falcon microcontrollers, among them the PMU at `0x10a000`, run code

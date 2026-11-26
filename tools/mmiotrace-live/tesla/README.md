@@ -155,6 +155,17 @@ old one's data, and a stream started on a black picture with only the
 moving parts drawn, until its next keyframe.
 `mesa-nv84-vpring-clear.patch` clears the whole ring.
 
+The decoder also cleared a fixed 4760 rows of its mbring, which it sizes by
+the stream's reference count: with three references at 720p the clear ran
+past its end, onto whatever followed or into a fault that hung PGRAPH;
+`mesa-nv84-mbring-clear-height.patch` clears the rows the mbring has. And B
+pictures with temporal direct prediction came out wrong, while NVIDIA's
+driver decoded them right: a recording of it
+([Tracing video decoding](../README.md#tracing-video-decoding)) showed it
+keeping each reference in the same place of the reference tables for as long
+as it is one, where Mesa filled them in the order the application lists
+them; `mesa-nv84-ref-places.patch` keeps the places.
+
 With all of these the VP2 engines decode H.264 on the 9800 GT, and Brave and
 Celluloid show the clip's frames, which
 [browser-test](../../browser-test/)'s picture check compares with a
