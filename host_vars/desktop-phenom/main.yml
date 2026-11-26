@@ -249,12 +249,11 @@ appimages:
       allow_prereleases: true
   - name: Radmin VPN                 # Windows Radmin VPN client under bundled Wine
     file: radmin_vpn.appimage
-    manager: GithubUpdater
+    # Held at v1.1.1: the native helpers of v1.1.2 require x86-64-v2, and the
+    # Phenom is baseline x86-64. A fixed URL keeps the size comparison equal.
+    manager: StaticFileUpdater
     config:
-      repo: baptisterajaut/radmin-vpn-linux
-      repo_filename: "RadminVPN-Linux-x86_64.AppImage"
-      # Release candidates are published as pre-releases.
-      allow_prereleases: false
+      url: "https://github.com/baptisterajaut/radmin-vpn-linux/releases/download/v1.1.1/RadminVPN-Linux-x86_64.AppImage"
     # The launcher sets the TAP's MAC address and Radmin addresses frames to it.
     fixed_mac_interfaces: [radminvpn0]
 
