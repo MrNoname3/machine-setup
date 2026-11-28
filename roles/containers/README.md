@@ -38,9 +38,9 @@ podman system prune -af                      # reclaim space
 Unqualified names (`nginx`, `ubuntu`, `python`…) resolve to Docker Hub, exactly
 like Docker. Verified: `podman run hello-world` → "Hello from Docker!".
 
-## Image tidy (weekly)
+## Image tidy (daily)
 
-A user timer (`podman-image-tidy.timer`, weekly) removes the images that a
+A user timer (`podman-image-tidy.timer`, daily) removes the images that a
 newer one of the same repository replaces and no container uses, and the
 dangling ones: each pull of a new tag, a CI job image after a version bump
 say, otherwise leaves the old one on disk. Per repository the highest tag
